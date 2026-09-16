@@ -880,6 +880,21 @@
 
     function initEmptyRender() {
       try {
+        const cachedStr = localStorage.getItem('bowling_cache_raw');
+        if (cachedStr) {
+          try {
+            const cached = JSON.parse(cachedStr);
+            if (cached && cached.data) {
+              rawResponse = cached;
+              if (cached.config && cached.config.defaultDay) {
+                currentDay = cached.config.defaultDay;
+              }
+              initUserIdentity();
+              renderAll();
+              return;
+            }
+          } catch (ce) {}
+        }
         renderColumn('leftCol', LEFT_LANES, [], { openLanes: '3-24', staffLanes: '7/8' }, 4);
         renderColumn('rightCol', RIGHT_LANES, [], { openLanes: '3-24', staffLanes: '7/8' }, 4);
       } catch (e) {
@@ -895,6 +910,9 @@
         if (res && res.status === 'success') {
           if (isActionInProgress && !force) return;
           rawResponse = res;
+          try {
+            localStorage.setItem('bowling_cache_raw', JSON.stringify(res));
+          } catch (se) {}
           if (!window.hasInit && res.config && res.config.defaultDay) {
             currentDay = res.config.defaultDay;
             window.hasInit = true;
@@ -1697,10 +1715,12 @@
       document.getElementById('actionModal').style.display = 'none';
     }
 
-    window.onload = async function() {
+    window.onload = function() {
       initEmptyRender();
-      await ensureLiffInit();
-      fetchData();
+      Promise.all([
+        ensureLiffInit(),
+        fetchData()
+      ]);
       setInterval(fetchData, 10000);
     };
   </script>

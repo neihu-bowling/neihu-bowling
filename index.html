@@ -119,6 +119,31 @@
       color: #1e40af;
       border: 1px solid #93c5fd;
     }
+    .operator-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 900;
+      font-size: 12px;
+      transition: all 0.2s ease;
+    }
+    .operator-badge-mon {
+      background: #f0fdf4 !important;
+      color: #15803d !important;
+      border: 1px solid #86efac !important;
+    }
+    .operator-badge-thu {
+      background: #eff6ff !important;
+      color: #1e40af !important;
+      border: 1px solid #bfdbfe !important;
+    }
+    .operator-badge-unbound {
+      background: #fef2f2 !important;
+      color: #dc2626 !important;
+      border: 1px solid #fecaca !important;
+      cursor: pointer !important;
+    }
     .grid-container {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -413,11 +438,10 @@
     <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px; padding-top:6px; border-top:1px solid #e2e8f0; font-size:12px;">
       <div style="display:flex; align-items:center; gap:5px;">
         <span style="color:#64748b; font-weight:bold;">👤 操作者：</span>
-        <span id="operatorBadge" style="font-weight:900; color:#1e40af; background:#eff6ff; padding:2px 8px; border-radius:10px; border:1px solid #bfdbfe;">載入中...</span>
+        <span id="operatorBadge" class="operator-badge operator-badge-thu">載入中...</span>
       </div>
-      <div style="display:flex; gap:5px;">
-        <button type="button" onclick="openChangePinModal()" style="border:1px solid #cbd5e1; background:#f8fafc; color:#334155; font-size:11px; font-weight:bold; padding:2px 6px; border-radius:4px; cursor:pointer;">🔑 改PIN</button>
-        <button type="button" onclick="openSwitchUserModal()" style="border:1px solid #cbd5e1; background:#f8fafc; color:#334155; font-size:11px; font-weight:bold; padding:2px 6px; border-radius:4px; cursor:pointer;">🔄 切換身分</button>
+      <div>
+        <button type="button" onclick="openChangePinModal()" style="border:1px solid #cbd5e1; background:#f8fafc; color:#334155; font-size:11px; font-weight:bold; padding:2px 8px; border-radius:4px; cursor:pointer;">🔑 改PIN</button>
       </div>
     </div>
   </div>
@@ -636,30 +660,6 @@
     </div>
   </div>
 
-  <!-- 8. 切換目前操作者身分彈窗 (借手機時使用) -->
-  <div id="switchUserModal" class="modal-overlay">
-    <div class="modal-card">
-      <h3 style="font-size:16px; font-weight:900; margin-bottom:4px;">🔄 切換手機操作者身分</h3>
-      <p style="font-size:12px; color:#64748b; margin-bottom:12px;">借用隊友手機時，可暫時切換為您的姓名進行操作：</p>
-
-      <div style="display:flex; flex-direction:column; gap:10px;">
-        <div>
-          <label style="font-weight:900; font-size:12px; display:block; margin-bottom:4px;">選擇切換為哪位隊友：</label>
-          <select id="switchUserSelect" style="width:100%; padding:9px; border-radius:6px; border:1px solid #cbd5e1; font-size:13px;"></select>
-        </div>
-        <div>
-          <label style="font-weight:900; font-size:12px; display:block; margin-bottom:4px;">請輸入該隊友的 4 碼 PIN 碼：</label>
-          <input type="password" id="switchUserPinInput" maxlength="4" placeholder="輸入 4 碼 PIN 碼" style="width:100%; padding:9px; border-radius:6px; border:1px solid #cbd5e1; font-size:13px;">
-        </div>
-      </div>
-
-      <div style="display:flex; gap:6px; margin-top:14px;">
-        <button onclick="closeSwitchUserModal()" class="modal-btn btn-secondary" style="margin-bottom:0;">取消</button>
-        <button onclick="submitSwitchUser()" class="modal-btn btn-primary" style="margin-bottom:0;">驗證並切換</button>
-      </div>
-    </div>
-  </div>
-
   <script>
     // ★★★ 請確認填入您的 Apps Script Web App URL ★★★
     const API_BASE = 'https://script.google.com/macros/s/AKfycbxsgDcINyj9LfuAEipn8J1YKPrTtBr0Bm1MPj29RRCeKuRb60ITretQ0PK2o4CL4XJV/exec';
@@ -765,23 +765,12 @@
         if (currentUserName) {
           badge.innerText = currentUserName;
           const isMon = currentDay === '週一';
-          if (isMon) {
-            badge.style.color = '#15803d';
-            badge.style.background = '#f0fdf4';
-            badge.style.borderColor = '#86efac';
-          } else {
-            badge.style.color = '#1e40af';
-            badge.style.background = '#eff6ff';
-            badge.style.borderColor = '#bfdbfe';
-          }
+          badge.className = isMon ? 'operator-badge operator-badge-mon' : 'operator-badge operator-badge-thu';
           badge.style.cursor = 'default';
           badge.onclick = null;
         } else {
           badge.innerText = '⚠️ 點此綁定姓名';
-          badge.style.color = '#dc2626';
-          badge.style.background = '#fef2f2';
-          badge.style.borderColor = '#fecaca';
-          badge.style.cursor = 'pointer';
+          badge.className = 'operator-badge operator-badge-unbound';
           badge.onclick = openRegisterModal;
         }
       }
@@ -1533,48 +1522,7 @@
       }
     }
 
-    // ===== 彈窗邏輯：4. 借手機切換操作者 =====
-    function openSwitchUserModal() {
-      const sel = document.getElementById('switchUserSelect');
-      if (!sel) return;
-      sel.innerHTML = '<option value="">-- 請選擇欲切換的隊友 --</option>';
-      const members = (rawResponse && rawResponse.members) ? rawResponse.members : [];
-      members.forEach(m => {
-        if (m.name !== currentUserName) {
-          const opt = document.createElement('option');
-          opt.value = m.name;
-          opt.innerText = m.code ? `${m.code} - ${m.name}` : m.name;
-          sel.appendChild(opt);
-        }
-      });
-      document.getElementById('switchUserPinInput').value = '';
-      document.getElementById('switchUserModal').style.display = 'flex';
-    }
-    function closeSwitchUserModal() {
-      document.getElementById('switchUserModal').style.display = 'none';
-    }
-    async function submitSwitchUser() {
-      const targetName = document.getElementById('switchUserSelect').value;
-      const pin = document.getElementById('switchUserPinInput').value.trim();
-
-      if (!targetName) return showToast('⚠️ 請選擇要切換的隊友！', 3000);
-      if (!pin || pin.length !== 4) return showToast('⚠️ 請輸入該隊友的 4 碼 PIN 碼！', 3000);
-
-      const members = (rawResponse && rawResponse.members) ? rawResponse.members : [];
-      const targetMember = members.find(m => m.name === targetName);
-      if (!targetMember || (targetMember.pin && targetMember.pin !== pin)) {
-        return showToast('❌ PIN 碼不正確，無法切換身分！', 4500, false);
-      }
-
-      currentUserName = targetName;
-      localStorage.setItem('bowling_player_name', currentUserName);
-      closeSwitchUserModal();
-      updateOperatorDisplay();
-      renderAll();
-      showToast(`🎉 已成功切換操作者為【${targetName}】！`, 4500, false);
-    }
-
-    // ===== 彈窗邏輯：5. 幹部協助重設 PIN 碼 =====
+    // ===== 彈窗邏輯：4. 幹部協助重設 PIN 碼 =====
     async function submitAdminResetPin() {
       const name = document.getElementById('adminResetMemberSelect').value;
       const newPin = document.getElementById('adminResetNewPin').value.trim();

@@ -1,0 +1,1679 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="color-scheme" content="light">
+  <title>內湖保齡球隊 - 即時報名系統</title>
+  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      background-color: #f1f5f9 !important;
+      color: #0f172a !important;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft JhengHei", Arial, sans-serif;
+      padding: 8px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    body.theme-thu {
+      background-color: #f0f4f8 !important;
+    }
+    body.theme-mon {
+      background-color: #f0fdf4 !important;
+    }
+    .header-card {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 12px;
+      border: 1.5px solid #cbd5e1;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      margin-bottom: 8px;
+      transition: all 0.2s ease;
+    }
+    .theme-thu .header-card {
+      border-color: #93c5fd;
+      background: linear-gradient(180deg, #ffffff 0%, #eff6ff 100%);
+    }
+    .theme-mon .header-card {
+      border-color: #86efac;
+      background: linear-gradient(180deg, #ffffff 0%, #f0fdf4 100%);
+    }
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .title-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .title-text {
+      font-size: 16px;
+      font-weight: 900;
+      color: #0f172a;
+    }
+    .btn-group {
+      display: flex;
+      gap: 6px;
+    }
+    .btn-day {
+      border: 1.5px solid #cbd5e1;
+      padding: 4px 12px;
+      font-size: 13px;
+      font-weight: 900;
+      border-radius: 6px;
+      cursor: pointer;
+      background: #f8fafc;
+      color: #475569;
+      transition: all 0.15s ease;
+    }
+    .btn-day-mon.active {
+      background: #16a34a !important;
+      color: #ffffff !important;
+      border-color: #15803d !important;
+      box-shadow: 0 2px 6px rgba(22,163,74,0.35);
+    }
+    .btn-day-thu.active {
+      background: #2563eb !important;
+      color: #ffffff !important;
+      border-color: #1d4ed8 !important;
+      box-shadow: 0 2px 6px rgba(37,99,235,0.35);
+    }
+    .btn-admin {
+      border: 1px solid #cbd5e1;
+      background: #f8fafc;
+      color: #334155;
+      font-size: 12px;
+      font-weight: bold;
+      padding: 4px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .info-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 6px;
+      font-weight: bold;
+    }
+    .event-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 900;
+    }
+    .event-badge-mon {
+      background: #dcfce7;
+      color: #166534;
+      border: 1px solid #86efac;
+    }
+    .event-badge-thu {
+      background: #dbeafe;
+      color: #1e40af;
+      border: 1px solid #93c5fd;
+    }
+    .grid-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .col-space {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .table-bordered {
+      border-collapse: collapse;
+      width: 100%;
+      background-color: #ffffff;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      border: 1px solid #334155;
+    }
+    .table-bordered th, .table-bordered td {
+      border: 1px solid #334155;
+      text-align: center;
+      padding: 0px 1px;
+      font-size: 13px;
+      line-height: 22px;
+      height: 24px;
+      max-height: 24px;
+      vertical-align: middle;
+      box-sizing: border-box;
+    }
+    .lane-box-header-thu {
+      background-color: #bfdbfe !important;
+      font-weight: 900;
+      color: #1e3a8a !important;
+    }
+    .lane-box-header-mon {
+      background-color: #bbf7d0 !important;
+      font-weight: 900;
+      color: #064e3b !important;
+    }
+    .lane-number-cell {
+      font-family: "Times New Roman", Georgia, serif;
+      font-style: italic;
+      font-size: 18px;
+      font-weight: 900;
+      vertical-align: middle;
+      background-color: #ffffff;
+      color: #000000;
+      width: 26%;
+    }
+    .male-text {
+      color: #0000FF !important;
+      font-weight: 900 !important;
+      font-size: 16px !important;
+      letter-spacing: 1px;
+    }
+    .female-text {
+      color: #C00000 !important;
+      font-weight: 900 !important;
+      font-size: 16px !important;
+      letter-spacing: 1px;
+    }
+    .slot-cell-empty {
+      background-color: #ffffff !important;
+      cursor: pointer;
+      width: 60%;
+      padding: 0 !important;
+      vertical-align: middle;
+      height: 24px;
+      box-sizing: border-box;
+    }
+    .slot-pill-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1px;
+      height: 18px;
+      line-height: 18px;
+      padding: 0 8px;
+      border-radius: 9px;
+      font-size: 11px;
+      font-weight: 900;
+      white-space: nowrap;
+      transition: all 0.12s ease;
+      letter-spacing: 0.3px;
+      box-sizing: border-box;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      vertical-align: middle;
+    }
+    .theme-thu .slot-pill-btn {
+      background-color: #eff6ff;
+      border: 1px solid #3b82f6;
+      color: #1d4ed8;
+    }
+    .theme-mon .slot-pill-btn {
+      background-color: #f0fdf4;
+      border: 1px solid #16a34a;
+      color: #15803d;
+    }
+    .slot-locked {
+      background-color: #f1f5f9;
+      color: #94a3b8;
+      font-size: 10px;
+      white-space: nowrap;
+    }
+    .slot-staff {
+      background-color: #fef3c7 !important;
+      color: #92400e !important;
+      font-size: 10px;
+      font-weight: bold;
+      white-space: nowrap;
+    }
+    .lane-disabled {
+      opacity: 0.45;
+      background-color: #e2e8f0 !important;
+      filter: grayscale(1);
+    }
+    /* ★ 賽事設定球道方塊切換按鈕 */
+    .lane-chips-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .chip-btn {
+      border: 1.5px solid #cbd5e1;
+      background: #f8fafc;
+      color: #475569;
+      padding: 6px 2px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 900;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s ease;
+    }
+    .chip-btn.active-open {
+      background: #2563eb;
+      color: #ffffff;
+      border-color: #1d4ed8;
+      box-shadow: 0 1px 3px rgba(37,99,235,0.3);
+    }
+    .chip-btn.active-staff {
+      background: #d97706;
+      color: #ffffff;
+      border-color: #b45309;
+      box-shadow: 0 1px 3px rgba(217,119,6,0.3);
+    }
+    .quick-preset-bar {
+      display: flex;
+      gap: 6px;
+      margin-top: 4px;
+    }
+    .quick-btn {
+      padding: 3px 8px;
+      font-size: 11px;
+      font-weight: bold;
+      border-radius: 4px;
+      border: 1px solid #cbd5e1;
+      background: #f1f5f9;
+      color: #334155;
+      cursor: pointer;
+    }
+    .quick-btn:hover {
+      background: #e2e8f0;
+    }
+    .admin-bar {
+      background: #fef3c7;
+      border: 1px solid #fcd34d;
+      border-radius: 8px;
+      padding: 8px;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      font-weight: bold;
+      color: #78350f;
+    }
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+    }
+    .modal-card {
+      background: #ffffff;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 360px;
+      padding: 16px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    }
+    .modal-btn {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 900;
+      border: none;
+      cursor: pointer;
+      margin-bottom: 8px;
+    }
+    .btn-primary { background: #2563eb; color: #ffffff; }
+    .btn-warn { background: #d97706; color: #ffffff; }
+    .btn-secondary { background: #f1f5f9; color: #334155; }
+    .footer-note {
+      margin-top: 16px;
+      padding: 8px;
+      text-align: center;
+      font-size: 11px;
+      color: #64748b;
+      background: #e2e8f0;
+      border-radius: 6px;
+    }
+    /* ★ 自訂白底提示框 (置中於螢幕正中央、字體放大、清晰立體、帶關閉✕鈕) */
+    #customToast {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #ffffff;
+      color: #0f172a;
+      padding: 18px 24px;
+      border-radius: 14px;
+      box-shadow: 0 12px 36px rgba(0,0,0,0.35), 0 0 0 100vmax rgba(0,0,0,0.25);
+      border: 2px solid #3b82f6;
+      font-size: 16px;
+      font-weight: 900;
+      z-index: 99999;
+      max-width: 85%;
+      min-width: 260px;
+      text-align: center;
+      animation: zoomInToast 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .toast-content {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      line-height: 1.5;
+    }
+    .toast-close {
+      cursor: pointer;
+      color: #94a3b8;
+      font-size: 18px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      line-height: 1;
+    }
+    .toast-close:hover {
+      background: #f1f5f9;
+      color: #334155;
+    }
+    @keyframes zoomInToast {
+      from { opacity: 0; transform: translate(-50%, -50%) scale(0.85); }
+      to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 自訂純白底懸浮提示 (無網址、帶關閉按鈕) -->
+  <div id="customToast">
+    <div class="toast-content">
+      <span id="toastMessage"></span>
+      <span class="toast-close" onclick="hideToast()">✕</span>
+    </div>
+  </div>
+
+  <!-- 頂部資訊列 -->
+  <div class="header-card">
+    <div class="top-bar">
+      <div class="title-box">
+        <div class="title-text">🎳 內湖保齡球隊</div>
+        <div class="btn-group">
+          <button id="btnMon" onclick="switchDay('週一')" class="btn-day btn-day-mon">週一</button>
+          <button id="btnThu" onclick="switchDay('週四')" class="btn-day btn-day-thu active">週四</button>
+        </div>
+      </div>
+      <button id="adminBtn" onclick="openAdminModal()" class="btn-admin">🔐 管理</button>
+    </div>
+    <div class="info-bar">
+      <div>
+        <span id="eventBadge" class="event-badge event-badge-thu">📅 週四賽事：<span id="actDateDisplay">載入中...</span></span>
+      </div>
+      <div style="color:#334155;">已報名：<span id="totalCountDisplay" style="color:#dc2626; font-size:15px; font-weight:900;">0</span> 人</div>
+    </div>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px; padding-top:6px; border-top:1px solid #e2e8f0; font-size:12px;">
+      <div style="display:flex; align-items:center; gap:5px;">
+        <span style="color:#64748b; font-weight:bold;">👤 操作者：</span>
+        <span id="operatorBadge" style="font-weight:900; color:#1e40af; background:#eff6ff; padding:2px 8px; border-radius:10px; border:1px solid #bfdbfe;">載入中...</span>
+      </div>
+      <div style="display:flex; gap:5px;">
+        <button type="button" onclick="openChangePinModal()" style="border:1px solid #cbd5e1; background:#f8fafc; color:#334155; font-size:11px; font-weight:bold; padding:2px 6px; border-radius:4px; cursor:pointer;">🔑 改PIN</button>
+        <button type="button" onclick="openSwitchUserModal()" style="border:1px solid #cbd5e1; background:#f8fafc; color:#334155; font-size:11px; font-weight:bold; padding:2px 6px; border-radius:4px; cursor:pointer;">🔄 切換身分</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 管理者工具列 -->
+  <div id="adminToolbar" class="admin-bar" style="display: none;">
+    <div>👑 管理者模式已解鎖</div>
+    <div style="display:flex; gap:4px;">
+      <button onclick="openSettingsModal()" style="background:#d97706; color:#fff; border:none; padding:4px 8px; border-radius:4px; font-weight:bold;">⚙️ 賽事設定</button>
+      <button onclick="logoutAdmin()" style="background:#e2e8f0; color:#334155; border:none; padding:4px 8px; border-radius:4px; font-weight:bold;">登出</button>
+    </div>
+  </div>
+
+  <!-- 經典雙欄排版 -->
+  <div class="grid-container">
+    <div class="col-space" id="leftCol"></div>
+    <div class="col-space" id="rightCol"></div>
+  </div>
+
+  <div class="footer-note">
+    💡 備註：預排表是依上週延續做的預排；有參賽會員不用重複報名。
+  </div>
+
+  <!-- ==================== 彈窗系列 (純白底、無網址) ==================== -->
+
+  <!-- 1. 入座選單彈窗 -->
+  <div id="actionModal" class="modal-overlay">
+    <div class="modal-card">
+      <h3 id="modalTitle" style="font-size:16px; font-weight:900; margin-bottom:4px;">🎳 球道入座選單</h3>
+      <p id="modalSub" style="font-size:12px; color:#64748b; margin-bottom:12px;"></p>
+
+      <div id="modalButtons"></div>
+
+      <div id="proxySection" style="display:none; margin-top:12px; padding-top:12px; border-top:1px solid #e2e8f0;">
+        <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px;">👥 選擇未報名隊友：</label>
+        <select id="proxySelect" style="width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1; font-size:12px; margin-bottom:8px;"></select>
+        <button onclick="confirmProxyJoin()" class="modal-btn btn-primary">確定為隊友入座</button>
+
+        <div id="guestSection" style="display:none; margin-top:8px; padding-top:8px; border-top:1px dashed #cbd5e1;">
+          <label style="display:block; font-size:12px; font-weight:bold; color:#d97706; margin-bottom:4px;">👑 手動輸入臨時來賓 (不建檔)</label>
+          <div style="display:flex; gap:4px; margin-bottom:6px;">
+            <input type="text" id="guestName" placeholder="姓名" style="flex:1; padding:6px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px;">
+            <select id="guestGender" style="padding:6px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px;">
+              <option value="M">男 (藍)</option>
+              <option value="F">女 (紅)</option>
+            </select>
+          </div>
+          <button onclick="confirmGuestJoin()" class="modal-btn btn-warn">➕ 加入臨時來賓</button>
+        </div>
+      </div>
+
+      <button onclick="closeActionModal()" class="modal-btn btn-secondary" style="margin-top:8px; margin-bottom:0;">✖ 取消 (關閉視窗)</button>
+    </div>
+  </div>
+
+  <!-- 2. 自訂白底確認視窗 -->
+  <div id="confirmDialogModal" class="modal-overlay">
+    <div class="modal-card" style="text-align:center;">
+      <h3 id="confirmDialogTitle" style="font-size:15px; font-weight:900; margin-bottom:12px; line-height:1.5;">確認操作？</h3>
+      <div style="display:flex; gap:8px;">
+        <button onclick="closeConfirmDialog(false)" class="modal-btn btn-secondary" style="margin-bottom:0;">取消</button>
+        <button onclick="closeConfirmDialog(true)" class="modal-btn btn-primary" style="margin-bottom:0;">確定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. 管理者登入彈窗 -->
+  <div id="loginModal" class="modal-overlay">
+    <div class="modal-card" style="text-align:center;">
+      <h3 style="font-size:16px; font-weight:900; margin-bottom:4px;">🔐 管理者登入</h3>
+      <p style="font-size:12px; color:#64748b; margin-bottom:12px;">請輸入管理密碼解鎖調度權限</p>
+      <input type="password" id="adminPwdInput" placeholder="請輸入管理密碼" style="width:100%; padding:10px; border-radius:8px; border:1px solid #cbd5e1; text-align:center; font-size:14px; font-weight:bold; margin-bottom:12px;">
+      <div style="display:flex; gap:6px;">
+        <button onclick="closeAdminModal()" class="modal-btn btn-secondary" style="margin-bottom:0;">取消</button>
+        <button onclick="submitAdminLogin()" class="modal-btn btn-primary" style="margin-bottom:0;">登入</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. 管理者設定面板 -->
+  <div id="settingsModal" class="modal-overlay">
+    <div class="modal-card" style="max-height:90vh; overflow-y:auto;">
+      <h3 style="font-size:16px; font-weight:900; margin-bottom:12px;">⚙️ 賽事快速設定</h3>
+
+      <div style="font-size:12px; display:flex; flex-direction:column; gap:12px;">
+        <!-- 1. 開放球道 -->
+        <div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <label style="font-weight:900; font-size:13px;">1️⃣ 開放球道：</label>
+            <div class="quick-preset-bar">
+              <button type="button" onclick="setOpenLanesPreset('3-24')" class="quick-btn">常用 3-24</button>
+              <button type="button" onclick="setOpenLanesPreset('1-24')" class="quick-btn">全選</button>
+              <button type="button" onclick="setOpenLanesPreset('none')" class="quick-btn">清除</button>
+            </div>
+          </div>
+          <div id="openLanesChips" class="lane-chips-grid"></div>
+        </div>
+
+        <!-- 2. 工作人員專用道 -->
+        <div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <label style="font-weight:900; font-size:13px;">2️⃣ 工作人員專用道：</label>
+            <div class="quick-preset-bar">
+              <button type="button" onclick="setStaffLanesPreset('none')" class="quick-btn">無專用道</button>
+            </div>
+          </div>
+          <div id="staffLanesChips" class="lane-chips-grid"></div>
+        </div>
+
+        <!-- 3. 前一日截止時間 -->
+        <div>
+          <label style="font-weight:900; font-size:13px; display:block; margin-bottom:4px;">3️⃣ 前一日截止時間：</label>
+          <input type="text" id="cfgDeadline" placeholder="如 17:00" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px;">
+        </div>
+
+        <div style="padding-top:8px; border-top:1px solid #e2e8f0;">
+          <button onclick="triggerLaneRotation()" class="modal-btn" style="background:#4f46e5; color:#fff; margin-bottom:0;">
+            🔄 手動執行球道順移 (3/4 ➔ 5/6 ... 23/24 ➔ 3/4)
+          </button>
+        </div>
+
+        <!-- 4. 幹部協助重設隊員 PIN 碼 -->
+        <div style="padding-top:10px; border-top:1px solid #e2e8f0;">
+          <label style="font-weight:900; font-size:13px; display:block; margin-bottom:4px; color:#1e40af;">🔑 4️⃣ 幹部協助重設隊員 PIN 碼：</label>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <select id="adminResetMemberSelect" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px;">
+              <option value="">-- 請選擇欲重設 PIN 碼的隊友 --</option>
+            </select>
+            <div style="display:flex; gap:6px;">
+              <input type="text" id="adminResetNewPin" maxlength="4" placeholder="輸入新 4 碼 PIN" style="flex:1; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px;">
+              <button type="button" onclick="submitAdminResetPin()" class="quick-btn" style="background:#2563eb; color:#fff; border-color:#1d4ed8; padding:8px 12px; font-size:12px;">確認重設</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:6px; margin-top:16px;">
+        <button onclick="closeSettingsModal()" class="modal-btn btn-secondary" style="margin-bottom:0;">取消</button>
+        <button onclick="saveSettings()" class="modal-btn btn-primary" style="margin-bottom:0;">儲存設定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. 首次使用／綁定身份彈窗 -->
+  <div id="registerModal" class="modal-overlay">
+    <div class="modal-card">
+      <h3 style="font-size:16px; font-weight:900; margin-bottom:6px;">🎳 首次使用：請綁定隊員身份</h3>
+      <p style="font-size:12px; color:#64748b; margin-bottom:14px; line-height:1.4;">
+        歡迎使用內湖保齡球隊即時報名系統！請先選擇您的隊員姓名，並設定一組專屬 4 碼 PIN 碼，享有極速一鍵入座與個人席位防誤刪保護。
+      </p>
+
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <div>
+          <label style="font-weight:900; font-size:12px; display:block; margin-bottom:4px;">1️⃣ 請選擇您的姓名：</label>
+          <select id="regMemberSelect" style="width:100%; padding:9px; border-radius:6px; border:1px solid #cbd5e1; font-size:13px;"></select>
+        </div>
+        <div>
+          <label style="font-weight:900; font-size:12px; display:block; margin-bottom:4px;">2️⃣ 自訂專屬 4 碼 PIN 碼：</label>
+          <input type="password" id="regPinInput" maxlength="4" placeholder="例如 1234 (限 4 位英數字)" style="width:100%; padding:9px; border-radius:6px; border:1px solid #cbd5e1; font-size:13px;">
+        </div>
+        <div>
+          <label style="font-weight:900; font-size:12px; display:block; margin-bottom:4px;">3️⃣ 再次確認 PIN 碼：</label>
+          <input type="password" id="regPinConfirmInput" maxlength="4" placeholder="請再次輸入 4 碼 PIN" style="width:100%; padding:9px; border-radius:6px; border:1px solid #cbd5e1; font-size:13px;">
+        </div>
+      </div>
+
+      <div style="margin-top:16px;">
+        <button onclick="submitRegister()" class="modal-btn btn-primary" style="margin-bottom:0;">確認完成綁定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. 輸入他人 PIN 碼以確認取消席位彈窗 -->
+  <div id="pinConfirmModal" class="modal-overlay">
+    <div class="modal-card">
+      <h3 style="font-size:16px; font-weight:900; margin-bottom:4px; color:#dc2626;">🔒 席位防誤刪驗證</h3>
+      <p id="pinConfirmSub" style="font-size:12px; color:#64748b; margin-bottom:12px; line-height:1.4;"></p>
+
+      <div>
+        <label style="font-weight:900; font-size:12px; display:block; margin-bottom:4px;">請輸入該隊員的 4 碼 PIN 碼：</label>
+        <input type="password" id="targetPinInput" maxlength="4" placeholder="輸入 4 碼 PIN 碼" style="width:100%; padding:9px; border-radius:6px; border:1.5px solid #dc2626; font-size:14px; text-align:center; letter-spacing:4px; margin-bottom:12px;">
+      </div>
+
+      <div style="display:flex; gap:6px;">
+        <button onclick="closePinConfirmModal()" class="modal-btn btn-secondary" style="margin-bottom:0;">取消</button>
+        <button onclick="submitVerifyAndLeave()" class="modal-btn btn-warn" style="margin-bottom:0;">驗證並取消席位</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. 本人修改 PIN 碼彈窗 -->
+  <div id="changePinModal" class="modal-overlay">
+    <div class="modal-card">
+      <h3 style="font-size:16px; font-weight:900; margin-bottom:4px;">🔑 修改個人 PIN 碼</h3>
+      <p id="changePinSub" style="font-size:12px; color:#64748b; margin-bottom:12px;"></p>
+
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div>
+          <label style="font-weight:900; font-size:12px; display:block; margin-bottom:4px;">原 4 碼 PIN 碼：</label>
+          <input type="password" id="oldPinInput" maxlength="4" placeholder="請輸入舊 PIN 碼" style="width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1; font-size:13px;">
+        </div>
+        <div>
+          <label style="font-weight:900; font-size:12px; display:block; margin-bottom:4px;">新 4 碼 PIN 碼：</label>
+          <input type="password" id="newPinInput" maxlength="4" placeholder="請輸入新 4 碼" style="width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1; font-size:13px;">
+        </div>
+        <div>
+          <label style="font-weight:900; font-size:12px; display:block; margin-bottom:4px;">再次確認新 PIN 碼：</label>
+          <input type="password" id="newPinConfirmInput" maxlength="4" placeholder="再次輸入新 4 碼" style="width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1; font-size:13px;">
+        </div>
+      </div>
+
+      <div style="display:flex; gap:6px; margin-top:14px;">
+        <button onclick="closeChangePinModal()" class="modal-btn btn-secondary" style="margin-bottom:0;">取消</button>
+        <button onclick="submitChangePin()" class="modal-btn btn-primary" style="margin-bottom:0;">確認修改</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 8. 切換目前操作者身分彈窗 (借手機時使用) -->
+  <div id="switchUserModal" class="modal-overlay">
+    <div class="modal-card">
+      <h3 style="font-size:16px; font-weight:900; margin-bottom:4px;">🔄 切換手機操作者身分</h3>
+      <p style="font-size:12px; color:#64748b; margin-bottom:12px;">借用隊友手機時，可暫時切換為您的姓名進行操作：</p>
+
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <div>
+          <label style="font-weight:900; font-size:12px; display:block; margin-bottom:4px;">選擇切換為哪位隊友：</label>
+          <select id="switchUserSelect" style="width:100%; padding:9px; border-radius:6px; border:1px solid #cbd5e1; font-size:13px;"></select>
+        </div>
+        <div>
+          <label style="font-weight:900; font-size:12px; display:block; margin-bottom:4px;">請輸入該隊友的 4 碼 PIN 碼：</label>
+          <input type="password" id="switchUserPinInput" maxlength="4" placeholder="輸入 4 碼 PIN 碼" style="width:100%; padding:9px; border-radius:6px; border:1px solid #cbd5e1; font-size:13px;">
+        </div>
+      </div>
+
+      <div style="display:flex; gap:6px; margin-top:14px;">
+        <button onclick="closeSwitchUserModal()" class="modal-btn btn-secondary" style="margin-bottom:0;">取消</button>
+        <button onclick="submitSwitchUser()" class="modal-btn btn-primary" style="margin-bottom:0;">驗證並切換</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ★★★ 請確認填入您的 Apps Script Web App URL ★★★
+    const API_BASE = 'https://script.google.com/macros/s/AKfycbxsgDcINyj9LfuAEipn8J1YKPrTtBr0Bm1MPj29RRCeKuRb60ITretQ0PK2o4CL4XJV/exec';
+    const LIFF_ID = '2011581133-do1d9yl8';
+    let isLiffInitialized = false;
+
+    const LEFT_LANES = ["1/2", "3/4", "5/6", "7/8", "9/10", "11/12"];
+    const RIGHT_LANES = ["13/14", "15/16", "17/18", "19/20", "21/22", "23/24"];
+
+    const ALL_LANES = [...LEFT_LANES, ...RIGHT_LANES];
+    let rawResponse = null;
+    let currentDay = '週四';
+    let isAdmin = localStorage.getItem('bowling_admin') === 'true';
+    let currentUserLineId = localStorage.getItem('bowling_line_id') || '';
+    let currentUserName = localStorage.getItem('bowling_player_name') || '';
+    let pendingLeaveAction = null; // 儲存非本人取消時的暫存資訊 { playerName, laneKey, slotIndex }
+    let selectedLane = '';
+    let toastTimer = null;
+    let confirmCallback = null;
+    let selectedOpenLanes = new Set(["3/4", "5/6", "7/8", "9/10", "11/12", "13/14", "15/16", "17/18", "19/20", "21/22", "23/24"]);
+    let selectedStaffLanes = new Set(["7/8"]);
+
+    let selectedSlotIndex = 1;
+
+    function parseLaneList(input) {
+      if (!input) return new Set();
+      const str = String(input).trim();
+      if (str === '無' || str === '') return new Set();
+      if (str === '3-24') return new Set(["3/4", "5/6", "7/8", "9/10", "11/12", "13/14", "15/16", "17/18", "19/20", "21/22", "23/24"]);
+      if (str === '1-24') return new Set(ALL_LANES);
+      return new Set(str.split(',').map(s => s.trim()).filter(Boolean));
+    }
+
+    function isLaneOpen(laneKey, openLanesInput) {
+      if (!openLanesInput) return laneKey !== '1/2';
+      const str = String(openLanesInput).trim();
+      if (str === '1-24') return true;
+      if (str === '3-24') return laneKey !== '1/2';
+      const set = parseLaneList(str);
+      return set.has(laneKey);
+    }
+
+    function isLaneStaff(laneKey, staffLanesInput) {
+      if (!staffLanesInput) return false;
+      const str = String(staffLanesInput).trim();
+      if (str === '無' || str === '') return false;
+      const set = parseLaneList(str);
+      return set.has(laneKey);
+    }
+
+    // ★ 判斷是否已過賽事前一日截止時間 (如 17:00)
+    function isDeadlinePassed(dayStr, fallbackRaw, deadlineTimeStr) {
+      try {
+        const now = new Date();
+        const targetDayOfWeek = dayStr === '週一' ? 1 : 4;
+        const currentDayOfWeek = now.getDay();
+        let diff = targetDayOfWeek - currentDayOfWeek;
+        if (diff < 0) diff += 7;
+        const matchDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diff);
+        const deadDate = new Date(matchDate.getFullYear(), matchDate.getMonth(), matchDate.getDate() - 1);
+        
+        let hours = 17, mins = 0;
+        if (deadlineTimeStr && String(deadlineTimeStr).includes(':')) {
+          const parts = String(deadlineTimeStr).split(':');
+          hours = parseInt(parts[0], 10) || 17;
+          mins = parseInt(parts[1], 10) || 0;
+        }
+        deadDate.setHours(hours, mins, 0, 0);
+
+        return now.getTime() > deadDate.getTime();
+      } catch (e) {
+        return false;
+      }
+    }
+
+    // ★ 更新頂部操作者徽章
+    function updateOperatorDisplay() {
+      const badge = document.getElementById('operatorBadge');
+      if (badge) {
+        if (currentUserName) {
+          badge.innerText = currentUserName;
+          badge.style.color = '#1e40af';
+          badge.style.background = '#eff6ff';
+          badge.style.borderColor = '#bfdbfe';
+          badge.style.cursor = 'default';
+          badge.onclick = null;
+        } else {
+          badge.innerText = '⚠️ 點此綁定姓名';
+          badge.style.color = '#dc2626';
+          badge.style.background = '#fef2f2';
+          badge.style.borderColor = '#fecaca';
+          badge.style.cursor = 'pointer';
+          badge.onclick = openRegisterModal;
+        }
+      }
+    }
+
+    // ★ 初始化 LIFF SDK 並取得 LINE 身份
+    async function ensureLiffInit() {
+      if (isLiffInitialized) return;
+      if (window.liff && LIFF_ID) {
+        try {
+          await liff.init({ liffId: LIFF_ID });
+          isLiffInitialized = true;
+          if (liff.isLoggedIn()) {
+            const profile = await liff.getProfile();
+            if (profile && profile.userId) {
+              currentUserLineId = profile.userId;
+              localStorage.setItem('bowling_line_id', currentUserLineId);
+            }
+          } else {
+            if (liff.isInClient()) {
+              liff.login();
+            }
+          }
+        } catch (err) {
+          console.warn('LIFF init warning:', err);
+        }
+      }
+    }
+
+    // ★ 初始化使用者身份 (LIFF自動辨識 + 試算表校驗)
+    async function initUserIdentity() {
+      await ensureLiffInit();
+
+      const members = (rawResponse && rawResponse.members) ? rawResponse.members : [];
+      let matchedMember = null;
+
+      // 優先以 LINE ID 比對
+      if (currentUserLineId && members.length > 0) {
+        matchedMember = members.find(m => m.lineId && m.lineId === currentUserLineId);
+      }
+
+      // 若未比對到 LINE ID，則比對本地存儲姓名
+      if (!matchedMember && currentUserName && members.length > 0) {
+        matchedMember = members.find(m => m.name === currentUserName);
+        // ★ 若該隊員在試算表中 LINE_ID 與 PIN 碼皆空，視同未綁定！
+        if (matchedMember && !matchedMember.lineId && !matchedMember.pin) {
+          matchedMember = null;
+        }
+      }
+
+      // ★ 若已找到隊員但試算表尚未記錄 LINE ID，且目前已取得 LINE ID，自動靜默更新到試算表
+      if (matchedMember && currentUserLineId && !matchedMember.lineId) {
+        matchedMember.lineId = currentUserLineId;
+        fetch(`${API_BASE}?action=bindUser&name=${encodeURIComponent(matchedMember.name)}&lineId=${encodeURIComponent(currentUserLineId)}&pin=${encodeURIComponent(matchedMember.pin || '')}`)
+          .catch(e => console.warn('Auto sync LINE ID err:', e));
+      }
+
+      if (matchedMember) {
+        currentUserName = matchedMember.name;
+        localStorage.setItem('bowling_player_name', currentUserName);
+      } else {
+        currentUserName = '';
+        localStorage.removeItem('bowling_player_name');
+      }
+
+      updateOperatorDisplay();
+
+      // 若未綁定且非管理者，自動彈出綁定視窗
+      if (!currentUserName && !isAdmin && members.length > 0) {
+        setTimeout(openRegisterModal, 350);
+      }
+    }
+
+    // ★ 升級版白底提示框：置中、字體放大、支援 4.5秒 + 關閉按鈕
+    function showToast(msg, duration = 4500, isProcessing = false) {
+      const t = document.getElementById('customToast');
+      const msgSpan = document.getElementById('toastMessage');
+      msgSpan.innerText = msg;
+      
+      t.style.borderColor = isProcessing ? '#f59e0b' : '#3b82f6';
+      t.style.display = 'block';
+
+      if (toastTimer) clearTimeout(toastTimer);
+      if (!isProcessing && duration > 0) {
+        toastTimer = setTimeout(() => {
+          t.style.display = 'none';
+        }, duration);
+      }
+    }
+    function hideToast() {
+      if (toastTimer) clearTimeout(toastTimer);
+      document.getElementById('customToast').style.display = 'none';
+    }
+
+    function customConfirm(titleText, callback) {
+      confirmCallback = callback;
+      document.getElementById('confirmDialogTitle').innerText = titleText;
+      document.getElementById('confirmDialogModal').style.display = 'flex';
+    }
+    function closeConfirmDialog(isConfirmed) {
+      document.getElementById('confirmDialogModal').style.display = 'none';
+      if (confirmCallback) {
+        confirmCallback(isConfirmed);
+        confirmCallback = null;
+      }
+    }
+
+    function initEmptyRender() {
+      try {
+        renderColumn('leftCol', LEFT_LANES, [], { openLanes: '3-24', staffLanes: '7/8' }, 4);
+        renderColumn('rightCol', RIGHT_LANES, [], { openLanes: '3-24', staffLanes: '7/8' }, 4);
+      } catch (e) {
+        console.error("initEmptyRender error:", e);
+      }
+    }
+
+    async function fetchData() {
+      try {
+        if (!API_BASE || !API_BASE.includes('AKfycb')) return;
+        const res = await (await fetch(`${API_BASE}?api=1`)).json();
+        if (res && res.status === 'success') {
+          rawResponse = res;
+          if (!window.hasInit && res.config && res.config.defaultDay) {
+            currentDay = res.config.defaultDay;
+            window.hasInit = true;
+          }
+          await initUserIdentity();
+          renderAll();
+        }
+      } catch (err) {
+        console.error("Fetch Error:", err);
+      }
+    }
+
+    function switchDay(day) {
+      currentDay = day;
+      renderAll();
+    }
+
+    function getFormattedMatchDate(dayStr, fallbackRaw) {
+      if (fallbackRaw && fallbackRaw !== '週一' && fallbackRaw !== '週四' && String(fallbackRaw).trim() !== '') {
+        const str = String(fallbackRaw).trim();
+        // 若包含 2026/09/15 或 9/15，格式化為 09/15
+        const m = str.match(/(\d{1,2})[\/\-\.月](\d{1,2})/);
+        if (m) {
+          const mon = m[1].padStart(2, '0');
+          const day = m[2].padStart(2, '0');
+          return `${mon}/${day}`;
+        }
+        return str;
+      }
+      // 自動根據本週/下週推算賽事日期
+      const now = new Date();
+      const targetDayOfWeek = dayStr === '週一' ? 1 : 4;
+      const currentDayOfWeek = now.getDay(); // 0(日) ~ 6(六)
+      let diff = targetDayOfWeek - currentDayOfWeek;
+      if (diff < 0) diff += 7; // 已過該星期幾則取下週
+      const matchDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diff);
+      const mm = String(matchDate.getMonth() + 1).padStart(2, '0');
+      const dd = String(matchDate.getDate()).padStart(2, '0');
+      return `${mm}/${dd}`;
+    }
+
+    function renderAll() {
+      try {
+        const cfg = (rawResponse && rawResponse.config) ? rawResponse.config : { openLanes: '3-24', staffLanes: '7/8', monDate: '', thuDate: '' };
+        const isMon = currentDay === '週一';
+
+        // ★ 切換 Body 主題背景色
+        document.body.className = isMon ? 'theme-mon' : 'theme-thu';
+
+        const btnM = document.getElementById('btnMon');
+        const btnT = document.getElementById('btnThu');
+        if (btnM) btnM.className = isMon ? 'btn-day btn-day-mon active' : 'btn-day btn-day-mon';
+        if (btnT) btnT.className = !isMon ? 'btn-day btn-day-thu active' : 'btn-day btn-day-thu';
+
+        const dateStr = getFormattedMatchDate(currentDay, isMon ? cfg.monDate : cfg.thuDate);
+        const eventBadge = document.getElementById('eventBadge');
+        if (eventBadge) {
+          eventBadge.className = isMon ? 'event-badge event-badge-mon' : 'event-badge event-badge-thu';
+          eventBadge.innerHTML = isMon ? `🟢 週一賽事：<span id="actDateDisplay">${dateStr}</span>` : `🔵 週四賽事：<span id="actDateDisplay">${dateStr}</span>`;
+        }
+
+        const adminBar = document.getElementById('adminToolbar');
+        const adminBtn = document.getElementById('adminBtn');
+        if (adminBar) adminBar.style.display = isAdmin ? 'flex' : 'none';
+        if (adminBtn) adminBtn.innerText = isAdmin ? '👑 已解鎖' : '🔐 管理';
+
+        const dayData = (rawResponse && rawResponse.data) ? (isMon ? (rawResponse.data.mon || []) : (rawResponse.data.thu || [])) : [];
+        
+        let totalCount = 0;
+        let staffPlayerCount = 0;
+        let totalOpenCount = 0;
+        let staffLaneCount = 0;
+
+        const laneMap = {};
+        (dayData || []).forEach(l => {
+          if (l && l.lane) {
+            laneMap[l.lane] = l.players || [];
+            (l.players || []).forEach(p => {
+              if (p && p.name) totalCount++;
+            });
+          }
+        });
+
+        ALL_LANES.forEach(lk => {
+          const isOpen = isLaneOpen(lk, cfg.openLanes);
+          const isStaff = isLaneStaff(lk, cfg.staffLanes);
+          if (isOpen) {
+            totalOpenCount++;
+            if (isStaff) {
+              staffLaneCount++;
+              const staffPlayers = laneMap[lk] || [];
+              staffPlayers.forEach(p => { if (p && p.name) staffPlayerCount++; });
+            }
+          }
+        });
+
+        const countDisp = document.getElementById('totalCountDisplay');
+        if (countDisp) countDisp.innerText = totalCount;
+
+        // ★ 扣除工作人員專用道後計算「一般有效球道數」與「一般有效人數」
+        const generalOpenCount = Math.max(1, totalOpenCount - staffLaneCount);
+        const generalPlayerCount = Math.max(0, totalCount - staffPlayerCount);
+
+        // ★ 智慧水位規則：達 4N 解鎖第 5 列，達 5N 解鎖第 6 列，達 6N 解鎖第 7 列
+        let allowedSlots = 4;
+        if (generalPlayerCount >= 6 * generalOpenCount) {
+          allowedSlots = 7;
+        } else if (generalPlayerCount >= 5 * generalOpenCount) {
+          allowedSlots = 6;
+        } else if (generalPlayerCount >= 4 * generalOpenCount) {
+          allowedSlots = 5;
+        } else {
+          allowedSlots = 4;
+        }
+
+        renderColumn('leftCol', LEFT_LANES, dayData || [], cfg, allowedSlots);
+        renderColumn('rightCol', RIGHT_LANES, dayData || [], cfg, allowedSlots);
+      } catch (err) {
+        console.error("renderAll error:", err);
+      }
+    }
+
+    function renderColumn(colId, lanesArray, dayData, cfg, allowedSlots) {
+      const col = document.getElementById(colId);
+      if (!col) return;
+      const laneMap = {};
+      (dayData || []).forEach(d => {
+        if (d && d.lane) laneMap[d.lane] = d.players || [];
+      });
+
+      const isMon = currentDay === '週一';
+      const headerClass = isMon ? 'lane-box-header-mon' : 'lane-box-header-thu';
+      const deadPassed = isDeadlinePassed(currentDay, isMon ? cfg.monDate : cfg.thuDate, isMon ? cfg.monDeadline : cfg.thuDeadline);
+
+      let html = '';
+      lanesArray.forEach(laneKey => {
+        const players = laneMap[laneKey] || [];
+        const isOpen = isLaneOpen(laneKey, cfg.openLanes);
+        const isStaff = isLaneStaff(laneKey, cfg.staffLanes);
+        const disabledClass = !isOpen ? 'lane-disabled' : '';
+
+        // 計算該道已有人數
+        let filledCount = 0;
+        players.forEach(p => { if (p && p.name) filledCount++; });
+
+        html += `
+          <table class="table-bordered ${disabledClass}">
+            <thead>
+              <tr class="${headerClass}">
+                <th style="width:26%">球道</th>
+                <th style="width:14%">序</th>
+                <th style="width:60%">姓　名 ${isStaff ? '<span style="color:#92400e; font-size:10px;">⭐</span>' : ''}</th>
+              </tr>
+            </thead>
+            <tbody>
+        `;
+
+        // ★ 固定 7 列，序號 1~7
+        for (let slotIndex = 1; slotIndex <= 7; slotIndex++) {
+          const r = slotIndex - 1;
+          html += `<tr>`;
+          if (slotIndex === 1) {
+            html += `<td rowspan="7" class="lane-number-cell">${laneKey}</td>`;
+          }
+
+          // 序號欄位 (固定 1~7，寬度14%)
+          html += `<td style="font-weight:900; color:#475569; width:14%;">${slotIndex}</td>`;
+
+          // 檢查該號位是否有人
+          const p = (players && players[r] && players[r].name) ? players[r] : null;
+
+          if (p) {
+            let pGender = p.gender;
+            if (rawResponse && rawResponse.members) {
+              const mem = rawResponse.members.find(m => m.name === p.name);
+              if (mem && mem.gender) pGender = mem.gender;
+            }
+            const isFem = (pGender === 'F' || pGender === '女' || pGender === '女生' || pGender === 'female' || pGender === 'W');
+            const colorClass = isFem ? 'female-text' : 'male-text';
+            html += `
+              <td onclick="handlePlayerClick('${p.name}', '${laneKey}', ${slotIndex})" style="cursor:pointer; width:60%;" class="${colorClass}">
+                ${p.name}
+              </td>
+            `;
+          } else {
+            if (!isOpen && !isAdmin) {
+              html += `<td class="slot-locked" style="width:60%;">🚫 不開放</td>`;
+            } else if (isStaff && !isAdmin) {
+              html += `<td class="slot-staff" style="width:60%;">⭐ 工作人員專用</td>`;
+            } else if (deadPassed && !isAdmin) {
+              html += `<td class="slot-locked" style="width:60%;">⏰ 報名已截止</td>`;
+            } else if (slotIndex > allowedSlots && !isAdmin && !isStaff) {
+              html += `<td class="slot-locked" style="width:60%;">🔒 未開放</td>`;
+            } else {
+              html += `
+                <td onclick="openSlotAction('${laneKey}', ${slotIndex})" class="slot-cell-empty">
+                  <span class="slot-pill-btn">＋ 入座</span>
+                </td>
+              `;
+            }
+          }
+          html += `</tr>`;
+        }
+
+        html += `</tbody></table>`;
+      });
+
+      col.innerHTML = html;
+    }
+
+    function openSlotAction(laneKey, slotIndex) {
+      if (!currentUserName && !isAdmin) {
+        showToast('⚠️ 首次使用請先綁定隊員姓名！', 3500);
+        openRegisterModal();
+        return;
+      }
+
+      const cfg = rawResponse ? rawResponse.config : {};
+      const deadPassed = isDeadlinePassed(currentDay, currentDay === '週一' ? cfg.monDate : cfg.thuDate, currentDay === '週一' ? cfg.monDeadline : cfg.thuDeadline);
+      if (deadPassed && !isAdmin) {
+        return showToast('⏰ 本次賽事報名已截止，名單已定案！若需報名請洽幹部。', 4500, false);
+      }
+
+      selectedLane = laneKey;
+      selectedSlotIndex = slotIndex;
+
+      const modal = document.getElementById('actionModal');
+      const title = document.getElementById('modalTitle');
+      const sub = document.getElementById('modalSub');
+      const btnBox = document.getElementById('modalButtons');
+      const proxySec = document.getElementById('proxySection');
+      const guestSec = document.getElementById('guestSection');
+
+      proxySec.style.display = 'none';
+      guestSec.style.display = isAdmin ? 'block' : 'none';
+
+      const dayData = currentDay === '週一' ? (rawResponse ? rawResponse.data.mon : []) : (rawResponse ? rawResponse.data.thu : []);
+      let myCurrentInfo = null;
+      (dayData || []).forEach(l => {
+        (l.players || []).forEach((p, idx) => {
+          if (p && p.name === currentUserName) {
+            myCurrentInfo = { lane: l.lane, slot: idx + 1 };
+          }
+        });
+      });
+
+      const isMon = currentDay === '週一';
+      const dayColor = isMon ? '#16a34a' : '#2563eb';
+      title.innerHTML = `🎳 入座 <span style="color:${dayColor}; font-weight:900;">【${currentDay}賽事】</span> ${laneKey} 道 第 ${slotIndex} 位`;
+      sub.innerText = myCurrentInfo ? `提示：您目前已在【${myCurrentInfo.lane} 道 第 ${myCurrentInfo.slot} 位】` : `目前操作者：${currentUserName}`;
+
+      let btnsHtml = '';
+      if (!myCurrentInfo) {
+        btnsHtml += `
+          <button onclick="joinSelf('${laneKey}', ${slotIndex})" class="modal-btn" style="background:${dayColor}; color:#fff;">
+            🙋‍♂️ 安排我自己 (${currentUserName}) 入座【${currentDay} 第 ${slotIndex} 位】
+          </button>
+        `;
+      } else {
+        btnsHtml += `
+          <button onclick="joinSelf('${laneKey}', ${slotIndex})" class="modal-btn btn-warn">
+            🔄 將我自己從【${myCurrentInfo.lane} 道 第 ${myCurrentInfo.slot} 位】更換至【${laneKey} 道 第 ${slotIndex} 位】
+          </button>
+        `;
+      }
+
+      btnsHtml += `
+        <button onclick="toggleProxySection()" class="modal-btn btn-secondary">
+          👥 幫其他隊友代報名 (免輸PIN)
+        </button>
+      `;
+
+      btnBox.innerHTML = btnsHtml;
+      populateProxySelect(dayData || []);
+      modal.style.display = 'flex';
+    }
+
+    function toggleProxySection() {
+      const sec = document.getElementById('proxySection');
+      sec.style.display = (sec.style.display === 'none' || sec.style.display === '') ? 'block' : 'none';
+    }
+
+    function populateProxySelect(dayData) {
+      const sel = document.getElementById('proxySelect');
+      sel.innerHTML = '<option value="">-- 請選擇未報名隊友 --</option>';
+      const allMembers = (rawResponse && rawResponse.members) ? rawResponse.members : [];
+      
+      const enrolled = new Set();
+      (dayData || []).forEach(l => (l.players || []).forEach(p => {
+        if (p && p.name) enrolled.add(p.name);
+      }));
+
+      allMembers.forEach(m => {
+        if (!enrolled.has(m.name)) {
+          const opt = document.createElement('option');
+          opt.value = m.name;
+          opt.innerText = m.code ? `${m.code} - ${m.name}` : m.name;
+          sel.appendChild(opt);
+        }
+      });
+    }
+
+    async function joinSelf(laneKey, slotIndex) {
+      closeActionModal();
+      let gen = 'M';
+      if (rawResponse && rawResponse.members) {
+        const m = rawResponse.members.find(x => x.name === currentUserName);
+        if (m && m.gender) gen = m.gender;
+      }
+      await submitJoin(laneKey, slotIndex, currentUserName, false, gen);
+    }
+
+    async function confirmProxyJoin() {
+      const sel = document.getElementById('proxySelect');
+      if (!sel.value) return showToast('⚠️ 請先選擇隊友！', 3000);
+      const name = sel.value;
+      closeActionModal();
+      let gen = 'M';
+      if (rawResponse && rawResponse.members) {
+        const m = rawResponse.members.find(x => x.name === name);
+        if (m && m.gender) gen = m.gender;
+      }
+      await submitJoin(selectedLane, selectedSlotIndex, name, false, gen);
+    }
+
+    async function confirmGuestJoin() {
+      const name = document.getElementById('guestName').value.trim();
+      const gender = document.getElementById('guestGender').value;
+      if (!name) return showToast('⚠️ 請輸入來賓姓名！', 3000);
+      closeActionModal();
+      await submitJoin(selectedLane, selectedSlotIndex, name, true, gender);
+    }
+
+    // ★ 0 秒極速樂觀 UI 更新 + 指定席位 (slotIndex: 1~7)
+    async function submitJoin(lane, slotIndex, name, isGuest, gender) {
+      const previousRawResponse = JSON.parse(JSON.stringify(rawResponse || {}));
+
+      let code = '';
+      let memberGender = gender || 'M';
+      if (rawResponse && rawResponse.members) {
+        const foundMember = rawResponse.members.find(m => m.name === name);
+        if (foundMember) {
+          code = foundMember.code || '';
+          if (foundMember.gender) memberGender = foundMember.gender;
+        }
+      }
+
+      if (rawResponse && rawResponse.data) {
+        const targetDayKey = currentDay === '週一' ? 'mon' : 'thu';
+        const dayList = rawResponse.data[targetDayKey] || [];
+        
+        dayList.forEach(l => {
+          if (l.players) {
+            l.players.forEach((p, idx) => {
+              if (p && p.name === name) l.players[idx] = null;
+            });
+          }
+        });
+
+        let targetLaneObj = dayList.find(l => l.lane === lane);
+        if (!targetLaneObj) {
+          targetLaneObj = { lane: lane, players: [null, null, null, null, null, null, null] };
+          dayList.push(targetLaneObj);
+        }
+        if (!targetLaneObj.players) targetLaneObj.players = [null, null, null, null, null, null, null];
+        while (targetLaneObj.players.length < 7) targetLaneObj.players.push(null);
+
+        targetLaneObj.players[slotIndex - 1] = {
+          name: name,
+          code: code,
+          gender: memberGender
+        };
+
+        renderAll();
+      }
+
+      showToast(`⏳ 正在為您登記入座【${currentDay}】${lane} 道 第 ${slotIndex} 位...`, 0, true);
+
+      try {
+        const url = `${API_BASE}?action=joinLane&day=${encodeURIComponent(currentDay)}&lane=${encodeURIComponent(lane)}&slot=${slotIndex}&name=${encodeURIComponent(name)}&isGuest=${isGuest}&gender=${encodeURIComponent(memberGender)}&isAdmin=${isAdmin}`;
+        const res = await (await fetch(url)).json();
+        
+        if (res.status === 'success') {
+          showToast(res.message || `🎉 成功入座【${currentDay}】${lane} 道 第 ${slotIndex} 位！`, 4500, false);
+          await fetchData();
+        } else {
+          rawResponse = previousRawResponse;
+          renderAll();
+          showToast(res.message || '⚠️ 入座失敗，該席位已被佔用或已達限制！', 5000, false);
+        }
+      } catch (e) {
+        rawResponse = previousRawResponse;
+        renderAll();
+        showToast('❌ 網路連線異常，請重新嘗試。', 4500, false);
+      }
+    }
+
+    // ★ 取消席位判斷 (幹部免PIN / 本人免PIN / 他人需輸PIN)
+    function handlePlayerClick(playerName, laneKey, slotIndex) {
+      const cfg = rawResponse ? rawResponse.config : {};
+      const deadPassed = isDeadlinePassed(currentDay, currentDay === '週一' ? cfg.monDate : cfg.thuDate, currentDay === '週一' ? cfg.monDeadline : cfg.thuDeadline);
+      if (deadPassed && !isAdmin) {
+        return showToast('⏰ 本次賽事報名已截止，名單已定案！若需異動請洽幹部。', 4500, false);
+      }
+
+      // 1. 幹部操作 ➔ 二次確認直接取消，免 PIN 碼
+      if (isAdmin) {
+        customConfirm(`👑 管理者操作：確定要取消【${playerName}】在【${currentDay}】${laneKey} 道 第 ${slotIndex} 位的報名嗎？`, async (confirmed) => {
+          if (!confirmed) return;
+          executeLeave(playerName, laneKey, slotIndex, '');
+        });
+        return;
+      }
+
+      // 2. 本人操作 ➔ 二次確認直接取消，0 秒免 PIN 碼！
+      if (currentUserName && currentUserName === playerName) {
+        customConfirm(`確定要取消您自己【${playerName}】在【${currentDay}】${laneKey} 道 第 ${slotIndex} 位的報名嗎？`, async (confirmed) => {
+          if (!confirmed) return;
+          executeLeave(playerName, laneKey, slotIndex, '');
+        });
+        return;
+      }
+
+      // 3. 非本人操作 ➔ 必須輸入該隊友的 4 碼 PIN 碼！
+      openPinConfirmModal(playerName, laneKey, slotIndex);
+    }
+
+    // ★ 執行取消席位 API
+    async function executeLeave(playerName, laneKey, slotIndex, pin) {
+      const previousRawResponse = JSON.parse(JSON.stringify(rawResponse || {}));
+
+      if (rawResponse && rawResponse.data) {
+        const targetDayKey = currentDay === '週一' ? 'mon' : 'thu';
+        const dayList = rawResponse.data[targetDayKey] || [];
+        dayList.forEach(l => {
+          if (l.lane === laneKey && l.players) {
+            if (slotIndex && l.players[slotIndex - 1] && l.players[slotIndex - 1].name === playerName) {
+              l.players[slotIndex - 1] = null;
+            } else {
+              l.players = l.players.map(p => (p && p.name === playerName ? null : p));
+            }
+          }
+        });
+        renderAll();
+      }
+
+      showToast(`⏳ 正在取消【${playerName}】的報名...`, 0, true);
+      try {
+        const url = `${API_BASE}?action=leaveLane&day=${encodeURIComponent(currentDay)}&lane=${encodeURIComponent(laneKey)}&slot=${slotIndex}&name=${encodeURIComponent(playerName)}&pin=${encodeURIComponent(pin)}&operatorName=${encodeURIComponent(currentUserName)}&isAdmin=${isAdmin}`;
+        const res = await (await fetch(url)).json();
+        if (res.status === 'success') {
+          showToast(res.message || `已取消【${playerName}】的報名`, 4500, false);
+          await fetchData();
+        } else {
+          rawResponse = previousRawResponse;
+          renderAll();
+          showToast(res.message || '⚠️ 取消失敗，PIN 碼不符！', 4500, false);
+        }
+      } catch (e) {
+        rawResponse = previousRawResponse;
+        renderAll();
+        showToast('❌ 取消失敗，請檢查網路。', 4500, false);
+      }
+    }
+
+    // ===== 彈窗邏輯：1. 首次使用綁定身分 =====
+    function openRegisterModal() {
+      const sel = document.getElementById('regMemberSelect');
+      if (!sel) return;
+      sel.innerHTML = '<option value="">-- 請選擇您的姓名 --</option>';
+      const members = (rawResponse && rawResponse.members) ? rawResponse.members : [];
+      members.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.name;
+        opt.innerText = m.code ? `${m.code} - ${m.name}` : m.name;
+        sel.appendChild(opt);
+      });
+      document.getElementById('regPinInput').value = '';
+      document.getElementById('regPinConfirmInput').value = '';
+      document.getElementById('registerModal').style.display = 'flex';
+    }
+    function closeRegisterModal() {
+      document.getElementById('registerModal').style.display = 'none';
+    }
+    async function submitRegister() {
+      const name = document.getElementById('regMemberSelect').value;
+      const pin = document.getElementById('regPinInput').value.trim();
+      const pinConfirm = document.getElementById('regPinConfirmInput').value.trim();
+
+      if (!name) return showToast('⚠️ 請先選擇您的姓名！', 3000);
+      if (!pin || pin.length !== 4) return showToast('⚠️ PIN 碼必須剛好為 4 位英數字！', 3000);
+      if (pin !== pinConfirm) return showToast('⚠️ 兩次輸入的 PIN 碼不一致！', 3000);
+
+      if (!currentUserLineId) {
+        await ensureLiffInit();
+      }
+
+      showToast(`⏳ 正在為您綁定【${name}】...`, 0, true);
+      try {
+        const url = `${API_BASE}?action=bindUser&name=${encodeURIComponent(name)}&lineId=${encodeURIComponent(currentUserLineId)}&pin=${encodeURIComponent(pin)}`;
+        const res = await (await fetch(url)).json();
+        if (res.status === 'success') {
+          currentUserName = name;
+          localStorage.setItem('bowling_player_name', currentUserName);
+          closeRegisterModal();
+          updateOperatorDisplay();
+          showToast(res.message || `🎉 成功綁定【${name}】！`, 4500, false);
+          await fetchData();
+        } else {
+          showToast(res.message || '⚠️ 綁定失敗！', 4500, false);
+        }
+      } catch (e) {
+        showToast('❌ 綁定失敗，請檢查網路連線。', 4500, false);
+      }
+    }
+
+    // ===== 彈窗邏輯：2. 他人代取消 PIN 碼驗證 =====
+    function openPinConfirmModal(playerName, laneKey, slotIndex) {
+      pendingLeaveAction = { playerName, laneKey, slotIndex };
+      document.getElementById('pinConfirmSub').innerText = `您目前操作者非【${playerName}】本人。為保護席位安全防誤刪，請輸入【${playerName}】的 4 碼 PIN 碼：`;
+      document.getElementById('targetPinInput').value = '';
+      document.getElementById('pinConfirmModal').style.display = 'flex';
+    }
+    function closePinConfirmModal() {
+      document.getElementById('pinConfirmModal').style.display = 'none';
+      pendingLeaveAction = null;
+    }
+    async function submitVerifyAndLeave() {
+      const pin = document.getElementById('targetPinInput').value.trim();
+      if (!pin || pin.length !== 4) return showToast('⚠️ 請輸入正確的 4 碼 PIN 碼！', 3000);
+      if (!pendingLeaveAction) return closePinConfirmModal();
+
+      const { playerName, laneKey, slotIndex } = pendingLeaveAction;
+      closePinConfirmModal();
+      await executeLeave(playerName, laneKey, slotIndex, pin);
+    }
+
+    // ===== 彈窗邏輯：3. 本人修改個人 PIN 碼 =====
+    function openChangePinModal() {
+      if (!currentUserName) {
+        showToast('⚠️ 請先綁定隊員身分！', 3000);
+        openRegisterModal();
+        return;
+      }
+      document.getElementById('changePinSub').innerText = `目前操作者：【${currentUserName}】`;
+      document.getElementById('oldPinInput').value = '';
+      document.getElementById('newPinInput').value = '';
+      document.getElementById('newPinConfirmInput').value = '';
+      document.getElementById('changePinModal').style.display = 'flex';
+    }
+    function closeChangePinModal() {
+      document.getElementById('changePinModal').style.display = 'none';
+    }
+    async function submitChangePin() {
+      const oldPin = document.getElementById('oldPinInput').value.trim();
+      const newPin = document.getElementById('newPinInput').value.trim();
+      const newPinConfirm = document.getElementById('newPinConfirmInput').value.trim();
+
+      if (!oldPin) return showToast('⚠️ 請輸入原 4 碼 PIN 碼！', 3000);
+      if (!newPin || newPin.length !== 4) return showToast('⚠️ 新 PIN 碼必須剛好為 4 碼！', 3000);
+      if (newPin !== newPinConfirm) return showToast('⚠️ 兩次輸入的新 PIN 碼不一致！', 3000);
+
+      showToast(`⏳ 正在修改【${currentUserName}】的 PIN 碼...`, 0, true);
+      try {
+        const url = `${API_BASE}?action=updatePin&name=${encodeURIComponent(currentUserName)}&oldPin=${encodeURIComponent(oldPin)}&newPin=${encodeURIComponent(newPin)}&isAdmin=false`;
+        const res = await (await fetch(url)).json();
+        if (res.status === 'success') {
+          closeChangePinModal();
+          showToast(res.message || '🎉 PIN 碼修改成功！', 4500, false);
+          await fetchData();
+        } else {
+          showToast(res.message || '❌ 原 PIN 碼不符，修改失敗！', 4500, false);
+        }
+      } catch (e) {
+        showToast('❌ 修改失敗，請檢查網路連線。', 4500, false);
+      }
+    }
+
+    // ===== 彈窗邏輯：4. 借手機切換操作者 =====
+    function openSwitchUserModal() {
+      const sel = document.getElementById('switchUserSelect');
+      if (!sel) return;
+      sel.innerHTML = '<option value="">-- 請選擇欲切換的隊友 --</option>';
+      const members = (rawResponse && rawResponse.members) ? rawResponse.members : [];
+      members.forEach(m => {
+        if (m.name !== currentUserName) {
+          const opt = document.createElement('option');
+          opt.value = m.name;
+          opt.innerText = m.code ? `${m.code} - ${m.name}` : m.name;
+          sel.appendChild(opt);
+        }
+      });
+      document.getElementById('switchUserPinInput').value = '';
+      document.getElementById('switchUserModal').style.display = 'flex';
+    }
+    function closeSwitchUserModal() {
+      document.getElementById('switchUserModal').style.display = 'none';
+    }
+    async function submitSwitchUser() {
+      const targetName = document.getElementById('switchUserSelect').value;
+      const pin = document.getElementById('switchUserPinInput').value.trim();
+
+      if (!targetName) return showToast('⚠️ 請選擇要切換的隊友！', 3000);
+      if (!pin || pin.length !== 4) return showToast('⚠️ 請輸入該隊友的 4 碼 PIN 碼！', 3000);
+
+      const members = (rawResponse && rawResponse.members) ? rawResponse.members : [];
+      const targetMember = members.find(m => m.name === targetName);
+      if (!targetMember || (targetMember.pin && targetMember.pin !== pin)) {
+        return showToast('❌ PIN 碼不正確，無法切換身分！', 4500, false);
+      }
+
+      currentUserName = targetName;
+      localStorage.setItem('bowling_player_name', currentUserName);
+      closeSwitchUserModal();
+      updateOperatorDisplay();
+      renderAll();
+      showToast(`🎉 已成功切換操作者為【${targetName}】！`, 4500, false);
+    }
+
+    // ===== 彈窗邏輯：5. 幹部協助重設 PIN 碼 =====
+    async function submitAdminResetPin() {
+      const name = document.getElementById('adminResetMemberSelect').value;
+      const newPin = document.getElementById('adminResetNewPin').value.trim();
+
+      if (!name) return showToast('⚠️ 請先選擇欲重設 PIN 碼的隊友！', 3000);
+      if (!newPin || newPin.length !== 4) return showToast('⚠️ 請輸入 4 位數新 PIN 碼！', 3000);
+
+      showToast(`⏳ 正在重設【${name}】的 PIN 碼...`, 0, true);
+      try {
+        const url = `${API_BASE}?action=updatePin&name=${encodeURIComponent(name)}&newPin=${encodeURIComponent(newPin)}&isAdmin=true`;
+        const res = await (await fetch(url)).json();
+        if (res.status === 'success') {
+          showToast(res.message || `🎉 已成功將【${name}】的 PIN 碼重設為【${newPin}】！`, 4500, false);
+          document.getElementById('adminResetNewPin').value = '';
+          await fetchData();
+        } else {
+          showToast(res.message || '❌ 重設失敗！', 4500, false);
+        }
+      } catch (e) {
+        showToast('❌ 重設失敗，請檢查網路連線。', 4500, false);
+      }
+    }
+
+    function openAdminModal() {
+      if (isAdmin) {
+        openSettingsModal();
+      } else {
+        document.getElementById('loginModal').style.display = 'flex';
+      }
+    }
+    function closeAdminModal() {
+      document.getElementById('loginModal').style.display = 'none';
+    }
+    function submitAdminLogin() {
+      const input = document.getElementById('adminPwdInput').value;
+      const actual = (rawResponse && rawResponse.config) ? rawResponse.config.adminPwd : '8888';
+      if (input === actual) {
+        isAdmin = true;
+        localStorage.setItem('bowling_admin', 'true');
+        closeAdminModal();
+        showToast('👑 歡迎管理者！所有權限已解鎖。', 4500, false);
+        renderAll();
+      } else {
+        showToast('❌ 密碼錯誤！', 3000, false);
+      }
+    }
+    function logoutAdmin() {
+      isAdmin = false;
+      localStorage.removeItem('bowling_admin');
+      showToast('已登出管理者模式。', 3000, false);
+      renderAll();
+    }
+
+    function openSettingsModal() {
+      const cfg = rawResponse ? rawResponse.config : {};
+      
+      // 初始化已選開放球道集合
+      selectedOpenLanes = parseLaneList(cfg.openLanes || '3-24');
+      // 初始化已選工作人員球道集合
+      selectedStaffLanes = parseLaneList(cfg.staffLanes || '7/8');
+
+      renderOpenLanesChips();
+      renderStaffLanesChips();
+
+      // 填入幹部重設 PIN 碼的選單
+      const adminSel = document.getElementById('adminResetMemberSelect');
+      if (adminSel) {
+        adminSel.innerHTML = '<option value="">-- 請選擇欲重設 PIN 碼的隊友 --</option>';
+        const members = (rawResponse && rawResponse.members) ? rawResponse.members : [];
+        members.forEach(m => {
+          const opt = document.createElement('option');
+          opt.value = m.name;
+          opt.innerText = m.code ? `${m.code} - ${m.name} (目前PIN: ${m.pin || '未設'})` : `${m.name} (目前PIN: ${m.pin || '未設'})`;
+          adminSel.appendChild(opt);
+        });
+      }
+
+      document.getElementById('cfgDeadline').value = currentDay === '週一' ? (cfg.monDeadline || '17:00') : (cfg.thuDeadline || '17:00');
+      document.getElementById('settingsModal').style.display = 'flex';
+    }
+
+    function renderOpenLanesChips() {
+      const container = document.getElementById('openLanesChips');
+      let html = '';
+      ALL_LANES.forEach(lk => {
+        const isActive = selectedOpenLanes.has(lk);
+        html += `<div onclick="toggleOpenLaneChip('${lk}')" class="chip-btn ${isActive ? 'active-open' : ''}">${lk}</div>`;
+      });
+      container.innerHTML = html;
+    }
+
+    function toggleOpenLaneChip(lk) {
+      if (selectedOpenLanes.has(lk)) {
+        selectedOpenLanes.delete(lk);
+      } else {
+        selectedOpenLanes.add(lk);
+      }
+      renderOpenLanesChips();
+    }
+
+    function setOpenLanesPreset(type) {
+      if (type === '3-24') {
+        selectedOpenLanes = new Set(["3/4", "5/6", "7/8", "9/10", "11/12", "13/14", "15/16", "17/18", "19/20", "21/22", "23/24"]);
+      } else if (type === '1-24') {
+        selectedOpenLanes = new Set(ALL_LANES);
+      } else if (type === 'none') {
+        selectedOpenLanes.clear();
+      }
+      renderOpenLanesChips();
+    }
+
+    function renderStaffLanesChips() {
+      const container = document.getElementById('staffLanesChips');
+      let html = '';
+      ALL_LANES.forEach(lk => {
+        const isActive = selectedStaffLanes.has(lk);
+        html += `<div onclick="toggleStaffLaneChip('${lk}')" class="chip-btn ${isActive ? 'active-staff' : ''}">${lk}</div>`;
+      });
+      container.innerHTML = html;
+    }
+
+    function toggleStaffLaneChip(lk) {
+      if (selectedStaffLanes.has(lk)) {
+        selectedStaffLanes.delete(lk);
+      } else {
+        selectedStaffLanes.add(lk);
+      }
+      renderStaffLanesChips();
+    }
+
+    function setStaffLanesPreset(type) {
+      if (type === 'none') {
+        selectedStaffLanes.clear();
+      }
+      renderStaffLanesChips();
+    }
+
+    function closeSettingsModal() {
+      document.getElementById('settingsModal').style.display = 'none';
+    }
+
+    async function saveSettings() {
+      const openLanesStr = Array.from(selectedOpenLanes).join(',') || '無';
+      const staffLanesStr = Array.from(selectedStaffLanes).join(',') || '無';
+      const deadline = document.getElementById('cfgDeadline').value.trim();
+      
+      showToast('⏳ 正在儲存設定中...', 0, true);
+      const keyDead = currentDay === '週一' ? 'monDeadline' : 'thuDeadline';
+      const url = `${API_BASE}?action=updateSettings&openLanes=${encodeURIComponent(openLanesStr)}&staffLanes=${encodeURIComponent(staffLanesStr)}&${keyDead}=${encodeURIComponent(deadline)}`;
+      try {
+        await fetch(url);
+        showToast('✅ 賽事設定儲存成功！', 4500, false);
+        closeSettingsModal();
+        await fetchData();
+      } catch (e) {
+        showToast('❌ 儲存失敗，請檢查網路。', 4500, false);
+      }
+    }
+    function triggerLaneRotation() {
+      customConfirm(`確定要對【${currentDay}球道】執行順移輪調嗎？\n(3/4 ➔ 5/6 ... 23/24 ➔ 3/4)`, async (confirmed) => {
+        if (!confirmed) return;
+        showToast('⏳ 正在執行球道順移輪調中...', 0, true);
+        const url = `${API_BASE}?action=rotateLanes&day=${encodeURIComponent(currentDay)}`;
+        const res = await (await fetch(url)).json();
+        showToast(res.message, 4500, false);
+        closeSettingsModal();
+        await fetchData();
+      });
+    }
+
+    function closeActionModal() {
+      document.getElementById('actionModal').style.display = 'none';
+    }
+
+    window.onload = async function() {
+      initEmptyRender();
+      await ensureLiffInit();
+      fetchData();
+      setInterval(fetchData, 10000);
+    };
+  </script>
+</body>
+</html>

@@ -676,9 +676,32 @@
     let currentUserLineId = localStorage.getItem('bowling_line_id') || '';
     let currentUserName = localStorage.getItem('bowling_player_name') || '';
     let pendingLeaveAction = null; // 儲存非本人取消時的暫存資訊 { playerName, laneKey, slotIndex }
+    let isActionInProgress = false; // 防連點與防止背景輪詢覆蓋暫存狀態
     let selectedLane = '';
     let toastTimer = null;
     let confirmCallback = null;
+
+    // ★ 抗網路波動安全 Fetch (帶超時與自動重試)
+    async function safeFetchJson(url, maxAttempts = 2) {
+      let lastError = null;
+      for (let i = 0; i < maxAttempts; i++) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 12000);
+          const response = await fetch(url, { cache: 'no-store', signal: controller.signal });
+          clearTimeout(timeoutId);
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const data = await response.json();
+          return data;
+        } catch (err) {
+          lastError = err;
+          if (i < maxAttempts - 1) {
+            await new Promise(r => setTimeout(r, 800));
+          }
+        }
+      }
+      throw lastError;
+    }
     let selectedOpenLanes = new Set(["3/4", "5/6", "7/8", "9/10", "11/12", "13/14", "15/16", "17/18", "19/20", "21/22", "23/24"]);
     let selectedStaffLanes = new Set(["7/8"]);
 
@@ -735,15 +758,22 @@
       }
     }
 
-    // ★ 更新頂部操作者徽章
+    // ★ 更新頂部操作者徽章 (週一綠色 / 週四藍色即時連動)
     function updateOperatorDisplay() {
       const badge = document.getElementById('operatorBadge');
       if (badge) {
         if (currentUserName) {
           badge.innerText = currentUserName;
-          badge.style.color = '#1e40af';
-          badge.style.background = '#eff6ff';
-          badge.style.borderColor = '#bfdbfe';
+          const isMon = currentDay === '週一';
+          if (isMon) {
+            badge.style.color = '#15803d';
+            badge.style.background = '#f0fdf4';
+            badge.style.borderColor = '#86efac';
+          } else {
+            badge.style.color = '#1e40af';
+            badge.style.background = '#eff6ff';
+            badge.style.borderColor = '#bfdbfe';
+          }
           badge.style.cursor = 'default';
           badge.onclick = null;
         } else {
@@ -868,11 +898,13 @@
       }
     }
 
-    async function fetchData() {
+    async function fetchData(force = false) {
+      if (isActionInProgress && !force) return;
       try {
         if (!API_BASE || !API_BASE.includes('AKfycb')) return;
-        const res = await (await fetch(`${API_BASE}?api=1`)).json();
+        const res = await safeFetchJson(`${API_BASE}?api=1&_t=${Date.now()}`, 1);
         if (res && res.status === 'success') {
+          if (isActionInProgress && !force) return;
           rawResponse = res;
           if (!window.hasInit && res.config && res.config.defaultDay) {
             currentDay = res.config.defaultDay;
@@ -991,6 +1023,7 @@
 
         renderColumn('leftCol', LEFT_LANES, dayData || [], cfg, allowedSlots);
         renderColumn('rightCol', RIGHT_LANES, dayData || [], cfg, allowedSlots);
+        updateOperatorDisplay();
       } catch (err) {
         console.error("renderAll error:", err);
       }
@@ -1209,6 +1242,9 @@
 
     // ★ 0 秒極速樂觀 UI 更新 + 指定席位 (slotIndex: 1~7)
     async function submitJoin(lane, slotIndex, name, isGuest, gender) {
+      if (isActionInProgress) return;
+      isActionInProgress = true;
+
       const previousRawResponse = JSON.parse(JSON.stringify(rawResponse || {}));
 
       let code = '';
@@ -1254,20 +1290,41 @@
 
       try {
         const url = `${API_BASE}?action=joinLane&day=${encodeURIComponent(currentDay)}&lane=${encodeURIComponent(lane)}&slot=${slotIndex}&name=${encodeURIComponent(name)}&isGuest=${isGuest}&gender=${encodeURIComponent(memberGender)}&isAdmin=${isAdmin}`;
-        const res = await (await fetch(url)).json();
+        const res = await safeFetchJson(url, 2);
         
         if (res.status === 'success') {
           showToast(res.message || `🎉 成功入座【${currentDay}】${lane} 道 第 ${slotIndex} 位！`, 4500, false);
-          await fetchData();
+          isActionInProgress = false;
+          await fetchData(true);
         } else {
+          isActionInProgress = false;
           rawResponse = previousRawResponse;
           renderAll();
           showToast(res.message || '⚠️ 入座失敗，該席位已被佔用或已達限制！', 5000, false);
         }
       } catch (e) {
+        // 遇到網路波動或超時，做一次靜默核對確認試算表狀態，避免假性報錯
+        try {
+          await new Promise(r => setTimeout(r, 1200));
+          const checkRes = await safeFetchJson(`${API_BASE}?api=1&_t=${Date.now()}`, 1);
+          if (checkRes && checkRes.status === 'success') {
+            const targetDayKey = currentDay === '週一' ? 'mon' : 'thu';
+            const dayList = checkRes.data ? checkRes.data[targetDayKey] || [] : [];
+            const isSaved = dayList.some(l => l.lane === lane && l.players && l.players[slotIndex - 1] && l.players[slotIndex - 1].name === name);
+            if (isSaved) {
+              rawResponse = checkRes;
+              renderAll();
+              showToast(`🎉 成功入座【${currentDay}】${lane} 道 第 ${slotIndex} 位！`, 4500, false);
+              return;
+            }
+          }
+        } catch (checkErr) {}
+
         rawResponse = previousRawResponse;
         renderAll();
         showToast('❌ 網路連線異常，請重新嘗試。', 4500, false);
+      } finally {
+        isActionInProgress = false;
       }
     }
 
@@ -1303,6 +1360,9 @@
 
     // ★ 執行取消席位 API
     async function executeLeave(playerName, laneKey, slotIndex, pin) {
+      if (isActionInProgress) return;
+      isActionInProgress = true;
+
       const previousRawResponse = JSON.parse(JSON.stringify(rawResponse || {}));
 
       if (rawResponse && rawResponse.data) {
@@ -1323,19 +1383,40 @@
       showToast(`⏳ 正在取消【${playerName}】的報名...`, 0, true);
       try {
         const url = `${API_BASE}?action=leaveLane&day=${encodeURIComponent(currentDay)}&lane=${encodeURIComponent(laneKey)}&slot=${slotIndex}&name=${encodeURIComponent(playerName)}&pin=${encodeURIComponent(pin)}&operatorName=${encodeURIComponent(currentUserName)}&isAdmin=${isAdmin}`;
-        const res = await (await fetch(url)).json();
+        const res = await safeFetchJson(url, 2);
         if (res.status === 'success') {
           showToast(res.message || `已取消【${playerName}】的報名`, 4500, false);
-          await fetchData();
+          isActionInProgress = false;
+          await fetchData(true);
         } else {
+          isActionInProgress = false;
           rawResponse = previousRawResponse;
           renderAll();
           showToast(res.message || '⚠️ 取消失敗，PIN 碼不符！', 4500, false);
         }
       } catch (e) {
+        // 遇到網路波動，做一次靜默核對確認試算表狀態
+        try {
+          await new Promise(r => setTimeout(r, 1200));
+          const checkRes = await safeFetchJson(`${API_BASE}?api=1&_t=${Date.now()}`, 1);
+          if (checkRes && checkRes.status === 'success') {
+            const targetDayKey = currentDay === '週一' ? 'mon' : 'thu';
+            const dayList = checkRes.data ? checkRes.data[targetDayKey] || [] : [];
+            const stillPresent = dayList.some(l => l.lane === laneKey && l.players && l.players[slotIndex - 1] && l.players[slotIndex - 1].name === playerName);
+            if (!stillPresent) {
+              rawResponse = checkRes;
+              renderAll();
+              showToast(`已取消【${playerName}】的報名`, 4500, false);
+              return;
+            }
+          }
+        } catch (checkErr) {}
+
         rawResponse = previousRawResponse;
         renderAll();
         showToast('❌ 取消失敗，請檢查網路。', 4500, false);
+      } finally {
+        isActionInProgress = false;
       }
     }
 

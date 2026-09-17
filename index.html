@@ -827,7 +827,7 @@
       }
     }
 
-    // ★ 初始化 LIFF SDK 並取得 LINE 身份
+    // ★ 初始化 LIFF SDK 並取得 LINE 身份 (iOS / Android 雙平台防護)
     async function ensureLiffInit() {
       if (isLiffInitialized) return;
       if (window.liff && LIFF_ID) {
@@ -839,10 +839,6 @@
             if (profile && profile.userId) {
               currentUserLineId = profile.userId;
               localStorage.setItem('bowling_line_id', currentUserLineId);
-            }
-          } else {
-            if (liff.isInClient()) {
-              liff.login();
             }
           }
         } catch (err) {

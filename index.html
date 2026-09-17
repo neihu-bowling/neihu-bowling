@@ -677,9 +677,23 @@
     const LEFT_LANES = ["1/2", "3/4", "5/6", "7/8", "9/10", "11/12"];
     const RIGHT_LANES = ["13/14", "15/16", "17/18", "19/20", "21/22", "23/24"];
 
+    // ★ 自動推算預設顯示賽事 (週四10:00後預設週一，週一10:00後預設週四)
+    function getAutoDefaultDay() {
+      const now = new Date();
+      const day = now.getDay(); // 0(日), 1(一), 2(二), 3(三), 4(四), 5(五), 6(六)
+      const hour = now.getHours();
+
+      // 週一 10:00 ~ 週四 09:59 -> 預設顯示「週四」
+      if ((day === 1 && hour >= 10) || day === 2 || day === 3 || (day === 4 && hour < 10)) {
+        return '週四';
+      }
+      // 週四 10:00 ~ 週一 09:59 (含五、六、日) -> 預設顯示「週一」
+      return '週一';
+    }
+
     const ALL_LANES = [...LEFT_LANES, ...RIGHT_LANES];
     let rawResponse = null;
-    let currentDay = '週四';
+    let currentDay = getAutoDefaultDay();
     let isAdmin = localStorage.getItem('bowling_admin') === 'true';
     let currentUserLineId = localStorage.getItem('bowling_line_id') || '';
     let currentUserName = localStorage.getItem('bowling_player_name') || '';
@@ -888,15 +902,13 @@
 
     function initEmptyRender() {
       try {
+        currentDay = getAutoDefaultDay();
         const cachedStr = localStorage.getItem('bowling_cache_raw');
         if (cachedStr) {
           try {
             const cached = JSON.parse(cachedStr);
             if (cached && cached.data) {
               rawResponse = cached;
-              if (cached.config && cached.config.defaultDay) {
-                currentDay = cached.config.defaultDay;
-              }
               initUserIdentity();
               renderAll();
               return;
@@ -921,8 +933,8 @@
           try {
             localStorage.setItem('bowling_cache_raw', JSON.stringify(res));
           } catch (se) {}
-          if (!window.hasInit && res.config && res.config.defaultDay) {
-            currentDay = res.config.defaultDay;
+          if (!window.hasInit) {
+            currentDay = getAutoDefaultDay();
             window.hasInit = true;
           }
           await initUserIdentity();

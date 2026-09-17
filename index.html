@@ -885,9 +885,13 @@
 
       updateOperatorDisplay();
 
-      // 若未綁定且非管理者，自動彈出綁定視窗
+      // 若未綁定且非管理者，自動彈出綁定視窗（若已開啟則不重複調用，避免清空隊友剛選的姓名與密碼）
       if (!currentUserName && !isAdmin && members.length > 0) {
-        setTimeout(openRegisterModal, 350);
+        const regModal = document.getElementById('registerModal');
+        const isModalOpen = regModal && (regModal.style.display === 'flex' || regModal.style.display === 'block');
+        if (!isModalOpen) {
+          setTimeout(openRegisterModal, 350);
+        }
       }
     }
 
@@ -946,6 +950,11 @@
 
     async function fetchData(force = false) {
       if (isActionInProgress && !force) return;
+      // 若隊友正在註冊彈窗中選擇姓名或輸入密碼，暫緩背景輪詢覆蓋
+      const regModal = document.getElementById('registerModal');
+      if (regModal && (regModal.style.display === 'flex' || regModal.style.display === 'block') && !force) {
+        return;
+      }
       try {
         if (!API_BASE || !API_BASE.includes('AKfycb')) return;
         const res = await safeFetchJson(`${API_BASE}?api=1&_t=${Date.now()}`, 1);
@@ -1470,9 +1479,15 @@
     }
 
     // ===== 彈窗邏輯：1. 首次使用綁定身分 =====
-    function openRegisterModal() {
+    function openRegisterModal(forceReset = false) {
+      const modal = document.getElementById('registerModal');
+      const isAlreadyOpen = modal && (modal.style.display === 'flex' || modal.style.display === 'block');
       const sel = document.getElementById('regMemberSelect');
       if (!sel) return;
+
+      // ★ 記住使用者已選擇的姓名，避免背景重新整理時被洗掉
+      const currentSelectedVal = sel.value;
+
       sel.innerHTML = '<option value="">-- 請選擇您的姓名 --</option>';
       const members = (rawResponse && rawResponse.members) ? rawResponse.members : [];
       members.forEach(m => {
@@ -1481,9 +1496,20 @@
         opt.innerText = m.code ? `${m.code} - ${m.name}` : m.name;
         sel.appendChild(opt);
       });
-      document.getElementById('regPinInput').value = '';
-      document.getElementById('regPinConfirmInput').value = '';
-      document.getElementById('registerModal').style.display = 'flex';
+
+      // ★ 重新生成選項後，100% 自動還原隊友剛才選中的姓名！
+      if (currentSelectedVal) {
+        sel.value = currentSelectedVal;
+      }
+
+      // 只有在彈窗尚未開啟或強制重置時才清空密碼輸入框
+      if (!isAlreadyOpen || forceReset) {
+        if (!currentSelectedVal) {
+          document.getElementById('regPinInput').value = '';
+          document.getElementById('regPinConfirmInput').value = '';
+        }
+      }
+      if (modal) modal.style.display = 'flex';
     }
     function closeRegisterModal() {
       document.getElementById('registerModal').style.display = 'none';

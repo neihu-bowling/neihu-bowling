@@ -432,27 +432,56 @@
         <div class="title-text">🎳 內湖保齡球隊</div>
         <div class="btn-group">
           <button id="btnMon" onclick="switchDay('週一')" class="btn-day btn-day-mon">週一</button>
-          <button id="btnThu" onclick="switchDay('週四')" class="btn-day btn-day-thu active">週四</button>
+          <button id="btnThu" onclick="switchDay('週四')" class="btn-day btn-day-thu">週四</button>
         </div>
       </div>
       <button id="adminBtn" onclick="openAdminModal()" class="btn-admin">🔐 管理</button>
     </div>
     <div class="info-bar">
       <div>
-        <span id="eventBadge" class="event-badge event-badge-thu">📅 週四賽事：<span id="actDateDisplay">載入中...</span></span>
+        <span id="eventBadge" class="event-badge">📅 賽事：<span id="actDateDisplay">載入中...</span></span>
       </div>
       <div style="color:#334155;">已報名：<span id="totalCountDisplay" style="color:#dc2626; font-size:15px; font-weight:900;">0</span> 人</div>
     </div>
     <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px; padding-top:6px; border-top:1px solid #e2e8f0; font-size:12px;">
       <div style="display:flex; align-items:center; gap:5px;">
         <span style="color:#64748b; font-weight:bold;">👤 操作者：</span>
-        <span id="operatorBadge" class="operator-badge operator-badge-thu">載入中...</span>
+        <span id="operatorBadge" class="operator-badge">載入中...</span>
       </div>
       <div>
         <button type="button" onclick="openChangePinModal()" style="border:1px solid #cbd5e1; background:#f8fafc; color:#334155; font-size:11px; font-weight:bold; padding:2px 8px; border-radius:4px; cursor:pointer;">🔑 改PIN</button>
       </div>
     </div>
   </div>
+
+  <!-- ★ 零閃爍同步自執行腳本 (Zero-Flicker Synchronous Engine) -->
+  <script>
+    (function() {
+      try {
+        var now = new Date();
+        var d = now.getDay();
+        var h = now.getHours();
+        var isThu = ((d === 1 && h >= 10) || d === 2 || d === 3 || (d === 4 && h < 10));
+        var isMon = !isThu;
+        document.body.className = isMon ? 'theme-mon' : 'theme-thu';
+        var bm = document.getElementById('btnMon');
+        var bt = document.getElementById('btnThu');
+        if (bm) bm.className = isMon ? 'btn-day btn-day-mon active' : 'btn-day btn-day-mon';
+        if (bt) bt.className = isThu ? 'btn-day btn-day-thu active' : 'btn-day btn-day-thu';
+        var eb = document.getElementById('eventBadge');
+        if (eb) {
+          eb.className = isMon ? 'event-badge event-badge-mon' : 'event-badge event-badge-thu';
+          eb.innerHTML = (isMon ? '🟢 週一賽事：' : '🔵 週四賽事：') + '<span id="actDateDisplay">載入中...</span>';
+        }
+        var ob = document.getElementById('operatorBadge');
+        if (ob) {
+          ob.className = isMon ? 'operator-badge operator-badge-mon' : 'operator-badge operator-badge-thu';
+        }
+      } catch (e) {
+        console.error("Zero-flicker init error:", e);
+      }
+    })();
+  </script>
 
   <!-- 管理者工具列 -->
   <div id="adminToolbar" class="admin-bar" style="display: none;">
@@ -909,14 +938,11 @@
             const cached = JSON.parse(cachedStr);
             if (cached && cached.data) {
               rawResponse = cached;
-              initUserIdentity();
-              renderAll();
-              return;
             }
           } catch (ce) {}
         }
-        renderColumn('leftCol', LEFT_LANES, [], { openLanes: '3-24', staffLanes: '7/8' }, 4);
-        renderColumn('rightCol', RIGHT_LANES, [], { openLanes: '3-24', staffLanes: '7/8' }, 4);
+        initUserIdentity();
+        renderAll();
       } catch (e) {
         console.error("initEmptyRender error:", e);
       }

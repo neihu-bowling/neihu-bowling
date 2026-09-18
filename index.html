@@ -339,6 +339,9 @@
       justify-content: center;
       padding: 12px;
     }
+    #confirmDialogModal {
+      z-index: 10005 !important;
+    }
     .modal-card {
       background: #ffffff;
       border-radius: 16px;
@@ -539,7 +542,7 @@
   </div>
 
   <!-- 2. 自訂白底確認視窗 -->
-  <div id="confirmDialogModal" class="modal-overlay">
+  <div id="confirmDialogModal" class="modal-overlay" style="z-index: 10005 !important;">
     <div class="modal-card" style="text-align:center;">
       <h3 id="confirmDialogTitle" style="font-size:15px; font-weight:900; margin-bottom:12px; line-height:1.5;">確認操作？</h3>
       <div style="display:flex; gap:8px;">

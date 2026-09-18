@@ -454,14 +454,18 @@
     </div>
   </div>
 
-  <!-- ★ 零閃爍同步自執行腳本 (Zero-Flicker Synchronous Engine) -->
+  <!-- ★ 零閃爍同步自執行腳本 (Zero-Flicker Synchronous Engine - AM 09:20 分水嶺版) -->
   <script>
     (function() {
       try {
         var now = new Date();
         var d = now.getDay();
         var h = now.getHours();
-        var isThu = ((d === 1 && h >= 10) || d === 2 || d === 3 || (d === 4 && h < 10));
+        var m = now.getMinutes();
+        var isAfterMon0920 = (d === 1 && (h > 9 || (h === 9 && m >= 20)));
+        var isTueOrWed = (d === 2 || d === 3);
+        var isBeforeThu0920 = (d === 4 && (h < 9 || (h === 9 && m < 20)));
+        var isThu = (isAfterMon0920 || isTueOrWed || isBeforeThu0920);
         var isMon = !isThu;
         document.body.className = isMon ? 'theme-mon' : 'theme-thu';
         var bm = document.getElementById('btnMon');
@@ -706,17 +710,22 @@
     const LEFT_LANES = ["1/2", "3/4", "5/6", "7/8", "9/10", "11/12"];
     const RIGHT_LANES = ["13/14", "15/16", "17/18", "19/20", "21/22", "23/24"];
 
-    // ★ 自動推算預設顯示賽事 (週四10:00後預設週一，週一10:00後預設週四)
+    // ★ 自動推算預設顯示賽事 (以 AM 09:20 為精確開打分水嶺)
     function getAutoDefaultDay() {
       const now = new Date();
-      const day = now.getDay(); // 0(日), 1(一), 2(二), 3(三), 4(四), 5(五), 6(六)
-      const hour = now.getHours();
+      const d = now.getDay();
+      const h = now.getHours();
+      const m = now.getMinutes();
 
-      // 週一 10:00 ~ 週四 09:59 -> 預設顯示「週四」
-      if ((day === 1 && hour >= 10) || day === 2 || day === 3 || (day === 4 && hour < 10)) {
+      // 週一 09:20 ~ 週四 09:19 -> 預設顯示「週四」
+      const isAfterMon0920 = (d === 1 && (h > 9 || (h === 9 && m >= 20)));
+      const isTueOrWed = (d === 2 || d === 3);
+      const isBeforeThu0920 = (d === 4 && (h < 9 || (h === 9 && m < 20)));
+
+      if (isAfterMon0920 || isTueOrWed || isBeforeThu0920) {
         return '週四';
       }
-      // 週四 10:00 ~ 週一 09:59 (含五、六、日) -> 預設顯示「週一」
+      // 週四 09:20 ~ 週一 09:19 (含五、六、日) -> 預設顯示「週一」
       return '週一';
     }
 
@@ -784,29 +793,9 @@
       return set.has(laneKey);
     }
 
-    // ★ 判斷是否已過賽事前一日截止時間 (如 17:00)
+    // ★ 賽事報名截止判定 (已取消前一日 17:00 提早截止限制，報名一路開放至開打當天 09:20 輪調為下週)
     function isDeadlinePassed(dayStr, fallbackRaw, deadlineTimeStr) {
-      try {
-        const now = new Date();
-        const targetDayOfWeek = dayStr === '週一' ? 1 : 4;
-        const currentDayOfWeek = now.getDay();
-        let diff = targetDayOfWeek - currentDayOfWeek;
-        if (diff < 0) diff += 7;
-        const matchDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diff);
-        const deadDate = new Date(matchDate.getFullYear(), matchDate.getMonth(), matchDate.getDate() - 1);
-        
-        let hours = 17, mins = 0;
-        if (deadlineTimeStr && String(deadlineTimeStr).includes(':')) {
-          const parts = String(deadlineTimeStr).split(':');
-          hours = parseInt(parts[0], 10) || 17;
-          mins = parseInt(parts[1], 10) || 0;
-        }
-        deadDate.setHours(hours, mins, 0, 0);
-
-        return now.getTime() > deadDate.getTime();
-      } catch (e) {
-        return false;
-      }
+      return false;
     }
 
     // ★ 更新頂部操作者徽章 (週一綠色 / 週四藍色即時連動)
@@ -993,12 +982,18 @@
         }
         return str;
       }
-      // 自動根據本週/下週推算賽事日期
+      // 自動根據本週/下週推算賽事日期 (當天若過 AM 09:20 開打則自動推算為下週)
       const now = new Date();
       const targetDayOfWeek = dayStr === '週一' ? 1 : 4;
       const currentDayOfWeek = now.getDay(); // 0(日) ~ 6(六)
       let diff = targetDayOfWeek - currentDayOfWeek;
-      if (diff < 0) diff += 7; // 已過該星期幾則取下週
+      const hour = now.getHours();
+      const min = now.getMinutes();
+      const isPastCutoff = (hour > 9 || (hour === 9 && min >= 20));
+
+      if (diff < 0 || (diff === 0 && isPastCutoff)) {
+        diff += 7; // 已過開打時間或已過該星期幾則取下週
+      }
       const matchDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diff);
       const mm = String(matchDate.getMonth() + 1).padStart(2, '0');
       const dd = String(matchDate.getDate()).padStart(2, '0');

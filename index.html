@@ -592,16 +592,38 @@
           <div id="staffLanesChips" class="lane-chips-grid"></div>
         </div>
 
-        <!-- 3. 前一日截止時間 -->
+        <!-- 3. 自動輪調模式設定 (每週一/四 AM 09:20 採用) -->
         <div>
-          <label style="font-weight:900; font-size:13px; display:block; margin-bottom:4px;">3️⃣ 前一日截止時間：</label>
-          <input type="text" id="cfgDeadline" placeholder="如 17:00" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px;">
+          <label style="font-weight:900; font-size:13px; display:block; margin-bottom:6px;">3️⃣ 每週自動輪調模式 (一、四 09:20 自動排程)：</label>
+          <div style="display:flex; flex-direction:column; gap:6px; background:#f8fafc; padding:8px; border-radius:6px; border:1px solid #e2e8f0;">
+            <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:bold;">
+              <input type="radio" name="rotateMode" value="sequential" checked>
+              <span>🔄 順序輪調 (依序移動下一道 3/4➔5/6...)</span>
+            </label>
+            <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:bold;">
+              <input type="radio" name="rotateMode" value="random_group_fixed">
+              <span>🎲 隨機 1A【整組換道 - 棒次不變】(同道隊友整組抽籤)</span>
+            </label>
+            <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:bold;">
+              <input type="radio" name="rotateMode" value="random_group_shuffle">
+              <span>🎲 隨機 1B【整組換道 - 棒次隨機】(隊友同道、棒次重抽)</span>
+            </label>
+            <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:bold;">
+              <input type="radio" name="rotateMode" value="random_individual">
+              <span>🔀 隨機 2【個人打散 - 全員重組】(打破分組重新隨機抽籤)</span>
+            </label>
+          </div>
         </div>
 
-        <div style="padding-top:8px; border-top:1px solid #e2e8f0;">
-          <button onclick="triggerLaneRotation()" class="modal-btn" style="background:#4f46e5; color:#fff; margin-bottom:0;">
-            🔄 手動執行球道順移 (3/4 ➔ 5/6 ... 23/24 ➔ 3/4)
-          </button>
+        <!-- 幹部手動即時輪調專區 -->
+        <div style="padding-top:10px; border-top:1px solid #e2e8f0;">
+          <label style="font-weight:900; font-size:13px; display:block; margin-bottom:6px; color:#4338ca;">⚡ 幹部手動即時輪調 (點擊立即生效)：</label>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px;">
+            <button type="button" onclick="triggerManualRotation('sequential', '🔄 順序輪調 (3/4➔5/6...)')" class="quick-btn" style="background:#4f46e5; color:#fff; padding:6px 4px; font-size:11px; text-align:center;">🔄 順序輪調</button>
+            <button type="button" onclick="triggerManualRotation('random_group_fixed', '🎲 隨機 1A (整組換道-棒次不變)')" class="quick-btn" style="background:#2563eb; color:#fff; padding:6px 4px; font-size:11px; text-align:center;">🎲 隨機1A(整組不變)</button>
+            <button type="button" onclick="triggerManualRotation('random_group_shuffle', '🎲 隨機 1B (整組換道-棒次隨機)')" class="quick-btn" style="background:#0891b2; color:#fff; padding:6px 4px; font-size:11px; text-align:center;">🎲 隨機1B(棒次重抽)</button>
+            <button type="button" onclick="triggerManualRotation('random_individual', '🔀 隨機 2 (個人大打散-全員重組)')" class="quick-btn" style="background:#7c3aed; color:#fff; padding:6px 4px; font-size:11px; text-align:center;">🔀 隨機2(個人打散)</button>
+          </div>
         </div>
 
         <!-- 4. 幹部協助重設隊員 PIN 碼 -->
@@ -1681,7 +1703,10 @@
         });
       }
 
-      document.getElementById('cfgDeadline').value = currentDay === '週一' ? (cfg.monDeadline || '17:00') : (cfg.thuDeadline || '17:00');
+      const rMode = cfg.rotateMode || 'sequential';
+      const rInput = document.querySelector(`input[name="rotateMode"][value="${rMode}"]`);
+      if (rInput) rInput.checked = true;
+
       document.getElementById('settingsModal').style.display = 'flex';
     }
 
@@ -1748,11 +1773,11 @@
     async function saveSettings() {
       const openLanesStr = Array.from(selectedOpenLanes).join(',') || '無';
       const staffLanesStr = Array.from(selectedStaffLanes).join(',') || '無';
-      const deadline = document.getElementById('cfgDeadline').value.trim();
+      const rInput = document.querySelector('input[name="rotateMode"]:checked');
+      const rotateMode = rInput ? rInput.value : 'sequential';
       
       showToast('⏳ 正在儲存設定中...', 0, true);
-      const keyDead = currentDay === '週一' ? 'monDeadline' : 'thuDeadline';
-      const url = `${API_BASE}?action=updateSettings&openLanes=${encodeURIComponent(openLanesStr)}&staffLanes=${encodeURIComponent(staffLanesStr)}&${keyDead}=${encodeURIComponent(deadline)}`;
+      const url = `${API_BASE}?action=updateSettings&openLanes=${encodeURIComponent(openLanesStr)}&staffLanes=${encodeURIComponent(staffLanesStr)}&rotateMode=${encodeURIComponent(rotateMode)}`;
       try {
         await fetch(url);
         showToast('✅ 賽事設定儲存成功！', 4500, false);
@@ -1762,15 +1787,20 @@
         showToast('❌ 儲存失敗，請檢查網路。', 4500, false);
       }
     }
-    function triggerLaneRotation() {
-      customConfirm(`確定要對【${currentDay}球道】執行順移輪調嗎？\n(3/4 ➔ 5/6 ... 23/24 ➔ 3/4)`, async (confirmed) => {
+
+    function triggerManualRotation(mode, desc) {
+      customConfirm(`確定要對【${currentDay}球道】執行【${desc}】嗎？`, async (confirmed) => {
         if (!confirmed) return;
-        showToast('⏳ 正在執行球道順移輪調中...', 0, true);
-        const url = `${API_BASE}?action=rotateLanes&day=${encodeURIComponent(currentDay)}`;
-        const res = await (await fetch(url)).json();
-        showToast(res.message, 4500, false);
-        closeSettingsModal();
-        await fetchData();
+        showToast(`⏳ 正在執行【${desc}】中...`, 0, true);
+        const url = `${API_BASE}?action=rotateLanes&day=${encodeURIComponent(currentDay)}&mode=${encodeURIComponent(mode)}`;
+        try {
+          const res = await (await fetch(url)).json();
+          showToast(res.message || '✅ 輪調完成！', 4500, false);
+          closeSettingsModal();
+          await fetchData();
+        } catch (e) {
+          showToast('❌ 輪調執行失敗，請檢查網路。', 4500, false);
+        }
       });
     }
 

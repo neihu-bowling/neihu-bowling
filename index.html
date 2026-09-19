@@ -817,6 +817,7 @@
     }
     let selectedOpenLanes = new Set(["3/4", "5/6", "7/8", "9/10", "11/12", "13/14", "15/16", "17/18", "19/20", "21/22", "23/24"]);
     let selectedStaffLanes = new Set(["7/8"]);
+    let currentAllowedSlots = 4;
 
     let selectedSlotIndex = 1;
 
@@ -1127,6 +1128,7 @@
         } else {
           allowedSlots = 4;
         }
+        currentAllowedSlots = allowedSlots;
 
         renderColumn('leftCol', LEFT_LANES, dayData || [], cfg, allowedSlots, currentStaffLanes);
         renderColumn('rightCol', RIGHT_LANES, dayData || [], cfg, allowedSlots, currentStaffLanes);
@@ -1205,11 +1207,13 @@
           } else {
             if (!isOpen && !isAdmin) {
               html += `<td class="slot-locked" style="width:60%;">🚫 不開放</td>`;
-            } else if (isStaff && !isAdmin && !isSlotOpenPlaceholder) {
-              html += `<td class="slot-locked" style="width:60%;">🔒 未開放</td>`;
             } else if (deadPassed && !isAdmin) {
               html += `<td class="slot-locked" style="width:60%;">⏰ 報名已截止</td>`;
-            } else if (slotIndex > allowedSlots && !isAdmin && !isStaff) {
+            } else if (slotIndex > allowedSlots && !isAdmin) {
+              // ★ 嚴格全場人數水位把關：不論一般道或專用道，只要未達該人數水位（例如每道滿4人才開第5位），一般隊友一律顯示「🔒 未開放」！
+              html += `<td class="slot-locked" style="width:60%;">🔒 未開放</td>`;
+            } else if (isStaff && !isAdmin && !isSlotOpenPlaceholder) {
+              // 專用道幹部私有空位：一般隊友顯示「🔒 未開放」
               html += `<td class="slot-locked" style="width:60%;">🔒 未開放</td>`;
             } else {
               const btnLabel = (isStaff && isAdmin && isSlotOpenPlaceholder) ? '＋ 入座 (已開放)' : '＋ 入座';
@@ -1240,6 +1244,10 @@
       const deadPassed = isDeadlinePassed(currentDay, currentDay === '週一' ? cfg.monDate : cfg.thuDate, currentDay === '週一' ? cfg.monDeadline : cfg.thuDeadline);
       if (deadPassed && !isAdmin) {
         return showToast('⏰ 本次賽事報名已截止，名單已定案！若需報名請洽幹部。', 4500, false);
+      }
+
+      if (slotIndex > currentAllowedSlots && !isAdmin) {
+        return showToast(`🔒 本賽事目前人數水位僅開放至第 ${currentAllowedSlots} 席！滿額後系統將自動解鎖下一席。`, 4500, false);
       }
 
       selectedLane = laneKey;

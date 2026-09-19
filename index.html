@@ -1091,7 +1091,7 @@
           if (l && l.lane) {
             laneMap[l.lane] = l.players || [];
             (l.players || []).forEach(p => {
-              if (p && p.name) totalCount++;
+              if (p && p.name && p.name !== '[開放入座]') totalCount++;
             });
           }
         });
@@ -1104,7 +1104,7 @@
             if (isStaff) {
               staffLaneCount++;
               const staffPlayers = laneMap[lk] || [];
-              staffPlayers.forEach(p => { if (p && p.name) staffPlayerCount++; });
+              staffPlayers.forEach(p => { if (p && p.name && p.name !== '[開放入座]') staffPlayerCount++; });
             }
           }
         });
@@ -1167,7 +1167,7 @@
               <tr class="${currentHeaderClass}">
                 <th style="width:26%">球道</th>
                 <th style="width:14%">序</th>
-                <th style="width:60%">姓　名 ${isStaff ? '<span style="color:#78350f; font-size:11px; font-weight:900;">👑專用</span>' : ''}</th>
+                <th style="width:60%">姓　名</th>
               </tr>
             </thead>
             <tbody>
@@ -1184,10 +1184,11 @@
           // 序號欄位 (固定 1~7，寬度14%)
           html += `<td style="font-weight:900; color:#475569; width:14%;">${slotIndex}</td>`;
 
-          // 檢查該號位是否有人
+          // 檢查該號位是否有人 (若姓名為 [開放入座]，視為開放空位處理)
           const p = (players && players[r] && players[r].name) ? players[r] : null;
+          const isSlotOpenPlaceholder = (p && p.name === '[開放入座]');
 
-          if (p) {
+          if (p && !isSlotOpenPlaceholder) {
             let pGender = p.gender;
             if (rawResponse && rawResponse.members) {
               const mem = rawResponse.members.find(m => m.name === p.name);
@@ -1203,16 +1204,17 @@
           } else {
             if (!isOpen && !isAdmin) {
               html += `<td class="slot-locked" style="width:60%;">🚫 不開放</td>`;
-            } else if (isStaff && !isAdmin) {
+            } else if (isStaff && !isAdmin && !isSlotOpenPlaceholder) {
               html += `<td class="slot-staff" style="width:60%;">⭐ 工作人員專用</td>`;
             } else if (deadPassed && !isAdmin) {
               html += `<td class="slot-locked" style="width:60%;">⏰ 報名已截止</td>`;
             } else if (slotIndex > allowedSlots && !isAdmin && !isStaff) {
               html += `<td class="slot-locked" style="width:60%;">🔒 未開放</td>`;
             } else {
+              const btnLabel = (isStaff && isAdmin && isSlotOpenPlaceholder) ? '＋ 入座 (已開放)' : '＋ 入座';
               html += `
                 <td onclick="openSlotAction('${laneKey}', ${slotIndex})" class="slot-cell-empty">
-                  <span class="slot-pill-btn">＋ 入座</span>
+                  <span class="slot-pill-btn">${btnLabel}</span>
                 </td>
               `;
             }
@@ -1267,7 +1269,32 @@
       title.innerHTML = `🎳 入座 <span style="color:${dayColor}; font-weight:900;">【${currentDay}賽事】</span> ${laneKey} 道 第 ${slotIndex} 位`;
       sub.innerText = myCurrentInfo ? `提示：您目前已在【${myCurrentInfo.lane} 道 第 ${myCurrentInfo.slot} 位】` : `目前操作者：${currentUserName}`;
 
-      let btnsHtml = '';
+      // ★ 若是工作人員專用道且操作者為管理者，最上方新增「🟢 開放此位供隊友入座」/「🔒 鎖定此位僅限幹部」切換按鈕
+      const isMonDay = currentDay === '週一';
+      const curStaffLanes = isMonDay ? (cfg.monStaffLanes || cfg.staffLanes || '7/8') : (cfg.thuStaffLanes || cfg.staffLanes || '7/8');
+      const isCurrentLaneStaff = isLaneStaff(laneKey, curStaffLanes);
+      
+      let staffToggleHtml = '';
+      if (isAdmin && isCurrentLaneStaff) {
+        const laneObj = (dayData || []).find(l => l.lane === laneKey);
+        const slotPlayer = (laneObj && laneObj.players && laneObj.players[slotIndex - 1]) ? laneObj.players[slotIndex - 1].name : null;
+        const isAlreadyOpened = (slotPlayer === '[開放入座]');
+        if (isAlreadyOpened) {
+          staffToggleHtml = `
+            <button type="button" onclick="toggleStaffSlotOpen('${laneKey}', ${slotIndex}, false)" class="modal-btn" style="background:#dc2626; color:#fff; font-weight:900; border:1px solid #b91c1c; margin-bottom:8px;">
+              🔒 取消開放此位 (收回幹部專用)
+            </button>
+          `;
+        } else {
+          staffToggleHtml = `
+            <button type="button" onclick="toggleStaffSlotOpen('${laneKey}', ${slotIndex}, true)" class="modal-btn" style="background:#059669; color:#fff; font-weight:900; border:1px solid #047857; margin-bottom:8px;">
+              🟢 開放此位供隊友自行入座
+            </button>
+          `;
+        }
+      }
+
+      let btnsHtml = staffToggleHtml;
       if (!myCurrentInfo) {
         btnsHtml += `
           <button onclick="joinSelf('${laneKey}', ${slotIndex})" class="modal-btn" style="background:${dayColor}; color:#fff;">
@@ -1291,6 +1318,20 @@
       btnBox.innerHTML = btnsHtml;
       populateProxySelect(dayData || []);
       modal.style.display = 'flex';
+    }
+
+    // ★ 幹部切換專用道空位開放／鎖定狀態
+    async function toggleStaffSlotOpen(laneKey, slotIndex, toOpen) {
+      closeActionModal();
+      if (toOpen) {
+        // 開放此位：寫入 [開放入座]
+        await submitJoin(laneKey, slotIndex, '[開放入座]', false, 'M');
+        showToast(`🟢 已開放【${currentDay}】${laneKey} 道 第 ${slotIndex} 位供隊友入座！`, 4500, false);
+      } else {
+        // 取消開放：清空席位
+        await executeLeave('[開放入座]', laneKey, slotIndex, '');
+        showToast(`🔒 已收回【${currentDay}】${laneKey} 道 第 ${slotIndex} 位為幹部專用！`, 4500, false);
+      }
     }
 
     function toggleProxySection() {

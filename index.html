@@ -1780,10 +1780,10 @@
       const rotateMode = rInput ? rInput.value : 'sequential';
       
       showToast('⏳ 正在儲存設定中...', 0, true);
-      const url = `${API_BASE}?action=updateSettings&openLanes=${encodeURIComponent(openLanesStr)}&staffLanes=${encodeURIComponent(staffLanesStr)}&rotateMode=${encodeURIComponent(rotateMode)}`;
+      const url = `${API_BASE}?action=updateSettings&openLanes=${encodeURIComponent(openLanesStr)}&staffLanes=${encodeURIComponent(staffLanesStr)}&rotateMode=${encodeURIComponent(rotateMode)}&day=${encodeURIComponent(currentDay)}`;
       try {
-        await fetch(url);
-        showToast('✅ 賽事設定儲存成功！', 4500, false);
+        const res = await (await fetch(url)).json();
+        showToast(res.message || '✅ 賽事設定儲存成功！', 4500, false);
         closeSettingsModal();
         await fetchData();
       } catch (e) {

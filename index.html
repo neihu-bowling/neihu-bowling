@@ -444,6 +444,126 @@
       from { opacity: 0; transform: translate(-50%, -50%) scale(0.85); }
       to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
     }
+
+    /* ★ 操作指引卡片樣式 */
+    .user-guide-card {
+      margin: 16px 8px 24px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 14px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+    .user-guide-header {
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .quick-start-box {
+      background: #f0fdfa;
+      border: 1px solid #ccfbf1;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+    }
+    .quick-steps {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+    .step-card {
+      background: #ffffff;
+      border: 1px solid #e6fffa;
+      border-radius: 6px;
+      padding: 8px 6px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    }
+    .step-badge {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #0d9488;
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 900;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 4px;
+    }
+    .step-title {
+      font-weight: 900;
+      font-size: 11px;
+      color: #0f766e;
+      margin-bottom: 2px;
+    }
+    .step-desc {
+      font-size: 10px;
+      color: #64748b;
+      line-height: 1.3;
+    }
+    .badge-mini {
+      display: inline-block;
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-size: 9px;
+      font-weight: bold;
+      color: #ffffff;
+    }
+    .badge-mini.mon { background: #16a34a; }
+    .badge-mini.thu { background: #2563eb; }
+    .slot-pill-mini {
+      display: inline-block;
+      background: #f1f5f9;
+      color: #475569;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 1px 5px;
+      font-size: 9px;
+      font-weight: bold;
+    }
+    .accordion-toggle-btn {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 10px 12px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .accordion-toggle-btn:hover {
+      background: #f1f5f9;
+    }
+    .guide-item {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-left: 3px solid #3b82f6;
+      border-radius: 6px;
+      padding: 8px 10px;
+      margin-bottom: 8px;
+      font-size: 11.5px;
+      line-height: 1.5;
+    }
+    .guide-item-title {
+      font-weight: 900;
+      font-size: 12px;
+      color: #1e293b;
+      margin-bottom: 3px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .guide-item-body {
+      color: #475569;
+    }
   </style>
 </head>
 <body>
@@ -479,7 +599,8 @@
         <span style="color:#64748b; font-weight:bold;">👤 操作者：</span>
         <span id="operatorBadge" class="operator-badge">載入中...</span>
       </div>
-      <div>
+      <div style="display:flex; gap:6px;">
+        <button type="button" onclick="scrollToUserGuide()" style="border:1px solid #cbd5e1; background:#f8fafc; color:#334155; font-size:11px; font-weight:bold; padding:2px 8px; border-radius:4px; cursor:pointer;">📖 說明</button>
         <button type="button" onclick="openChangePinModal()" style="border:1px solid #cbd5e1; background:#f8fafc; color:#334155; font-size:11px; font-weight:bold; padding:2px 8px; border-radius:4px; cursor:pointer;">🔑 改PIN</button>
       </div>
     </div>
@@ -533,8 +654,100 @@
     <div class="col-space" id="rightCol"></div>
   </div>
 
-  <div class="footer-note">
-    💡 備註：預排表是依上週延續做的預排；有參賽會員不用重複報名。
+  <!-- ==================== 📖 系統操作指引 (一般隊友圖文手冊) ==================== -->
+  <div id="userGuideCard" class="user-guide-card">
+    <div class="user-guide-header">
+      <div style="font-weight:900; font-size:14px; color:#1e293b; display:flex; align-items:center; gap:6px;">
+        <span>📖 內湖保齡球隊 - 操作指引</span>
+      </div>
+    </div>
+
+    <!-- 🚀 30 秒快速上手 (常駐顯示) -->
+    <div class="quick-start-box">
+      <div style="font-weight:900; font-size:12px; color:#0f766e; margin-bottom:8px; display:flex; align-items:center; gap:4px;">
+        <span>🚀 30 秒快速上手（三步驟）</span>
+      </div>
+      <div class="quick-steps">
+        <div class="step-card">
+          <div class="step-badge">1</div>
+          <div class="step-title">切換賽事</div>
+          <div class="step-desc">點選上方 <span class="badge-mini mon">週一</span> 或 <span class="badge-mini thu">週四</span></div>
+        </div>
+        <div class="step-card">
+          <div class="step-badge">2</div>
+          <div class="step-title">選擇球道</div>
+          <div class="step-desc">點選空位 <span class="slot-pill-mini">＋ 入座</span></div>
+        </div>
+        <div class="step-card">
+          <div class="step-badge">3</div>
+          <div class="step-title">確認入座</div>
+          <div class="step-desc">點「安排我自己入座」完成！</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 📋 功能圖文詳細說明 (摺疊抽屜) -->
+    <div class="guide-accordion-box">
+      <button type="button" class="accordion-toggle-btn" onclick="toggleUserGuide()">
+        <span style="display:flex; align-items:center; gap:6px; font-weight:900; color:#334155;">
+          <span>📋 功能圖文詳細說明</span>
+        </span>
+        <span id="userGuideToggleIcon" style="font-size:12px; font-weight:bold; color:#64748b;">點擊展開 ▾</span>
+      </button>
+
+      <div id="userGuideDetailContent" style="display:none; padding-top:12px;">
+        <!-- 項目 1: 更換球道 -->
+        <div class="guide-item">
+          <div class="guide-item-title">🔄 更換球道</div>
+          <div class="guide-item-body">
+            若已報名想換到其他球道，直接點擊目標空位的 <span class="slot-pill-mini">＋ 入座</span> 按鈕，彈出選單點選「🔄 將我自己更換至新球道」，系統將立即為您移位，原席位自動釋出給他人。
+          </div>
+        </div>
+
+        <!-- 項目 2: 取消報名 -->
+        <div class="guide-item">
+          <div class="guide-item-title">❌ 取消報名</div>
+          <div class="guide-item-body">
+            若因事臨時不克出席，直接點擊您自己的名字，在彈出選單點選「❌ 取消報名」，席位將立刻釋出給其他隊友遞補。
+          </div>
+        </div>
+
+        <!-- 項目 3: 幫其他隊友代報名 -->
+        <div class="guide-item">
+          <div class="guide-item-title">👥 幫其他隊友代報名</div>
+          <div class="guide-item-body">
+            若隊友不便使用手機，點擊任一空位 <span class="slot-pill-mini">＋ 入座</span> ➔ 點開「👥 幫其他隊友代報名」，從下拉名單直接挑選未報名的隊友，免輸 PIN 碼直接協助入座。
+          </div>
+        </div>
+
+        <!-- 項目 4: 席位顯示「未開放」或「不開放」的條件說明 -->
+        <div class="guide-item" style="border-left-color:#eab308; background:#fefce8;">
+          <div class="guide-item-title" style="color:#854d0e;">🔒 席位顯示「未開放」或「不開放」的條件說明</div>
+          <div class="guide-item-body" style="color:#713f12;">
+            <div style="margin-bottom:6px;">
+              <strong>1. 全場人數水位平衡（自動解鎖）：</strong><br>
+              為維持各道平衡與公平，系統預設每道優先開放 <strong>第 1～4 棒</strong>。當全場已開放球道 <strong>每道平均皆滿 4 人</strong> 時，系統會 <strong>自動同步解鎖全場第 5 棒</strong>！未達門檻前，第 5 棒以後一律鎖定顯示「🔒 未開放」。
+            </div>
+            <div style="margin-bottom:6px;">
+              <strong>2. 工作人員專用道保留位（幹部釋出即解鎖）：</strong><br>
+              專用道（如 7/8 道）空位平時由工作幹部調度，預設顯示「🔒 未開放」。若幹部釋出空位，將解鎖顯示為 <span class="slot-pill-mini">＋ 入座</span> 供隊友自由報名；若隊友入座後反悔取消，該席位亦會 <strong>自動維持開放</strong> 供他人遞補。
+            </div>
+            <div>
+              <strong>3. 非本次賽事使用道（顯示「🚫 不開放」）：</strong><br>
+              若該球道未被幹部納入當次比賽開道名單（如 1/2 道），整道顯示「🚫 不開放」。
+            </div>
+          </div>
+        </div>
+
+        <!-- 項目 5: 忘記或變更 PIN 碼 -->
+        <div class="guide-item">
+          <div class="guide-item-title">🔑 變更或忘記 PIN 碼</div>
+          <div class="guide-item-body">
+            點擊頂部右上角「🔑 改PIN」按鈕，輸入舊 PIN 即可設定新 4 碼密碼；若徹底忘記 PIN 碼，可請幹部於管理者面板協助一鍵重設。
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- ==================== 彈窗系列 (純白底、無網址) ==================== -->
@@ -667,6 +880,43 @@
             <div style="display:flex; gap:6px;">
               <input type="text" id="adminResetNewPin" maxlength="4" placeholder="輸入新 4 碼 PIN" style="flex:1; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px;">
               <button type="button" onclick="submitAdminResetPin()" class="quick-btn" style="background:#2563eb; color:#fff; border-color:#1d4ed8; padding:8px 12px; font-size:12px;">確認重設</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5. 幹部管理與賽事調度操作手冊 (摺疊抽屜) -->
+        <div style="padding-top:10px; border-top:1px solid #e2e8f0;">
+          <button type="button" onclick="toggleAdminGuide()" style="width:100%; display:flex; justify-content:space-between; align-items:center; background:#fef9c3; border:1px solid #fde047; padding:8px 10px; border-radius:6px; cursor:pointer; text-align:left;">
+            <span style="font-weight:900; font-size:13px; color:#854d0e;">👑 幹部管理與賽事調度操作手冊</span>
+            <span id="adminGuideToggleIcon" style="font-size:12px; font-weight:bold; color:#a16207;">點擊展開 ▾</span>
+          </button>
+          <div id="adminGuideContent" style="display:none; padding:10px; background:#fffbeb; border:1px solid #fde047; border-top:none; border-radius:0 0 6px 6px; font-size:11.5px; line-height:1.6; color:#78350f;">
+            <div style="margin-bottom:8px;">
+              <strong>🟢 / 🔒 專用道任意席位彈性開放與個別收回：</strong><br>
+              在管理者模式下，專用道空位皆會亮起供幹部操作。點選空位後，點擊「🟢 開放此位供隊友自行入座」即可開放該席位；可同時任意開放多席（如第 4、5 棒同時開放）。點擊已開放席位選擇「🔒 取消開放此位 (收回幹部專用)」即可單獨收回。
+            </div>
+            <div style="margin-bottom:8px;">
+              <strong>⚙️ 開放球道設定：</strong><br>
+              上方提供「常用 3-24」、「全選 1-24」、「清除」快捷鍵，亦可個別點選球道標籤自由開關當天比賽球道。
+            </div>
+            <div style="margin-bottom:8px;">
+              <strong>🏷️ 專用道設定：</strong><br>
+              週一與週四專用道各自獨立設定（例如週一設為 7/8 道、週四設為 9/10 道或無專用道）。
+            </div>
+            <div style="margin-bottom:8px;">
+              <strong>🔄 四大輪調模式深度解析（每週一、四 AM 09:20 自動排程 或 幹部即時輪調）：</strong><br>
+              • <strong>順序輪調</strong>：全場隊員整道順時鐘依序推移至下一道（3/4 ➔ 5/6...）。<br>
+              • <strong>隨機 1A（整組換道 - 棒次固定）</strong>：同道隊友整組抽籤換道，道內棒次順序不變。<br>
+              • <strong>隨機 1B（整組換道 - 棒次隨機）</strong>：同道隊友整組抽籤換道，但道內棒次重新隨機抽籤。<br>
+              • <strong>隨機 2（個人打散 - 全員重組）</strong>：打破原分組，全場隊員大洗牌重新分發球道與棒次。
+            </div>
+            <div style="margin-bottom:8px;">
+              <strong>👤 臨時來賓報名：</strong><br>
+              點擊任一空位可展開「手動輸入臨時來賓」，輸入姓名並挑選性別（男藍/女紅），免建檔即刻入座。
+            </div>
+            <div>
+              <strong>🔑 幹部協助重設隊員 PIN 碼：</strong><br>
+              隊友若遺失或忘記 PIN 碼，在第 4 區下拉挑選該隊友並輸入新 4 碼 PIN，點選「確認重設」即可一鍵更新。
             </div>
           </div>
         </div>
@@ -1904,6 +2154,40 @@
           showToast('❌ 輪調執行失敗，請檢查網路。', 4500, false);
         }
       });
+    }
+
+    // ★ 隊友操作手冊摺疊切換
+    function toggleUserGuide() {
+      const content = document.getElementById('userGuideDetailContent');
+      const icon = document.getElementById('userGuideToggleIcon');
+      if (!content || !icon) return;
+      const isHidden = (content.style.display === 'none' || content.style.display === '');
+      content.style.display = isHidden ? 'block' : 'none';
+      icon.innerText = isHidden ? '點擊收合 ▴' : '點擊展開 ▾';
+    }
+
+    // ★ 頂部導覽列「📖 說明」平滑直達並自動展開
+    function scrollToUserGuide() {
+      const card = document.getElementById('userGuideCard');
+      const content = document.getElementById('userGuideDetailContent');
+      const icon = document.getElementById('userGuideToggleIcon');
+      if (content && (content.style.display === 'none' || content.style.display === '')) {
+        content.style.display = 'block';
+        if (icon) icon.innerText = '點擊收合 ▴';
+      }
+      if (card) {
+        card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+
+    // ★ 幹部管理與賽事調度操作手冊摺疊切換
+    function toggleAdminGuide() {
+      const content = document.getElementById('adminGuideContent');
+      const icon = document.getElementById('adminGuideToggleIcon');
+      if (!content || !icon) return;
+      const isHidden = (content.style.display === 'none' || content.style.display === '');
+      content.style.display = isHidden ? 'block' : 'none';
+      icon.innerText = isHidden ? '點擊收合 ▴' : '點擊展開 ▾';
     }
 
     function closeActionModal() {

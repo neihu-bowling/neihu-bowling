@@ -1154,8 +1154,9 @@
         const isOpen = isLaneOpen(laneKey, cfg.openLanes);
         const isStaff = isLaneStaff(laneKey, currentStaffLanes);
         const disabledClass = !isOpen ? 'lane-disabled' : '';
-        const staffTableClass = isStaff ? 'lane-table-staff' : '';
-        const currentHeaderClass = isStaff ? 'lane-box-header-staff' : defaultHeaderClass;
+        // ★ 專用道醒目黃色樣式與金黃標頭：僅在管理者模式 (isAdmin) 下啟用！一般隊友模式維持週一/週四原配色
+        const staffTableClass = (isStaff && isAdmin) ? 'lane-table-staff' : '';
+        const currentHeaderClass = (isStaff && isAdmin) ? 'lane-box-header-staff' : defaultHeaderClass;
 
         // 計算該道已有人數
         let filledCount = 0;
@@ -1205,7 +1206,7 @@
             if (!isOpen && !isAdmin) {
               html += `<td class="slot-locked" style="width:60%;">🚫 不開放</td>`;
             } else if (isStaff && !isAdmin && !isSlotOpenPlaceholder) {
-              html += `<td class="slot-staff" style="width:60%;">⭐ 工作人員專用</td>`;
+              html += `<td class="slot-locked" style="width:60%;">🔒 未開放</td>`;
             } else if (deadPassed && !isAdmin) {
               html += `<td class="slot-locked" style="width:60%;">⏰ 報名已截止</td>`;
             } else if (slotIndex > allowedSlots && !isAdmin && !isStaff) {
@@ -1324,12 +1325,14 @@
     async function toggleStaffSlotOpen(laneKey, slotIndex, toOpen) {
       closeActionModal();
       if (toOpen) {
-        // 開放此位：寫入 [開放入座]
-        await submitJoin(laneKey, slotIndex, '[開放入座]', false, 'M');
-        showToast(`🟢 已開放【${currentDay}】${laneKey} 道 第 ${slotIndex} 位供隊友入座！`, 4500, false);
+        // 開放此位：以靜默模式寫入 [開放入座]
+        showToast(`⏳ 正在開放【${currentDay}】${laneKey} 道 第 ${slotIndex} 位...`, 0, true);
+        await submitJoin(laneKey, slotIndex, '[開放入座]', false, 'M', true);
+        showToast(`🟢 已開放【${currentDay}】${laneKey} 道 第 ${slotIndex} 位供隊友自行入座！`, 4500, false);
       } else {
-        // 取消開放：清空席位
-        await executeLeave('[開放入座]', laneKey, slotIndex, '');
+        // 取消開放：以靜默模式清空席位
+        showToast(`⏳ 正在收回【${currentDay}】${laneKey} 道 第 ${slotIndex} 位...`, 0, true);
+        await executeLeave('[開放入座]', laneKey, slotIndex, '', true);
         showToast(`🔒 已收回【${currentDay}】${laneKey} 道 第 ${slotIndex} 位為幹部專用！`, 4500, false);
       }
     }
@@ -1391,7 +1394,7 @@
     }
 
     // ★ 0 秒極速樂觀 UI 更新 + 指定席位 (slotIndex: 1~7)
-    async function submitJoin(lane, slotIndex, name, isGuest, gender) {
+    async function submitJoin(lane, slotIndex, name, isGuest, gender, silentMode = false) {
       if (isActionInProgress) return;
       isActionInProgress = true;
 
@@ -1436,14 +1439,18 @@
         renderAll();
       }
 
-      showToast(`⏳ 正在為您登記入座【${currentDay}】${lane} 道 第 ${slotIndex} 位...`, 0, true);
+      if (!silentMode) {
+        showToast(`⏳ 正在為您登記入座【${currentDay}】${lane} 道 第 ${slotIndex} 位...`, 0, true);
+      }
 
       try {
         const url = `${API_BASE}?action=joinLane&day=${encodeURIComponent(currentDay)}&lane=${encodeURIComponent(lane)}&slot=${slotIndex}&name=${encodeURIComponent(name)}&isGuest=${isGuest}&gender=${encodeURIComponent(memberGender)}&isAdmin=${isAdmin}`;
         const res = await safeFetchJson(url, 2);
         
         if (res.status === 'success') {
-          showToast(res.message || `🎉 成功入座【${currentDay}】${lane} 道 第 ${slotIndex} 位！`, 4500, false);
+          if (!silentMode) {
+            showToast(res.message || `🎉 成功入座【${currentDay}】${lane} 道 第 ${slotIndex} 位！`, 4500, false);
+          }
           isActionInProgress = false;
           await fetchData(true);
         } else {
@@ -1509,7 +1516,7 @@
     }
 
     // ★ 執行取消席位 API
-    async function executeLeave(playerName, laneKey, slotIndex, pin) {
+    async function executeLeave(playerName, laneKey, slotIndex, pin, silentMode = false) {
       if (isActionInProgress) return;
       isActionInProgress = true;
 
@@ -1530,12 +1537,16 @@
         renderAll();
       }
 
-      showToast(`⏳ 正在取消【${playerName}】的報名...`, 0, true);
+      if (!silentMode) {
+        showToast(`⏳ 正在取消【${playerName}】的報名...`, 0, true);
+      }
       try {
         const url = `${API_BASE}?action=leaveLane&day=${encodeURIComponent(currentDay)}&lane=${encodeURIComponent(laneKey)}&slot=${slotIndex}&name=${encodeURIComponent(playerName)}&pin=${encodeURIComponent(pin)}&operatorName=${encodeURIComponent(currentUserName)}&isAdmin=${isAdmin}`;
         const res = await safeFetchJson(url, 2);
         if (res.status === 'success') {
-          showToast(res.message || `已取消【${playerName}】的報名`, 4500, false);
+          if (!silentMode) {
+            showToast(res.message || `已取消【${playerName}】的報名`, 4500, false);
+          }
           isActionInProgress = false;
           await fetchData(true);
         } else {

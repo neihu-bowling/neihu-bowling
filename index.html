@@ -190,6 +190,34 @@
       font-weight: 900;
       color: #064e3b !important;
     }
+    /* ★ 工作人員專用道專屬醒目樣式：整張表格7格全套金黃色底色 */
+    .lane-table-staff {
+      background-color: #fef9c3 !important;
+      border: 1.5px solid #d97706 !important;
+      box-shadow: 0 2px 6px rgba(217, 119, 6, 0.2) !important;
+    }
+    .lane-box-header-staff {
+      background: linear-gradient(180deg, #fef08a 0%, #fde047 100%) !important;
+      color: #78350f !important;
+      font-weight: 900 !important;
+    }
+    .lane-table-staff th, .lane-table-staff td {
+      background-color: #fef9c3 !important;
+      border-color: #f59e0b !important;
+    }
+    .lane-table-staff .lane-number-cell {
+      background-color: #fef08a !important;
+      color: #78350f !important;
+      border-color: #f59e0b !important;
+    }
+    .lane-table-staff .slot-cell-empty {
+      background-color: #fef9c3 !important;
+    }
+    .lane-table-staff .slot-pill-btn {
+      background-color: #fef08a !important;
+      border: 1px solid #d97706 !important;
+      color: #78350f !important;
+    }
     .lane-number-cell {
       font-family: "Times New Roman", Georgia, serif;
       font-style: italic;
@@ -587,7 +615,7 @@
         <!-- 2. 工作人員專用道 -->
         <div>
           <div style="display:flex; justify-content:space-between; align-items:center;">
-            <label style="font-weight:900; font-size:13px;">2️⃣ 工作人員專用道：</label>
+            <label id="staffLanesLabel" style="font-weight:900; font-size:13px;">2️⃣ 工作人員專用道：</label>
             <div class="quick-preset-bar">
               <button type="button" onclick="setStaffLanesPreset('none')" class="quick-btn">無專用道</button>
             </div>
@@ -1051,6 +1079,7 @@
         if (adminBtn) adminBtn.innerText = isAdmin ? '👑 已解鎖' : '🔐 管理';
 
         const dayData = (rawResponse && rawResponse.data) ? (isMon ? (rawResponse.data.mon || []) : (rawResponse.data.thu || [])) : [];
+        const currentStaffLanes = isMon ? (cfg.monStaffLanes || cfg.staffLanes || '7/8') : (cfg.thuStaffLanes || cfg.staffLanes || '7/8');
         
         let totalCount = 0;
         let staffPlayerCount = 0;
@@ -1069,7 +1098,7 @@
 
         ALL_LANES.forEach(lk => {
           const isOpen = isLaneOpen(lk, cfg.openLanes);
-          const isStaff = isLaneStaff(lk, cfg.staffLanes);
+          const isStaff = isLaneStaff(lk, currentStaffLanes);
           if (isOpen) {
             totalOpenCount++;
             if (isStaff) {
@@ -1099,15 +1128,15 @@
           allowedSlots = 4;
         }
 
-        renderColumn('leftCol', LEFT_LANES, dayData || [], cfg, allowedSlots);
-        renderColumn('rightCol', RIGHT_LANES, dayData || [], cfg, allowedSlots);
+        renderColumn('leftCol', LEFT_LANES, dayData || [], cfg, allowedSlots, currentStaffLanes);
+        renderColumn('rightCol', RIGHT_LANES, dayData || [], cfg, allowedSlots, currentStaffLanes);
         updateOperatorDisplay();
       } catch (err) {
         console.error("renderAll error:", err);
       }
     }
 
-    function renderColumn(colId, lanesArray, dayData, cfg, allowedSlots) {
+    function renderColumn(colId, lanesArray, dayData, cfg, allowedSlots, currentStaffLanes) {
       const col = document.getElementById(colId);
       if (!col) return;
       const laneMap = {};
@@ -1116,27 +1145,29 @@
       });
 
       const isMon = currentDay === '週一';
-      const headerClass = isMon ? 'lane-box-header-mon' : 'lane-box-header-thu';
+      const defaultHeaderClass = isMon ? 'lane-box-header-mon' : 'lane-box-header-thu';
       const deadPassed = isDeadlinePassed(currentDay, isMon ? cfg.monDate : cfg.thuDate, isMon ? cfg.monDeadline : cfg.thuDeadline);
 
       let html = '';
       lanesArray.forEach(laneKey => {
         const players = laneMap[laneKey] || [];
         const isOpen = isLaneOpen(laneKey, cfg.openLanes);
-        const isStaff = isLaneStaff(laneKey, cfg.staffLanes);
+        const isStaff = isLaneStaff(laneKey, currentStaffLanes);
         const disabledClass = !isOpen ? 'lane-disabled' : '';
+        const staffTableClass = isStaff ? 'lane-table-staff' : '';
+        const currentHeaderClass = isStaff ? 'lane-box-header-staff' : defaultHeaderClass;
 
         // 計算該道已有人數
         let filledCount = 0;
         players.forEach(p => { if (p && p.name) filledCount++; });
 
         html += `
-          <table class="table-bordered ${disabledClass}">
+          <table class="table-bordered ${disabledClass} ${staffTableClass}">
             <thead>
-              <tr class="${headerClass}">
+              <tr class="${currentHeaderClass}">
                 <th style="width:26%">球道</th>
                 <th style="width:14%">序</th>
-                <th style="width:60%">姓　名 ${isStaff ? '<span style="color:#92400e; font-size:10px;">⭐</span>' : ''}</th>
+                <th style="width:60%">姓　名 ${isStaff ? '<span style="color:#78350f; font-size:11px; font-weight:900;">👑專用</span>' : ''}</th>
               </tr>
             </thead>
             <tbody>
@@ -1684,11 +1715,19 @@
 
     function openSettingsModal() {
       const cfg = rawResponse ? rawResponse.config : {};
+      const isMon = currentDay === '週一';
+      const dayStaff = isMon ? (cfg.monStaffLanes || cfg.staffLanes || '7/8') : (cfg.thuStaffLanes || cfg.staffLanes || '7/8');
       
+      // 更新標籤提示當前是設定週一還是週四
+      const staffLbl = document.getElementById('staffLanesLabel');
+      if (staffLbl) {
+        staffLbl.innerText = `2️⃣ 【${currentDay}】工作人員專用道：`;
+      }
+
       // 初始化已選開放球道集合
       selectedOpenLanes = parseLaneList(cfg.openLanes || '3-24');
       // 初始化已選工作人員球道集合
-      selectedStaffLanes = parseLaneList(cfg.staffLanes || '7/8');
+      selectedStaffLanes = parseLaneList(dayStaff);
 
       renderOpenLanesChips();
       renderStaffLanesChips();

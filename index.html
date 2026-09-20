@@ -619,20 +619,18 @@
   <!-- 頂部資訊列 -->
   <div class="header-card">
     <div class="top-bar">
-      <div class="title-box">
+      <div class="title-box" style="gap:8px;">
         <div class="title-text">🎳 內湖保齡球隊</div>
-        <div class="btn-group">
-          <button id="btnMon" onclick="switchDay('週一')" class="btn-day btn-day-mon">週一</button>
-          <button id="btnThu" onclick="switchDay('週四')" class="btn-day btn-day-thu">週四</button>
-        </div>
+        <span id="eventBadge" class="event-badge">📅 賽事：<span id="actDateDisplay">載入中...</span></span>
       </div>
       <button id="adminBtn" onclick="openAdminModal()" class="btn-admin">🔐 管理</button>
     </div>
     <div class="info-bar">
-      <div>
-        <span id="eventBadge" class="event-badge">📅 賽事：<span id="actDateDisplay">載入中...</span></span>
+      <div class="btn-group">
+        <button id="btnMon" onclick="switchDay('週一')" class="btn-day btn-day-mon">週一</button>
+        <button id="btnThu" onclick="switchDay('週四')" class="btn-day btn-day-thu">週四</button>
       </div>
-      <div style="color:#334155;">已報名：<span id="totalCountDisplay" style="color:#dc2626; font-size:15px; font-weight:900;">0</span> 人</div>
+      <div style="color:#334155; font-size:12px; font-weight:bold;">已報名：<span id="totalCountDisplay" style="color:#dc2626; font-size:15px; font-weight:900;">0</span> 人<span id="genderCountDisplay" style="color:#64748b; font-size:11.5px; font-weight:normal; margin-left:3px;">(男0、女0)</span></div>
     </div>
     <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px; padding-top:6px; border-top:1px solid #e2e8f0; font-size:12px;">
       <div style="display:flex; align-items:center; gap:5px;">
@@ -854,13 +852,19 @@
   <!-- 4. 管理者設定面板 -->
   <div id="settingsModal" class="modal-overlay">
     <div class="modal-card" style="max-height:90vh; overflow-y:auto;">
-      <h3 style="font-size:16px; font-weight:900; margin-bottom:12px;">⚙️ 賽事快速設定</h3>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1.5px solid #e2e8f0; padding-bottom:8px;">
+        <h3 style="font-size:16px; font-weight:900; margin:0;">⚙️ 賽事快速設定</h3>
+        <div class="btn-group" style="margin:0;">
+          <button type="button" id="btnSettingMon" onclick="switchSettingDay('週一')" class="btn-day btn-day-mon">週一設定</button>
+          <button type="button" id="btnSettingThu" onclick="switchSettingDay('週四')" class="btn-day btn-day-thu">週四設定</button>
+        </div>
+      </div>
 
       <div style="font-size:12px; display:flex; flex-direction:column; gap:12px;">
         <!-- 1. 開放球道 -->
         <div>
           <div style="display:flex; justify-content:space-between; align-items:center;">
-            <label style="font-weight:900; font-size:13px;">1️⃣ 開放球道：</label>
+            <label id="openLanesLabel" style="font-weight:900; font-size:13px;">1️⃣ 開放球道：</label>
             <div class="quick-preset-bar">
               <button type="button" onclick="setOpenLanesPreset('3-24')" class="quick-btn">常用 3-24</button>
               <button type="button" onclick="setOpenLanesPreset('1-24')" class="quick-btn">全選</button>
@@ -883,7 +887,7 @@
 
         <!-- 3. 自動輪調模式設定 (每週一/四 AM 09:20 採用) -->
         <div>
-          <label style="font-weight:900; font-size:13px; display:block; margin-bottom:6px;">3️⃣ 每週自動輪調模式 (一、四 09:20 自動排程)：</label>
+          <label id="rotateModeLabel" style="font-weight:900; font-size:13px; display:block; margin-bottom:6px;">3️⃣ 每週自動輪調模式 (一、四 09:20 自動排程)：</label>
           <div style="display:flex; flex-direction:column; gap:6px; background:#f8fafc; padding:8px; border-radius:6px; border:1px solid #e2e8f0;">
             <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:bold;">
               <input type="radio" name="rotateMode" value="sequential" checked>
@@ -906,7 +910,7 @@
 
         <!-- 幹部手動即時輪調專區 -->
         <div style="padding-top:10px; border-top:1px solid #e2e8f0;">
-          <label style="font-weight:900; font-size:13px; display:block; margin-bottom:6px; color:#4338ca;">⚡ 幹部手動即時輪調 (點擊立即生效)：</label>
+          <label id="manualRotateLabel" style="font-weight:900; font-size:13px; display:block; margin-bottom:6px; color:#4338ca;">⚡ 幹部手動即時輪調 (點擊立即生效)：</label>
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px;">
             <button type="button" onclick="triggerManualRotation('sequential', '🔄 順序輪調 (3/4➔5/6...)')" class="quick-btn" style="background:#4f46e5; color:#fff; padding:6px 4px; font-size:11px; text-align:center;">🔄 順序輪調</button>
             <button type="button" onclick="triggerManualRotation('random_group_fixed', '🎲 隨機 1A (整組換道-棒次不變)')" class="quick-btn" style="background:#2563eb; color:#fff; padding:6px 4px; font-size:11px; text-align:center;">🎲 隨機1A(整組不變)</button>
@@ -1499,16 +1503,33 @@
         const currentStaffLanes = isMon ? (cfg.monStaffLanes || cfg.staffLanes || '7/8') : (cfg.thuStaffLanes || cfg.staffLanes || '7/8');
         
         let totalCount = 0;
+        let maleCount = 0;
+        let femaleCount = 0;
         let staffPlayerCount = 0;
         let totalOpenCount = 0;
         let staffLaneCount = 0;
+
+        const memberMap = {};
+        if (rawResponse && rawResponse.members) {
+          rawResponse.members.forEach(m => {
+            if (m && m.name) memberMap[m.name] = m.gender || 'M';
+          });
+        }
 
         const laneMap = {};
         (dayData || []).forEach(l => {
           if (l && l.lane) {
             laneMap[l.lane] = l.players || [];
             (l.players || []).forEach(p => {
-              if (p && p.name && p.name !== '[開放入座]') totalCount++;
+              if (p && p.name && p.name !== '[開放入座]') {
+                totalCount++;
+                const gen = p.gender || memberMap[p.name] || 'M';
+                if (gen === 'F' || gen === '女') {
+                  femaleCount++;
+                } else {
+                  maleCount++;
+                }
+              }
             });
           }
         });
@@ -1528,6 +1549,8 @@
 
         const countDisp = document.getElementById('totalCountDisplay');
         if (countDisp) countDisp.innerText = totalCount;
+        const genderDisp = document.getElementById('genderCountDisplay');
+        if (genderDisp) genderDisp.innerText = `(男${maleCount}、女${femaleCount})`;
 
         // ★ 扣除工作人員專用道後計算「一般有效球道數」與「一般有效人數」
         const generalOpenCount = Math.max(1, totalOpenCount - staffLaneCount);
@@ -2266,24 +2289,11 @@
       renderAll();
     }
 
+    let currentSettingDay = '週一';
+
     function openSettingsModal() {
-      const cfg = rawResponse ? rawResponse.config : {};
-      const isMon = currentDay === '週一';
-      const dayStaff = isMon ? (cfg.monStaffLanes || cfg.staffLanes || '7/8') : (cfg.thuStaffLanes || cfg.staffLanes || '7/8');
-      
-      // 更新標籤提示當前是設定週一還是週四
-      const staffLbl = document.getElementById('staffLanesLabel');
-      if (staffLbl) {
-        staffLbl.innerText = `2️⃣ 【${currentDay}】工作人員專用道：`;
-      }
-
-      // 初始化已選開放球道集合
-      selectedOpenLanes = parseLaneList(cfg.openLanes || '3-24');
-      // 初始化已選工作人員球道集合
-      selectedStaffLanes = parseLaneList(dayStaff);
-
-      renderOpenLanesChips();
-      renderStaffLanesChips();
+      currentSettingDay = currentDay || '週一';
+      loadSettingDayData(currentSettingDay);
 
       // 填入幹部重設 PIN 碼的選單
       const adminSel = document.getElementById('adminResetMemberSelect');
@@ -2298,11 +2308,47 @@
         });
       }
 
-      const rMode = cfg.rotateMode || 'sequential';
-      const rInput = document.querySelector(`input[name="rotateMode"][value="${rMode}"]`);
-      if (rInput) rInput.checked = true;
-
       document.getElementById('settingsModal').style.display = 'flex';
+    }
+
+    function switchSettingDay(day) {
+      currentSettingDay = day;
+      loadSettingDayData(day);
+    }
+
+    function loadSettingDayData(day) {
+      const isMon = (day === '週一');
+      const btnM = document.getElementById('btnSettingMon');
+      const btnT = document.getElementById('btnSettingThu');
+      if (btnM) btnM.className = isMon ? 'btn-day btn-day-mon active' : 'btn-day btn-day-mon';
+      if (btnT) btnT.className = !isMon ? 'btn-day btn-day-thu active' : 'btn-day btn-day-thu';
+
+      const cfg = rawResponse ? rawResponse.config : {};
+      const dayStaff = isMon ? (cfg.monStaffLanes || cfg.staffLanes || '7/8') : (cfg.thuStaffLanes || cfg.staffLanes || '7/8');
+      const dayOpen = isMon ? (cfg.monOpenLanes || cfg.openLanes || '3-24') : (cfg.thuOpenLanes || cfg.openLanes || '3-24');
+      const dayRotate = isMon ? (cfg.monRotateMode || cfg.rotateMode || 'sequential') : (cfg.thuRotateMode || cfg.rotateMode || 'sequential');
+
+      const staffLbl = document.getElementById('staffLanesLabel');
+      if (staffLbl) staffLbl.innerText = `2️⃣ 【${day}】工作人員專用道：`;
+
+      const openLbl = document.getElementById('openLanesLabel');
+      if (openLbl) openLbl.innerText = `1️⃣ 【${day}】開放球道：`;
+
+      const rotateLbl = document.getElementById('rotateModeLabel');
+      if (rotateLbl) rotateLbl.innerText = `3️⃣ 【${day}】每週自動輪調模式 (一、四 09:20 自動排程)：`;
+
+      const manualRotateLbl = document.getElementById('manualRotateLabel');
+      if (manualRotateLbl) manualRotateLbl.innerText = `⚡ 【${day}】幹部手動即時輪調 (點擊立即生效)：`;
+
+      // 初始化已選開放球道與專用道集合
+      selectedOpenLanes = parseLaneList(dayOpen);
+      selectedStaffLanes = parseLaneList(dayStaff);
+
+      renderOpenLanesChips();
+      renderStaffLanesChips();
+
+      const rInput = document.querySelector(`input[name="rotateMode"][value="${dayRotate}"]`);
+      if (rInput) rInput.checked = true;
     }
 
     function renderOpenLanesChips() {
@@ -2370,18 +2416,19 @@
       const staffLanesStr = Array.from(selectedStaffLanes).join(',') || '無';
       const rInput = document.querySelector('input[name="rotateMode"]:checked');
       const rotateMode = rInput ? rInput.value : 'sequential';
+      const targetDay = currentSettingDay || currentDay;
       
-      showToast('⏳ 正在儲存設定中...', 0, true);
-      const url = `${API_BASE}?action=updateSettings&openLanes=${encodeURIComponent(openLanesStr)}&staffLanes=${encodeURIComponent(staffLanesStr)}&rotateMode=${encodeURIComponent(rotateMode)}&day=${encodeURIComponent(currentDay)}`;
+      showToast(`⏳ 正在儲存【${targetDay}】設定中...`, 0, true);
+      const url = `${API_BASE}?action=updateSettings&openLanes=${encodeURIComponent(openLanesStr)}&staffLanes=${encodeURIComponent(staffLanesStr)}&rotateMode=${encodeURIComponent(rotateMode)}&day=${encodeURIComponent(targetDay)}`;
       try {
         const res = await (await fetch(url)).json();
-        showToast(res.message || '✅ 賽事設定儲存成功！', 3000, false);
+        showToast(res.message || `✅ 【${targetDay}】賽事設定儲存成功！`, 3000, false);
         closeSettingsModal();
 
         // 同步更新 Firebase 即時設定
         if (rtdb) {
           const cfgUpdate = {};
-          if (currentDay === '週一') {
+          if (targetDay === '週一') {
             cfgUpdate.monOpenLanes = openLanesStr;
             cfgUpdate.monStaffLanes = staffLanesStr;
             cfgUpdate.monRotateMode = rotateMode;
@@ -2400,10 +2447,11 @@
     }
 
     function triggerManualRotation(mode, desc) {
-      customConfirm(`確定要對【${currentDay}球道】執行【${desc}】嗎？`, async (confirmed) => {
+      const targetDay = currentSettingDay || currentDay;
+      customConfirm(`確定要對【${targetDay}球道】執行【${desc}】嗎？`, async (confirmed) => {
         if (!confirmed) return;
         showToast(`⏳ 正在執行【${desc}】中...`, 0, true);
-        const url = `${API_BASE}?action=rotateLanes&day=${encodeURIComponent(currentDay)}&mode=${encodeURIComponent(mode)}`;
+        const url = `${API_BASE}?action=rotateLanes&day=${encodeURIComponent(targetDay)}&mode=${encodeURIComponent(mode)}`;
         try {
           const res = await (await fetch(url)).json();
           showToast(res.message || '✅ 輪調完成！', 3000, false);
@@ -2411,7 +2459,7 @@
           await fetchData(true); // force fetch
           // 同步最新輪調結果到 Firebase
           if (rtdb && rawResponse && rawResponse.data) {
-            const dayKey = currentDay === '週一' ? 'mon' : 'thu';
+            const dayKey = targetDay === '週一' ? 'mon' : 'thu';
             if (rawResponse.data[dayKey]) {
               rtdb.ref(`data/${dayKey}`).set(rawResponse.data[dayKey]).catch(err => console.warn('Firebase rotation sync error:', err));
             }

@@ -12,8 +12,10 @@
   <meta property="og:image" content="https://images.unsplash.com/photo-1538688525198-9b88f6f53126?w=1200&fit=crop&q=80">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta name="description" content="內湖保齡球隊 - 雲端即時排道與預約報名系統">
   <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <!-- Firebase SDK (v10.8.0 Compat Mode) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
@@ -920,6 +922,18 @@
             </div>
           </div>
         </div>
+
+        <!-- 6. Google 試算表同步備份 (對接現場計分 Excel) -->
+        <div style="padding-top:10px; border-top:1px solid #e2e8f0;">
+          <label style="font-weight:900; font-size:13px; display:block; margin-bottom:4px; color:#047857;">📊 6️⃣ Google 試算表同步備份 (供現場計分 Excel 讀取)：</label>
+          <p style="font-size:11px; color:#64748b; margin-bottom:6px; line-height:1.4;">
+            隊友報名使用 Firebase 毫秒即時同步。點擊下方按鈕可隨時將最新球道名單整批寫入 Google 試算表，確保現場計分 Excel 讀取無誤。
+          </p>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <button type="button" onclick="syncFirebaseToGoogleSheets()" class="quick-btn" style="background:#059669; color:#fff; border-color:#047857; padding:8px 12px; font-size:12px; font-weight:900;">📥 立即同步至 Google 試算表</button>
+            <span id="syncStatusDisplay" style="font-size:11px; color:#64748b;">狀態：尚未同步</span>
+          </div>
+        </div>
       </div>
 
       <div style="display:flex; gap:6px; margin-top:16px;">
@@ -1009,6 +1023,109 @@
     const API_BASE = 'https://script.google.com/macros/s/AKfycbxsgDcINyj9LfuAEipn8J1YKPrTtBr0Bm1MPj29RRCeKuRb60ITretQ0PK2o4CL4XJV/exec';
     const LIFF_ID = '2011581133-do1d9yl8';
     let isLiffInitialized = false;
+
+    // ★ Firebase Realtime Database 配置 (0.1秒極速報名、毫秒全場同步、離線防漏單)
+    const firebaseConfig = {
+      apiKey: "AIzaSyAlUyBTmBcDBlYve5mlffHbfddtkvmseHA",
+      authDomain: "neihu-bowling.firebaseapp.com",
+      databaseURL: "https://neihu-bowling-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "neihu-bowling",
+      storageBucket: "neihu-bowling.firebasestorage.app",
+      messagingSenderId: "174027473106",
+      appId: "1:174027473106:web:7ae77ce3063a20eb79ed0b",
+      measurementId: "G-YHVW44LLHN"
+    };
+
+    let rtdb = null;
+    let isFirebaseReady = false;
+    let hasSeededFirebase = false;
+
+    try {
+      if (typeof firebase !== 'undefined') {
+        firebase.initializeApp(firebaseConfig);
+        rtdb = firebase.database();
+        isFirebaseReady = true;
+        console.log('✅ Firebase Realtime Database 啟動成功！');
+        setupFirebaseListeners();
+      }
+    } catch (e) {
+      console.warn('Firebase 初始化警訊 (將使用 GAS 備援):', e);
+    }
+
+    // ★ 監聽 Firebase 即時異動 (毫秒廣播同步，徹底淘汰輪詢)
+    function setupFirebaseListeners() {
+      if (!rtdb) return;
+
+      // 1. 監聽兩日球道名單 (data)
+      rtdb.ref('data').on('value', snapshot => {
+        const val = snapshot.val();
+        if (val && (val.mon || val.thu)) {
+          if (!rawResponse) rawResponse = { status: 'success', data: {}, config: {}, members: [] };
+          
+          const normalizeDayList = (rawList) => {
+            if (!rawList) return [];
+            const arr = Array.isArray(rawList) ? rawList : Object.values(rawList);
+            return arr.map(l => {
+              if (!l) return null;
+              let pl = l.players || [];
+              if (!Array.isArray(pl)) pl = Object.values(pl);
+              while (pl.length < 7) pl.push(null);
+              return { lane: l.lane, players: pl };
+            }).filter(Boolean);
+          };
+
+          rawResponse.data = {
+            mon: normalizeDayList(val.mon),
+            thu: normalizeDayList(val.thu)
+          };
+
+          if (!window.hasInit) {
+            currentDay = getAutoDefaultDay();
+            window.hasInit = true;
+          }
+          renderAll();
+        } else if (!hasSeededFirebase) {
+          hasSeededFirebase = true;
+          seedFirebaseFromGAS();
+        }
+      });
+
+      // 2. 監聽賽事設定 (config)
+      rtdb.ref('config').on('value', snapshot => {
+        const val = snapshot.val();
+        if (val) {
+          if (!rawResponse) rawResponse = { status: 'success', data: {}, config: {}, members: [] };
+          rawResponse.config = Object.assign(rawResponse.config || {}, val);
+          renderAll();
+        }
+      });
+
+      // 3. 監聽隊員名單 (members)
+      rtdb.ref('members').on('value', snapshot => {
+        const val = snapshot.val();
+        if (val) {
+          if (!rawResponse) rawResponse = { status: 'success', data: {}, config: {}, members: [] };
+          rawResponse.members = Array.isArray(val) ? val : Object.values(val);
+          initUserIdentity();
+        }
+      });
+    }
+
+    // ★ 若 Firebase 初次建立為空，自動從試算表抽取資料初始化至 Firebase
+    async function seedFirebaseFromGAS() {
+      try {
+        console.log('⏳ 正在從 Google 試算表同步初始資料至 Firebase...');
+        const res = await safeFetchJson(`${API_BASE}?api=1&_t=${Date.now()}`, 2);
+        if (res && res.status === 'success' && rtdb) {
+          if (res.data) rtdb.ref('data').set(res.data);
+          if (res.config) rtdb.ref('config').set(res.config);
+          if (res.members) rtdb.ref('members').set(res.members);
+          console.log('✅ Firebase 初始化成功！');
+        }
+      } catch (e) {
+        console.warn('Firebase 初始填充失敗:', e);
+      }
+    }
 
     const LEFT_LANES = ["1/2", "3/4", "5/6", "7/8", "9/10", "11/12"];
     const RIGHT_LANES = ["13/14", "15/16", "17/18", "19/20", "21/22", "23/24"];
@@ -1253,9 +1370,15 @@
         const res = await safeFetchJson(`${API_BASE}?api=1&_t=${Date.now()}`, 1);
         if (res && res.status === 'success') {
           if (isActionInProgress && !force) return;
-          rawResponse = res;
+          // 若 Firebase 已連線且已有球道資料，保留 Firebase 的最新即時球道資料，僅更新隊員名單與設定
+          if (isFirebaseReady && rawResponse && rawResponse.data && (rawResponse.data.mon || rawResponse.data.thu) && !force) {
+            if (res.members) rawResponse.members = res.members;
+            if (res.config && !rawResponse.config) rawResponse.config = res.config;
+          } else {
+            rawResponse = res;
+          }
           try {
-            localStorage.setItem('bowling_cache_raw', JSON.stringify(res));
+            localStorage.setItem('bowling_cache_raw', JSON.stringify(rawResponse));
           } catch (se) {}
           if (!window.hasInit) {
             currentDay = getAutoDefaultDay();
@@ -1668,10 +1791,91 @@
         }
       }
 
+      const isMonDay = currentDay === '週一';
+      const cfg = rawResponse ? rawResponse.config : {};
+      const currentStaffLane = isMonDay ? (cfg.monStaffLanes || cfg.staffLanes || '7/8') : (cfg.thuStaffLanes || cfg.staffLanes || '7/8');
+      const targetDayKey = isMonDay ? 'mon' : 'thu';
+
+      if (!silentMode) {
+        showToast(`⏳ 正在為您登記入座【${currentDay}】${lane} 道 第 ${slotIndex} 位...`, 0, true);
+      }
+
+      // ★ 1. 優先使用 Firebase Realtime Database Transaction (0.1秒極速完成、斷線不漏單)
+      if (rtdb && isFirebaseReady) {
+        try {
+          let txResult = null;
+          await rtdb.ref(`data/${targetDayKey}`).transaction(dayLanes => {
+            if (!dayLanes) return dayLanes;
+            let list = Array.isArray(dayLanes) ? dayLanes : Object.values(dayLanes);
+
+            // 若為非 [開放入座]，清理全場舊席位 (若舊席位在專用道上則還原為 [開放入座])
+            if (name !== '[開放入座]') {
+              list.forEach(l => {
+                if (l && l.players) {
+                  let pl = Array.isArray(l.players) ? l.players : Object.values(l.players);
+                  pl.forEach((p, idx) => {
+                    if (p && p.name === name) {
+                      const isStaff = isLaneStaff(l.lane, currentStaffLane);
+                      pl[idx] = isStaff ? { name: '[開放入座]', gender: 'M' } : null;
+                    }
+                  });
+                  l.players = pl;
+                }
+              });
+            }
+
+            // 檢查目標席位
+            let targetLane = list.find(l => l && l.lane === lane);
+            if (!targetLane) {
+              targetLane = { lane: lane, players: Array(7).fill(null) };
+              list.push(targetLane);
+            }
+            if (!targetLane.players) targetLane.players = Array(7).fill(null);
+            if (!Array.isArray(targetLane.players)) targetLane.players = Object.values(targetLane.players);
+            while (targetLane.players.length < 7) targetLane.players.push(null);
+
+            const existing = targetLane.players[slotIndex - 1];
+            if (existing && existing.name && existing.name !== name && existing.name !== '[開放入座]') {
+              // 席位已被佔用，中止交易！
+              return undefined;
+            }
+
+            // 入座成功
+            targetLane.players[slotIndex - 1] = {
+              name: name,
+              code: code,
+              gender: memberGender
+            };
+
+            return list;
+          }, (err, committed, snapshot) => {
+            txResult = { err, committed };
+          });
+
+          isActionInProgress = false;
+          if (txResult && txResult.err) {
+            showToast('❌ 入座失敗：' + txResult.err.message, 4500, false);
+          } else if (txResult && !txResult.committed) {
+            showToast('⚠️ 慢了一步！該席位剛剛已被其他人入座，請選其他席位！', 4500, false);
+          } else {
+            if (!silentMode) {
+              showToast(`🎉 成功入座【${currentDay}】${lane} 道 第 ${slotIndex} 位！`, 4500, false);
+            }
+            // 背景非同步發送 GAS 備援（fire-and-forget，不卡介面）
+            try {
+              const bgUrl = `${API_BASE}?action=joinLane&day=${encodeURIComponent(currentDay)}&lane=${encodeURIComponent(lane)}&slot=${slotIndex}&name=${encodeURIComponent(name)}&isGuest=${isGuest}&gender=${encodeURIComponent(memberGender)}&isAdmin=${isAdmin}&_t=${Date.now()}`;
+              fetch(bgUrl, { mode: 'no-cors' }).catch(() => {});
+            } catch (ignore) {}
+          }
+          return;
+        } catch (fbErr) {
+          console.warn('Firebase transaction failed, falling back to GAS:', fbErr);
+        }
+      }
+
+      // ★ 2. 備援方案：若 Firebase 未就緒，使用 GAS 處理
       if (rawResponse && rawResponse.data) {
-        const targetDayKey = currentDay === '週一' ? 'mon' : 'thu';
         const dayList = rawResponse.data[targetDayKey] || [];
-        
         dayList.forEach(l => {
           if (l.players) {
             l.players.forEach((p, idx) => {
@@ -1697,10 +1901,6 @@
         renderAll();
       }
 
-      if (!silentMode) {
-        showToast(`⏳ 正在為您登記入座【${currentDay}】${lane} 道 第 ${slotIndex} 位...`, 0, true);
-      }
-
       try {
         const url = `${API_BASE}?action=joinLane&day=${encodeURIComponent(currentDay)}&lane=${encodeURIComponent(lane)}&slot=${slotIndex}&name=${encodeURIComponent(name)}&isGuest=${isGuest}&gender=${encodeURIComponent(memberGender)}&isAdmin=${isAdmin}`;
         const res = await safeFetchJson(url, 2);
@@ -1718,23 +1918,6 @@
           showToast(res.message || '⚠️ 入座失敗，該席位已被佔用或已達限制！', 5000, false);
         }
       } catch (e) {
-        // 遇到網路波動或超時，做一次靜默核對確認試算表狀態，避免假性報錯
-        try {
-          await new Promise(r => setTimeout(r, 1200));
-          const checkRes = await safeFetchJson(`${API_BASE}?api=1&_t=${Date.now()}`, 1);
-          if (checkRes && checkRes.status === 'success') {
-            const targetDayKey = currentDay === '週一' ? 'mon' : 'thu';
-            const dayList = checkRes.data ? checkRes.data[targetDayKey] || [] : [];
-            const isSaved = dayList.some(l => l.lane === lane && l.players && l.players[slotIndex - 1] && l.players[slotIndex - 1].name === name);
-            if (isSaved) {
-              rawResponse = checkRes;
-              renderAll();
-              showToast(`🎉 成功入座【${currentDay}】${lane} 道 第 ${slotIndex} 位！`, 4500, false);
-              return;
-            }
-          }
-        } catch (checkErr) {}
-
         rawResponse = previousRawResponse;
         renderAll();
         showToast('❌ 網路連線異常，請重新嘗試。', 4500, false);
@@ -1779,9 +1962,58 @@
       isActionInProgress = true;
 
       const previousRawResponse = JSON.parse(JSON.stringify(rawResponse || {}));
+      const isMonDay = currentDay === '週一';
+      const cfg = rawResponse ? rawResponse.config : {};
+      const currentStaffLane = isMonDay ? (cfg.monStaffLanes || cfg.staffLanes || '7/8') : (cfg.thuStaffLanes || cfg.staffLanes || '7/8');
+      const targetDayKey = isMonDay ? 'mon' : 'thu';
 
+      // 檢查 PIN 碼 (若非本人且非管理者且提供 PIN，進行比對)
+      if (pin && !isAdmin && currentUserName !== playerName) {
+        const members = (rawResponse && rawResponse.members) ? rawResponse.members : [];
+        const targetMember = members.find(m => m.name === playerName);
+        if (targetMember && targetMember.pin && targetMember.pin !== pin) {
+          isActionInProgress = false;
+          return showToast('⚠️ 取消失敗，PIN 碼不符！', 4500, false);
+        }
+      }
+
+      if (!silentMode) {
+        showToast(`⏳ 正在取消【${playerName}】的報名...`, 0, true);
+      }
+
+      // ★ 1. 優先使用 Firebase Realtime Database (0.1秒極速退座與還原)
+      if (rtdb && isFirebaseReady) {
+        try {
+          await rtdb.ref(`data/${targetDayKey}`).transaction(dayLanes => {
+            if (!dayLanes) return dayLanes;
+            let list = Array.isArray(dayLanes) ? dayLanes : Object.values(dayLanes);
+            const targetLane = list.find(l => l && l.lane === laneKey);
+            if (!targetLane || !targetLane.players) return list;
+            if (!Array.isArray(targetLane.players)) targetLane.players = Object.values(targetLane.players);
+
+            const isStaff = isLaneStaff(laneKey, currentStaffLane);
+            const shouldRestoreOpen = isStaff && (playerName !== '[開放入座]');
+            targetLane.players[slotIndex - 1] = shouldRestoreOpen ? { name: '[開放入座]', gender: 'M' } : null;
+            return list;
+          });
+
+          isActionInProgress = false;
+          if (!silentMode) {
+            showToast(`已取消【${playerName}】的報名`, 4500, false);
+          }
+          // 背景非同步發送 GAS 備援（fire-and-forget，不卡介面）
+          try {
+            const bgUrl = `${API_BASE}?action=leaveLane&day=${encodeURIComponent(currentDay)}&lane=${encodeURIComponent(laneKey)}&slot=${slotIndex}&name=${encodeURIComponent(playerName)}&pin=${encodeURIComponent(pin || '')}&operatorName=${encodeURIComponent(currentUserName)}&isAdmin=${isAdmin}&_t=${Date.now()}`;
+            fetch(bgUrl, { mode: 'no-cors' }).catch(() => {});
+          } catch (ignore) {}
+          return;
+        } catch (fbErr) {
+          console.warn('Firebase leave failed, falling back to GAS:', fbErr);
+        }
+      }
+
+      // ★ 2. 備援方案：若 Firebase 未就緒，使用 GAS 處理
       if (rawResponse && rawResponse.data) {
-        const targetDayKey = currentDay === '週一' ? 'mon' : 'thu';
         const dayList = rawResponse.data[targetDayKey] || [];
         dayList.forEach(l => {
           if (l.lane === laneKey && l.players) {
@@ -1795,9 +2027,6 @@
         renderAll();
       }
 
-      if (!silentMode) {
-        showToast(`⏳ 正在取消【${playerName}】的報名...`, 0, true);
-      }
       try {
         const url = `${API_BASE}?action=leaveLane&day=${encodeURIComponent(currentDay)}&lane=${encodeURIComponent(laneKey)}&slot=${slotIndex}&name=${encodeURIComponent(playerName)}&pin=${encodeURIComponent(pin)}&operatorName=${encodeURIComponent(currentUserName)}&isAdmin=${isAdmin}`;
         const res = await safeFetchJson(url, 2);
@@ -1814,23 +2043,6 @@
           showToast(res.message || '⚠️ 取消失敗，PIN 碼不符！', 4500, false);
         }
       } catch (e) {
-        // 遇到網路波動，做一次靜默核對確認試算表狀態
-        try {
-          await new Promise(r => setTimeout(r, 1200));
-          const checkRes = await safeFetchJson(`${API_BASE}?api=1&_t=${Date.now()}`, 1);
-          if (checkRes && checkRes.status === 'success') {
-            const targetDayKey = currentDay === '週一' ? 'mon' : 'thu';
-            const dayList = checkRes.data ? checkRes.data[targetDayKey] || [] : [];
-            const stillPresent = dayList.some(l => l.lane === laneKey && l.players && l.players[slotIndex - 1] && l.players[slotIndex - 1].name === playerName);
-            if (!stillPresent) {
-              rawResponse = checkRes;
-              renderAll();
-              showToast(`已取消【${playerName}】的報名`, 4500, false);
-              return;
-            }
-          }
-        } catch (checkErr) {}
-
         rawResponse = previousRawResponse;
         renderAll();
         showToast('❌ 取消失敗，請檢查網路。', 4500, false);
@@ -2134,6 +2346,22 @@
         const res = await (await fetch(url)).json();
         showToast(res.message || '✅ 賽事設定儲存成功！', 4500, false);
         closeSettingsModal();
+
+        // 同步更新 Firebase 即時設定
+        if (rtdb) {
+          const cfgUpdate = {};
+          if (currentDay === '週一') {
+            cfgUpdate.monOpenLanes = openLanesStr;
+            cfgUpdate.monStaffLanes = staffLanesStr;
+            cfgUpdate.monRotateMode = rotateMode;
+          } else {
+            cfgUpdate.thuOpenLanes = openLanesStr;
+            cfgUpdate.thuStaffLanes = staffLanesStr;
+            cfgUpdate.thuRotateMode = rotateMode;
+          }
+          rtdb.ref('config').update(cfgUpdate).catch(err => console.warn('Firebase config update error:', err));
+        }
+
         await fetchData();
       } catch (e) {
         showToast('❌ 儲存失敗，請檢查網路。', 4500, false);
@@ -2149,11 +2377,79 @@
           const res = await (await fetch(url)).json();
           showToast(res.message || '✅ 輪調完成！', 4500, false);
           closeSettingsModal();
-          await fetchData();
+          await fetchData(true); // force fetch
+          // 同步最新輪調結果到 Firebase
+          if (rtdb && rawResponse && rawResponse.data) {
+            const dayKey = currentDay === '週一' ? 'mon' : 'thu';
+            if (rawResponse.data[dayKey]) {
+              rtdb.ref(`data/${dayKey}`).set(rawResponse.data[dayKey]).catch(err => console.warn('Firebase rotation sync error:', err));
+            }
+          }
         } catch (e) {
           showToast('❌ 輪調執行失敗，請檢查網路。', 4500, false);
         }
       });
+    }
+
+    // ★ 管理者：手動整批將最新 Firebase 球道名單同步備份至 Google 試算表 (供現場計分 Excel 讀取)
+    async function syncFirebaseToGoogleSheets() {
+      const statusEl = document.getElementById('syncStatusDisplay');
+      if (statusEl) statusEl.innerHTML = '<span style="color:#2563eb;">⏳ 正在同步至 Google 試算表...</span>';
+      showToast('⏳ 正在將球道名單整批同步至 Google 試算表...', 0, true);
+
+      try {
+        let monData = [];
+        let thuData = [];
+
+        // 優先從 Firebase 讀取最新球道
+        if (rtdb) {
+          const snapshot = await rtdb.ref('data').once('value');
+          const val = snapshot.val();
+          if (val) {
+            monData = val.mon || [];
+            thuData = val.thu || [];
+          }
+        }
+
+        // 備援從本地 rawResponse 讀取
+        if ((!monData || monData.length === 0) && rawResponse && rawResponse.data) {
+          monData = rawResponse.data.mon || [];
+          thuData = rawResponse.data.thu || [];
+        }
+
+        if (!Array.isArray(monData)) monData = Object.values(monData);
+        if (!Array.isArray(thuData)) thuData = Object.values(thuData);
+
+        const payload = {
+          action: 'batchSyncLanes',
+          mon: monData,
+          thu: thuData
+        };
+
+        const response = await fetch(API_BASE, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+
+        if (result && result.status === 'success') {
+          const nowStr = new Date().toLocaleTimeString('zh-TW', { hour12: false });
+          if (statusEl) {
+            statusEl.innerHTML = `<span style="color:#059669; font-weight:bold;">✅ 已於 ${nowStr} 完成同步</span>`;
+          }
+          showToast('✅ 成功同步至 Google 試算表！現場計分 Excel 可立即開啟新檔讀取。', 5000, false);
+        } else {
+          throw new Error((result && result.message) || '試算表同步回傳異常');
+        }
+      } catch (err) {
+        console.error('同步試算表失敗:', err);
+        if (statusEl) {
+          statusEl.innerHTML = '<span style="color:#dc2626;">❌ 同步失敗，請重試</span>';
+        }
+        showToast('❌ 同步至試算表失敗，請檢查網路連線。', 4500, false);
+      }
     }
 
     // ★ 隊友操作手冊摺疊切換
@@ -2196,11 +2492,14 @@
 
     window.onload = function() {
       initEmptyRender();
+      if (typeof setupFirebaseListeners === 'function') {
+        setupFirebaseListeners();
+      }
       Promise.all([
         ensureLiffInit(),
         fetchData()
       ]);
-      setInterval(fetchData, 10000);
+      setInterval(fetchData, 30000);
     };
   </script>
 </body>

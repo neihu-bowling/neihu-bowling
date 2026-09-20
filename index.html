@@ -455,13 +455,51 @@
       border-radius: 12px;
       padding: 14px;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      transition: all 0.2s ease;
     }
     .user-guide-header {
       margin-bottom: 12px;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
     }
+    .btn-font-size {
+      border: 1px solid #cbd5e1;
+      background: #f8fafc;
+      color: #475569;
+      font-size: 11px;
+      font-weight: bold;
+      padding: 2px 7px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn-font-size.active {
+      background: #0d9488 !important;
+      color: #ffffff !important;
+      border-color: #0f766e !important;
+    }
+
+    /* 方案 A 字體階層控制 */
+    /* 1. 標準版 (預設加大舒適) */
+    .user-guide-card.font-sm .step-title { font-size: 12px; }
+    .user-guide-card.font-sm .step-desc { font-size: 11px; line-height: 1.35; }
+    .user-guide-card.font-sm .guide-item { font-size: 12.5px; line-height: 1.55; }
+    .user-guide-card.font-sm .guide-item-title { font-size: 13.5px; }
+
+    /* 2. 放大版 A+ */
+    .user-guide-card.font-md .step-title { font-size: 14px; }
+    .user-guide-card.font-md .step-desc { font-size: 13px; line-height: 1.45; }
+    .user-guide-card.font-md .guide-item { font-size: 14.5px; line-height: 1.65; }
+    .user-guide-card.font-md .guide-item-title { font-size: 15.5px; }
+
+    /* 3. 特大版 A++ */
+    .user-guide-card.font-lg .step-title { font-size: 16px; }
+    .user-guide-card.font-lg .step-desc { font-size: 15px; line-height: 1.55; }
+    .user-guide-card.font-lg .guide-item { font-size: 16.5px; line-height: 1.75; }
+    .user-guide-card.font-lg .guide-item-title { font-size: 17.5px; }
     .quick-start-box {
       background: #f0fdfa;
       border: 1px solid #ccfbf1;
@@ -601,8 +639,7 @@
         <span style="color:#64748b; font-weight:bold;">👤 操作者：</span>
         <span id="operatorBadge" class="operator-badge">載入中...</span>
       </div>
-      <div style="display:flex; gap:6px;">
-        <button type="button" onclick="scrollToUserGuide()" style="border:1px solid #cbd5e1; background:#f8fafc; color:#334155; font-size:11px; font-weight:bold; padding:2px 8px; border-radius:4px; cursor:pointer;">📖 說明</button>
+      <div>
         <button type="button" onclick="openChangePinModal()" style="border:1px solid #cbd5e1; background:#f8fafc; color:#334155; font-size:11px; font-weight:bold; padding:2px 8px; border-radius:4px; cursor:pointer;">🔑 改PIN</button>
       </div>
     </div>
@@ -657,10 +694,16 @@
   </div>
 
   <!-- ==================== 📖 系統操作指引 (一般隊友圖文手冊) ==================== -->
-  <div id="userGuideCard" class="user-guide-card">
+  <div id="userGuideCard" class="user-guide-card font-sm">
     <div class="user-guide-header">
       <div style="font-weight:900; font-size:14px; color:#1e293b; display:flex; align-items:center; gap:6px;">
         <span>📖 內湖保齡球隊 - 操作指引</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:4px;">
+        <span style="color:#64748b; font-size:11px; font-weight:bold; margin-right:2px;">🔍 字體:</span>
+        <button type="button" onclick="setUserGuideFontSize('sm')" id="btnFontSm" class="btn-font-size">標準</button>
+        <button type="button" onclick="setUserGuideFontSize('md')" id="btnFontMd" class="btn-font-size">放大 A+</button>
+        <button type="button" onclick="setUserGuideFontSize('lg')" id="btnFontLg" class="btn-font-size">特大 A++</button>
       </div>
     </div>
 
@@ -2440,6 +2483,34 @@
       }
     }
 
+    // ★ 操作指引字體大小切換 (方案 A：局部獨立縮放 + 本地記憶)
+    function setUserGuideFontSize(size) {
+      const card = document.getElementById('userGuideCard');
+      if (!card) return;
+      card.classList.remove('font-sm', 'font-md', 'font-lg');
+      card.classList.add(`font-${size}`);
+
+      const map = { sm: 'btnFontSm', md: 'btnFontMd', lg: 'btnFontLg' };
+      Object.keys(map).forEach(s => {
+        const btn = document.getElementById(map[s]);
+        if (btn) {
+          if (s === size) btn.classList.add('active');
+          else btn.classList.remove('active');
+        }
+      });
+      try {
+        localStorage.setItem('bowling_guide_font_size', size);
+      } catch (e) {}
+    }
+
+    function initUserGuideFontSize() {
+      let saved = 'sm';
+      try {
+        saved = localStorage.getItem('bowling_guide_font_size') || 'sm';
+      } catch (e) {}
+      setUserGuideFontSize(saved);
+    }
+
     // ★ 隊友操作手冊摺疊切換
     function toggleUserGuide() {
       const content = document.getElementById('userGuideDetailContent');
@@ -2480,6 +2551,7 @@
 
     window.onload = function() {
       initEmptyRender();
+      initUserGuideFontSize();
       if (typeof setupFirebaseListeners === 'function') {
         setupFirebaseListeners();
       }

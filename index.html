@@ -292,10 +292,47 @@
       font-weight: bold;
       white-space: nowrap;
     }
+    /* ★ 球道關閉/未開放專用樣式：整道徹徹底底反灰 */
     .lane-disabled {
-      opacity: 0.45;
+      background-color: #f1f5f9 !important;
+      border: 1.5px solid #94a3b8 !important;
+      box-shadow: none !important;
+      opacity: 0.65;
+    }
+    .lane-disabled th {
+      background: #94a3b8 !important;
+      color: #ffffff !important;
+      border-color: #cbd5e1 !important;
+      font-weight: 900 !important;
+    }
+    .lane-disabled td {
+      background-color: #f8fafc !important;
+      color: #94a3b8 !important;
+      border-color: #cbd5e1 !important;
+    }
+    .lane-disabled .lane-number-cell {
       background-color: #e2e8f0 !important;
-      filter: grayscale(1);
+      color: #475569 !important;
+      border-color: #cbd5e1 !important;
+    }
+    .lane-disabled .slot-locked {
+      background-color: #f1f5f9 !important;
+      color: #64748b !important;
+      font-weight: bold;
+    }
+    .lane-disabled .slot-cell-empty {
+      background-color: #f1f5f9 !important;
+      cursor: not-allowed !important;
+    }
+    .lane-disabled .slot-pill-btn {
+      background-color: #e2e8f0 !important;
+      border-color: #cbd5e1 !important;
+      color: #94a3b8 !important;
+    }
+    .lane-disabled .male-text,
+    .lane-disabled .female-text {
+      color: #64748b !important;
+      opacity: 0.75;
     }
     /* ★ 賽事設定球道方塊切換按鈕 */
     .lane-chips-grid {
@@ -1439,10 +1476,21 @@
         const res = await safeFetchJson(`${API_BASE}?api=1&_t=${Date.now()}`, 1);
         if (res && res.status === 'success') {
           if (isActionInProgress && !force) return;
+          // ★ 雙重保護：若後端回傳的 config 暫未帶有獨立的 monOpenLanes 或 thuOpenLanes，自動繼承本機最新儲存值
+          if (res.config) {
+            const savedMon = localStorage.getItem('bowling_mon_open_lanes');
+            const savedThu = localStorage.getItem('bowling_thu_open_lanes');
+            if (savedMon && (!res.config.monOpenLanes || res.config.monOpenLanes === '3-24')) {
+              res.config.monOpenLanes = savedMon;
+            }
+            if (savedThu && (!res.config.thuOpenLanes || res.config.thuOpenLanes === '3-24')) {
+              res.config.thuOpenLanes = savedThu;
+            }
+          }
           // 若 Firebase 已連線且已有球道資料，保留 Firebase 的最新即時球道資料，僅更新隊員名單與設定
           if (isFirebaseReady && rawResponse && rawResponse.data && (rawResponse.data.mon || rawResponse.data.thu) && !force) {
             if (res.members) rawResponse.members = res.members;
-            if (res.config && !rawResponse.config) rawResponse.config = res.config;
+            if (res.config) rawResponse.config = Object.assign(rawResponse.config || {}, res.config);
           } else {
             rawResponse = res;
           }
@@ -1523,6 +1571,11 @@
 
         const dayData = (rawResponse && rawResponse.data) ? (isMon ? (rawResponse.data.mon || []) : (rawResponse.data.thu || [])) : [];
         const currentStaffLanes = isMon ? (cfg.monStaffLanes || cfg.staffLanes || '7/8') : (cfg.thuStaffLanes || cfg.staffLanes || '7/8');
+        const savedMon = localStorage.getItem('bowling_mon_open_lanes');
+        const savedThu = localStorage.getItem('bowling_thu_open_lanes');
+        const currentOpenLanes = isMon 
+          ? (cfg.monOpenLanes || savedMon || cfg.openLanes || '3-24') 
+          : (cfg.thuOpenLanes || savedThu || cfg.openLanes || '3-24');
         
         let totalCount = 0;
         let maleCount = 0;
@@ -1558,7 +1611,7 @@
         });
 
         ALL_LANES.forEach(lk => {
-          const isOpen = isLaneOpen(lk, cfg.openLanes);
+          const isOpen = isLaneOpen(lk, currentOpenLanes);
           const isStaff = isLaneStaff(lk, currentStaffLanes);
           if (isOpen) {
             totalOpenCount++;
@@ -1592,15 +1645,15 @@
         }
         currentAllowedSlots = allowedSlots;
 
-        renderColumn('leftCol', LEFT_LANES, dayData || [], cfg, allowedSlots, currentStaffLanes);
-        renderColumn('rightCol', RIGHT_LANES, dayData || [], cfg, allowedSlots, currentStaffLanes);
+        renderColumn('leftCol', LEFT_LANES, dayData || [], cfg, allowedSlots, currentStaffLanes, currentOpenLanes);
+        renderColumn('rightCol', RIGHT_LANES, dayData || [], cfg, allowedSlots, currentStaffLanes, currentOpenLanes);
         updateOperatorDisplay();
       } catch (err) {
         console.error("renderAll error:", err);
       }
     }
 
-    function renderColumn(colId, lanesArray, dayData, cfg, allowedSlots, currentStaffLanes) {
+    function renderColumn(colId, lanesArray, dayData, cfg, allowedSlots, currentStaffLanes, currentOpenLanes) {
       const col = document.getElementById(colId);
       if (!col) return;
       const laneMap = {};
@@ -1615,7 +1668,7 @@
       let html = '';
       lanesArray.forEach(laneKey => {
         const players = laneMap[laneKey] || [];
-        const isOpen = isLaneOpen(laneKey, cfg.openLanes);
+        const isOpen = isLaneOpen(laneKey, currentOpenLanes);
         const isStaff = isLaneStaff(laneKey, currentStaffLanes);
         const disabledClass = !isOpen ? 'lane-disabled' : '';
         // ★ 專用道醒目黃色樣式與金黃標頭：僅在管理者模式 (isAdmin) 下啟用！一般隊友模式維持週一/週四原配色
@@ -1668,8 +1721,9 @@
               </td>
             `;
           } else {
-            if (!isOpen && !isAdmin) {
-              html += `<td class="slot-locked" style="width:60%;">🚫 不開放</td>`;
+            if (!isOpen) {
+              const closedLabel = isAdmin ? '🚫 不開放 (已關閉)' : '🚫 不開放';
+              html += `<td class="slot-locked" style="width:60%;">${closedLabel}</td>`;
             } else if (deadPassed && !isAdmin) {
               html += `<td class="slot-locked" style="width:60%;">⏰ 報名已截止</td>`;
             } else if (slotIndex > allowedSlots && !isAdmin) {
@@ -1704,6 +1758,15 @@
       }
 
       const cfg = rawResponse ? rawResponse.config : {};
+      const savedMon = localStorage.getItem('bowling_mon_open_lanes');
+      const savedThu = localStorage.getItem('bowling_thu_open_lanes');
+      const currentOpenLanes = currentDay === '週一'
+        ? (cfg.monOpenLanes || savedMon || cfg.openLanes || '3-24')
+        : (cfg.thuOpenLanes || savedThu || cfg.openLanes || '3-24');
+      if (!isLaneOpen(laneKey, currentOpenLanes)) {
+        return showToast(`🚫 【${laneKey}】球道目前未開放報名！`, 3000, false);
+      }
+
       const deadPassed = isDeadlinePassed(currentDay, currentDay === '週一' ? cfg.monDate : cfg.thuDate, currentDay === '週一' ? cfg.monDeadline : cfg.thuDeadline);
       if (deadPassed && !isAdmin) {
         return showToast('⏰ 本次賽事報名已截止，名單已定案！若需報名請洽幹部。', 3000, false);
@@ -2348,8 +2411,10 @@
       if (btnT) btnT.className = !isMon ? 'btn-day btn-day-thu active' : 'btn-day btn-day-thu';
 
       const cfg = rawResponse ? rawResponse.config : {};
-      const dayStaff = isMon ? (cfg.monStaffLanes || cfg.staffLanes || '7/8') : (cfg.thuStaffLanes || cfg.staffLanes || '7/8');
-      const dayOpen = isMon ? (cfg.monOpenLanes || cfg.openLanes || '3-24') : (cfg.thuOpenLanes || cfg.openLanes || '3-24');
+      const savedStaff = isMon ? localStorage.getItem('bowling_mon_staff_lanes') : localStorage.getItem('bowling_thu_staff_lanes');
+      const savedOpen = isMon ? localStorage.getItem('bowling_mon_open_lanes') : localStorage.getItem('bowling_thu_open_lanes');
+      const dayStaff = isMon ? (cfg.monStaffLanes || savedStaff || cfg.staffLanes || '7/8') : (cfg.thuStaffLanes || savedStaff || cfg.staffLanes || '7/8');
+      const dayOpen = isMon ? (cfg.monOpenLanes || savedOpen || cfg.openLanes || '3-24') : (cfg.thuOpenLanes || savedOpen || cfg.openLanes || '3-24');
       const dayRotate = isMon ? (cfg.monRotateMode || cfg.rotateMode || 'sequential') : (cfg.thuRotateMode || cfg.rotateMode || 'sequential');
 
       const staffLbl = document.getElementById('staffLanesLabel');
@@ -2494,6 +2559,26 @@
         showToast(res.message || `✅ 【${targetDay}】賽事設定儲存成功！`, 3000, false);
         closeSettingsModal();
 
+        if (targetDay === '週一') {
+          localStorage.setItem('bowling_mon_open_lanes', openLanesStr);
+          localStorage.setItem('bowling_mon_staff_lanes', staffLanesStr);
+        } else {
+          localStorage.setItem('bowling_thu_open_lanes', openLanesStr);
+          localStorage.setItem('bowling_thu_staff_lanes', staffLanesStr);
+        }
+
+        if (rawResponse && rawResponse.config) {
+          if (targetDay === '週一') {
+            rawResponse.config.monOpenLanes = openLanesStr;
+            rawResponse.config.monStaffLanes = staffLanesStr;
+            rawResponse.config.monRotateMode = rotateMode;
+          } else {
+            rawResponse.config.thuOpenLanes = openLanesStr;
+            rawResponse.config.thuStaffLanes = staffLanesStr;
+            rawResponse.config.thuRotateMode = rotateMode;
+          }
+        }
+
         if (rtdb) {
           const cfgUpdate = {};
           if (targetDay === '週一') {
@@ -2508,6 +2593,7 @@
           rtdb.ref('config').update(cfgUpdate).catch(err => console.warn('Firebase config update error:', err));
         }
 
+        renderAll();
         await fetchData();
       } catch (e) {
         showToast('❌ 儲存失敗，請檢查網路。', 3000, false);
@@ -2594,6 +2680,14 @@
       if (rawResponse && rawResponse.data) {
         rawResponse.data[targetDayKey] = dayDataCopy;
       }
+      if (isMon) {
+        localStorage.setItem('bowling_mon_open_lanes', openLanesStr);
+        localStorage.setItem('bowling_mon_staff_lanes', staffLanesStr);
+      } else {
+        localStorage.setItem('bowling_thu_open_lanes', openLanesStr);
+        localStorage.setItem('bowling_thu_staff_lanes', staffLanesStr);
+      }
+
       if (rawResponse && rawResponse.config) {
         if (isMon) {
           rawResponse.config.monOpenLanes = openLanesStr;
@@ -2618,18 +2712,33 @@
         console.warn('Backend sync calls error:', err);
       }
 
-      closeSettingsModal();
-      renderAll();
+        if (rawResponse && rawResponse.config) {
+          if (targetDay === '週一') {
+            rawResponse.config.monOpenLanes = openLanesStr;
+            rawResponse.config.monStaffLanes = staffLanesStr;
+            rawResponse.config.monRotateMode = rotateMode;
+          } else {
+            rawResponse.config.thuOpenLanes = openLanesStr;
+            rawResponse.config.thuStaffLanes = staffLanesStr;
+            rawResponse.config.thuRotateMode = rotateMode;
+          }
+        }
 
-      // 4. 組裝 LINE 異動通知 (含星期、日期、版本2結尾叮嚀)
-      const dateDisplay = getFormattedMatchDate(targetDay, isMon ? cfg.monDate : cfg.thuDate);
-      let notice = `📢【內湖隊 賽事球道異動通知】\n`;
-      notice += `📅 賽事場次：${targetDay} (${dateDisplay})\n`;
-      notice += `⚠️ 異動原因：因 ${closedLanes.join('、')} 球道關閉，系統已為隊友自動安排移位：\n\n`;
-      relocatedList.forEach(r => {
-        notice += `• @${r.name} 移至 ${r.newLane}道 第${r.newSlot}位\n`;
-      });
-      notice += `\n👉 敬請相關隊友留意！如需更換球道可至系統自行重選，或隨時告知幹部協助調整，謝謝！🙏`;
+        closeSettingsModal();
+        renderAll();
+
+        // 4. 組裝 LINE 異動通知 (含星期、日期、版本2結尾叮嚀)
+        const dateDisplay = getFormattedMatchDate(targetDay, isMon ? cfg.monDate : cfg.thuDate).replace('/', '-');
+        const closedLanesFmt = closedLanes.map(lk => String(lk).replace('/', '-') + ' 道').join('、');
+        const cleanDay = targetDay.replace('週', '週\u200B');
+        let notice = `📢【內湖隊 賽事球道異動通知】\n`;
+        notice += `📅 賽事場次：${cleanDay} (${dateDisplay})\n`;
+        notice += `⚠️ 異動原因：因 ${closedLanesFmt} 關閉，系統已為隊友自動安排移位：\n\n`;
+        relocatedList.forEach(r => {
+          const targetLaneFmt = String(r.newLane).replace('/', '-');
+          notice += `• @${r.name} 移至 ${targetLaneFmt}道 第${r.newSlot}位\n`;
+        });
+        notice += `\n👉 敬請相關隊友留意！如需更換球道可至系統自行重選，或隨時告知幹部協助調整，謝謝！🙏`;
 
       currentRelocateNotice = notice;
 

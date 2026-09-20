@@ -1305,8 +1305,8 @@
       }
     }
 
-    // ★ 升級版白底提示框：置中、字體放大、支援 4.5秒 + 關閉按鈕
-    function showToast(msg, duration = 4500, isProcessing = false) {
+    // ★ 升級版提示框：置中、字體放大、顯示 3 秒 + 支援關閉按鈕
+    function showToast(msg, duration = 3000, isProcessing = false) {
       const t = document.getElementById('customToast');
       const msgSpan = document.getElementById('toastMessage');
       msgSpan.innerText = msg;
@@ -1616,11 +1616,11 @@
       const cfg = rawResponse ? rawResponse.config : {};
       const deadPassed = isDeadlinePassed(currentDay, currentDay === '週一' ? cfg.monDate : cfg.thuDate, currentDay === '週一' ? cfg.monDeadline : cfg.thuDeadline);
       if (deadPassed && !isAdmin) {
-        return showToast('⏰ 本次賽事報名已截止，名單已定案！若需報名請洽幹部。', 4500, false);
+        return showToast('⏰ 本次賽事報名已截止，名單已定案！若需報名請洽幹部。', 3000, false);
       }
 
       if (slotIndex > currentAllowedSlots && !isAdmin) {
-        return showToast(`🔒 本賽事目前人數水位僅開放至第 ${currentAllowedSlots} 席！滿額後系統將自動解鎖下一席。`, 4500, false);
+        return showToast(`🔒 本賽事目前人數水位僅開放至第 ${currentAllowedSlots} 席！滿額後系統將自動解鎖下一席。`, 3000, false);
       }
 
       selectedLane = laneKey;
@@ -1707,14 +1707,12 @@
       closeActionModal();
       if (toOpen) {
         // 開放此位：以靜默模式寫入 [開放入座]
-        showToast(`⏳ 正在開放【${currentDay}】${laneKey} 道 第 ${slotIndex} 位...`, 0, true);
         await submitJoin(laneKey, slotIndex, '[開放入座]', false, 'M', true);
-        showToast(`🟢 已開放【${currentDay}】${laneKey} 道 第 ${slotIndex} 位供隊友自行入座！`, 4500, false);
+        showToast(`🟢 已開放【${currentDay}】${laneKey} 道 第 ${slotIndex} 位供隊友自行入座！`, 3000, false);
       } else {
         // 取消開放：以靜默模式清空席位
-        showToast(`⏳ 正在收回【${currentDay}】${laneKey} 道 第 ${slotIndex} 位...`, 0, true);
         await executeLeave('[開放入座]', laneKey, slotIndex, '', true);
-        showToast(`🔒 已收回【${currentDay}】${laneKey} 道 第 ${slotIndex} 位為幹部專用！`, 4500, false);
+        showToast(`🔒 已收回【${currentDay}】${laneKey} 道 第 ${slotIndex} 位為幹部專用！`, 3000, false);
       }
     }
 
@@ -1796,10 +1794,6 @@
       const currentStaffLane = isMonDay ? (cfg.monStaffLanes || cfg.staffLanes || '7/8') : (cfg.thuStaffLanes || cfg.staffLanes || '7/8');
       const targetDayKey = isMonDay ? 'mon' : 'thu';
 
-      if (!silentMode) {
-        showToast(`⏳ 正在為您登記入座【${currentDay}】${lane} 道 第 ${slotIndex} 位...`, 0, true);
-      }
-
       // ★ 1. 優先使用 Firebase Realtime Database Transaction (0.1秒極速完成、斷線不漏單)
       if (rtdb && isFirebaseReady) {
         try {
@@ -1854,12 +1848,12 @@
 
           isActionInProgress = false;
           if (txResult && txResult.err) {
-            showToast('❌ 入座失敗：' + txResult.err.message, 4500, false);
+            showToast('❌ 入座失敗：' + txResult.err.message, 3000, false);
           } else if (txResult && !txResult.committed) {
-            showToast('⚠️ 慢了一步！該席位剛剛已被其他人入座，請選其他席位！', 4500, false);
+            showToast('⚠️ 慢了一步！該席位剛剛已被其他人入座，請選其他席位！', 3000, false);
           } else {
             if (!silentMode) {
-              showToast(`🎉 成功入座【${currentDay}】${lane} 道 第 ${slotIndex} 位！`, 4500, false);
+              showToast(`🎉 成功入座【${currentDay}】${lane} 道 第 ${slotIndex} 位！`, 3000, false);
             }
             // 背景非同步發送 GAS 備援（fire-and-forget，不卡介面）
             try {
@@ -1907,7 +1901,7 @@
         
         if (res.status === 'success') {
           if (!silentMode) {
-            showToast(res.message || `🎉 成功入座【${currentDay}】${lane} 道 第 ${slotIndex} 位！`, 4500, false);
+            showToast(res.message || `🎉 成功入座【${currentDay}】${lane} 道 第 ${slotIndex} 位！`, 3000, false);
           }
           isActionInProgress = false;
           await fetchData(true);
@@ -1915,12 +1909,12 @@
           isActionInProgress = false;
           rawResponse = previousRawResponse;
           renderAll();
-          showToast(res.message || '⚠️ 入座失敗，該席位已被佔用或已達限制！', 5000, false);
+          showToast(res.message || '⚠️ 入座失敗，該席位已被佔用或已達限制！', 3000, false);
         }
       } catch (e) {
         rawResponse = previousRawResponse;
         renderAll();
-        showToast('❌ 網路連線異常，請重新嘗試。', 4500, false);
+        showToast('❌ 網路連線異常，請重新嘗試。', 3000, false);
       } finally {
         isActionInProgress = false;
       }
@@ -1973,12 +1967,8 @@
         const targetMember = members.find(m => m.name === playerName);
         if (targetMember && targetMember.pin && targetMember.pin !== pin) {
           isActionInProgress = false;
-          return showToast('⚠️ 取消失敗，PIN 碼不符！', 4500, false);
+          return showToast('⚠️ 取消失敗，PIN 碼不符！', 3000, false);
         }
-      }
-
-      if (!silentMode) {
-        showToast(`⏳ 正在取消【${playerName}】的報名...`, 0, true);
       }
 
       // ★ 1. 優先使用 Firebase Realtime Database (0.1秒極速退座與還原)
@@ -1999,7 +1989,7 @@
 
           isActionInProgress = false;
           if (!silentMode) {
-            showToast(`已取消【${playerName}】的報名`, 4500, false);
+            showToast(`已取消【${playerName}】的報名`, 3000, false);
           }
           // 背景非同步發送 GAS 備援（fire-and-forget，不卡介面）
           try {
@@ -2032,7 +2022,7 @@
         const res = await safeFetchJson(url, 2);
         if (res.status === 'success') {
           if (!silentMode) {
-            showToast(res.message || `已取消【${playerName}】的報名`, 4500, false);
+            showToast(res.message || `已取消【${playerName}】的報名`, 3000, false);
           }
           isActionInProgress = false;
           await fetchData(true);
@@ -2040,12 +2030,12 @@
           isActionInProgress = false;
           rawResponse = previousRawResponse;
           renderAll();
-          showToast(res.message || '⚠️ 取消失敗，PIN 碼不符！', 4500, false);
+          showToast(res.message || '⚠️ 取消失敗，PIN 碼不符！', 3000, false);
         }
       } catch (e) {
         rawResponse = previousRawResponse;
         renderAll();
-        showToast('❌ 取消失敗，請檢查網路。', 4500, false);
+        showToast('❌ 取消失敗，請檢查網路。', 3000, false);
       } finally {
         isActionInProgress = false;
       }
@@ -2109,13 +2099,13 @@
           localStorage.setItem('bowling_player_name', currentUserName);
           closeRegisterModal();
           updateOperatorDisplay();
-          showToast(res.message || `🎉 成功綁定【${name}】！`, 4500, false);
+          showToast(res.message || `🎉 成功綁定【${name}】！`, 3000, false);
           await fetchData();
         } else {
-          showToast(res.message || '⚠️ 綁定失敗！', 4500, false);
+          showToast(res.message || '⚠️ 綁定失敗！', 3000, false);
         }
       } catch (e) {
-        showToast('❌ 綁定失敗，請檢查網路連線。', 4500, false);
+        showToast('❌ 綁定失敗，請檢查網路連線。', 3000, false);
       }
     }
 
@@ -2165,19 +2155,18 @@
       if (!newPin || newPin.length !== 4) return showToast('⚠️ 新 PIN 碼必須剛好為 4 碼！', 3000);
       if (newPin !== newPinConfirm) return showToast('⚠️ 兩次輸入的新 PIN 碼不一致！', 3000);
 
-      showToast(`⏳ 正在修改【${currentUserName}】的 PIN 碼...`, 0, true);
       try {
         const url = `${API_BASE}?action=updatePin&name=${encodeURIComponent(currentUserName)}&oldPin=${encodeURIComponent(oldPin)}&newPin=${encodeURIComponent(newPin)}&isAdmin=false`;
         const res = await (await fetch(url)).json();
         if (res.status === 'success') {
           closeChangePinModal();
-          showToast(res.message || '🎉 PIN 碼修改成功！', 4500, false);
+          showToast(res.message || '🎉 PIN 碼修改成功！', 3000, false);
           await fetchData();
         } else {
-          showToast(res.message || '❌ 原 PIN 碼不符，修改失敗！', 4500, false);
+          showToast(res.message || '❌ 原 PIN 碼不符，修改失敗！', 3000, false);
         }
       } catch (e) {
-        showToast('❌ 修改失敗，請檢查網路連線。', 4500, false);
+        showToast('❌ 修改失敗，請檢查網路連線。', 3000, false);
       }
     }
 
@@ -2189,19 +2178,18 @@
       if (!name) return showToast('⚠️ 請先選擇欲重設 PIN 碼的隊友！', 3000);
       if (!newPin || newPin.length !== 4) return showToast('⚠️ 請輸入 4 位數新 PIN 碼！', 3000);
 
-      showToast(`⏳ 正在重設【${name}】的 PIN 碼...`, 0, true);
       try {
         const url = `${API_BASE}?action=updatePin&name=${encodeURIComponent(name)}&newPin=${encodeURIComponent(newPin)}&isAdmin=true`;
         const res = await (await fetch(url)).json();
         if (res.status === 'success') {
-          showToast(res.message || `🎉 已成功將【${name}】的 PIN 碼重設為【${newPin}】！`, 4500, false);
+          showToast(res.message || `🎉 已成功將【${name}】的 PIN 碼重設為【${newPin}】！`, 3000, false);
           document.getElementById('adminResetNewPin').value = '';
           await fetchData();
         } else {
-          showToast(res.message || '❌ 重設失敗！', 4500, false);
+          showToast(res.message || '❌ 重設失敗！', 3000, false);
         }
       } catch (e) {
-        showToast('❌ 重設失敗，請檢查網路連線。', 4500, false);
+        showToast('❌ 重設失敗，請檢查網路連線。', 3000, false);
       }
     }
 
@@ -2222,7 +2210,7 @@
         isAdmin = true;
         localStorage.setItem('bowling_admin', 'true');
         closeAdminModal();
-        showToast('👑 歡迎管理者！所有權限已解鎖。', 4500, false);
+        showToast('👑 歡迎管理者！所有權限已解鎖。', 3000, false);
         renderAll();
       } else {
         showToast('❌ 密碼錯誤！', 3000, false);
@@ -2344,7 +2332,7 @@
       const url = `${API_BASE}?action=updateSettings&openLanes=${encodeURIComponent(openLanesStr)}&staffLanes=${encodeURIComponent(staffLanesStr)}&rotateMode=${encodeURIComponent(rotateMode)}&day=${encodeURIComponent(currentDay)}`;
       try {
         const res = await (await fetch(url)).json();
-        showToast(res.message || '✅ 賽事設定儲存成功！', 4500, false);
+        showToast(res.message || '✅ 賽事設定儲存成功！', 3000, false);
         closeSettingsModal();
 
         // 同步更新 Firebase 即時設定
@@ -2364,7 +2352,7 @@
 
         await fetchData();
       } catch (e) {
-        showToast('❌ 儲存失敗，請檢查網路。', 4500, false);
+        showToast('❌ 儲存失敗，請檢查網路。', 3000, false);
       }
     }
 
@@ -2375,7 +2363,7 @@
         const url = `${API_BASE}?action=rotateLanes&day=${encodeURIComponent(currentDay)}&mode=${encodeURIComponent(mode)}`;
         try {
           const res = await (await fetch(url)).json();
-          showToast(res.message || '✅ 輪調完成！', 4500, false);
+          showToast(res.message || '✅ 輪調完成！', 3000, false);
           closeSettingsModal();
           await fetchData(true); // force fetch
           // 同步最新輪調結果到 Firebase
@@ -2386,7 +2374,7 @@
             }
           }
         } catch (e) {
-          showToast('❌ 輪調執行失敗，請檢查網路。', 4500, false);
+          showToast('❌ 輪調執行失敗，請檢查網路。', 3000, false);
         }
       });
     }
@@ -2439,7 +2427,7 @@
           if (statusEl) {
             statusEl.innerHTML = `<span style="color:#059669; font-weight:bold;">✅ 已於 ${nowStr} 完成同步</span>`;
           }
-          showToast('✅ 成功同步至 Google 試算表！現場計分 Excel 可立即開啟新檔讀取。', 5000, false);
+          showToast('✅ 成功同步至 Google 試算表！現場計分 Excel 可立即開啟新檔讀取。', 3000, false);
         } else {
           throw new Error((result && result.message) || '試算表同步回傳異常');
         }
@@ -2448,7 +2436,7 @@
         if (statusEl) {
           statusEl.innerHTML = '<span style="color:#dc2626;">❌ 同步失敗，請重試</span>';
         }
-        showToast('❌ 同步至試算表失敗，請檢查網路連線。', 4500, false);
+        showToast('❌ 同步至試算表失敗，請檢查網路連線。', 3000, false);
       }
     }
 

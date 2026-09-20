@@ -771,7 +771,7 @@
           <div class="guide-item-body" style="color:#713f12;">
             <div style="margin-bottom:6px;">
               <strong>1. 全場人數水位平衡（自動解鎖）：</strong><br>
-              為維持各道平衡與公平，系統預設每道優先開放 <strong>第 1～4 棒</strong>。當全場已開放球道 <strong>每道平均皆滿 4 人</strong> 時，系統會 <strong>自動同步解鎖全場第 5 棒</strong>！未達門檻前，第 5 棒以後一律鎖定顯示「🔒 未開放」。
+              為維持各道平衡與公平，系統預設每道優先開放 <strong>第 1～4 位</strong>。當全場已開放球道 <strong>每道平均皆滿 4 人</strong> 時，系統會 <strong>自動同步解鎖全場第 5 位</strong>！未達門檻前，第 5 位以後一律鎖定顯示「🔒 未開放」。
             </div>
             <div style="margin-bottom:6px;">
               <strong>2. 工作人員專用道保留位（幹部釋出即解鎖）：</strong><br>
@@ -938,7 +938,7 @@
           <div id="adminGuideContent" style="display:none; padding:10px; background:#fffbeb; border:1px solid #fde047; border-top:none; border-radius:0 0 6px 6px; font-size:11.5px; line-height:1.6; color:#78350f;">
             <div style="margin-bottom:8px;">
               <strong>🟢 / 🔒 專用道任意席位彈性開放與個別收回：</strong><br>
-              在管理者模式下，專用道空位皆會亮起供幹部操作。點選空位後，點擊「🟢 開放此位供隊友自行入座」即可開放該席位；可同時任意開放多席（如第 4、5 棒同時開放）。點擊已開放席位選擇「🔒 取消開放此位 (收回幹部專用)」即可單獨收回。
+              在管理者模式下，專用道空位皆會亮起供幹部操作。點選空位後，點擊「🟢 開放此位供隊友自行入座」即可開放該席位；可同時任意開放多個席位（如第 4、5 位同時開放）。點擊已開放席位選擇「🔒 取消開放此位 (收回幹部專用)」即可單獨收回。
             </div>
             <div style="margin-bottom:8px;">
               <strong>⚙️ 開放球道設定：</strong><br>
@@ -1663,7 +1663,7 @@
       }
 
       if (slotIndex > currentAllowedSlots && !isAdmin) {
-        return showToast(`🔒 本賽事目前人數水位僅開放至第 ${currentAllowedSlots} 席！滿額後系統將自動解鎖下一席。`, 3000, false);
+        return showToast(`🔒 本賽事目前人數水位僅開放至第 ${currentAllowedSlots} 位！滿額後系統將自動解鎖下一位。`, 3000, false);
       }
 
       selectedLane = laneKey;
@@ -1723,7 +1723,7 @@
       if (!myCurrentInfo) {
         btnsHtml += `
           <button onclick="joinSelf('${laneKey}', ${slotIndex})" class="modal-btn" style="background:${dayColor}; color:#fff;">
-            🙋‍♂️ 安排我自己 (${currentUserName}) 入座【${currentDay} 第 ${slotIndex} 位】
+            🙋‍♂️ 安排我自己 (${currentUserName}) 入座【${laneKey} 道 第 ${slotIndex} 位】
           </button>
         `;
       } else {

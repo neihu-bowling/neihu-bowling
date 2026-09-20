@@ -1378,8 +1378,9 @@
       // 若未比對到 LINE ID，則比對本地存儲姓名
       if (!matchedMember && currentUserName && members.length > 0) {
         matchedMember = members.find(m => m.name === currentUserName);
-        // ★ 若該隊員在試算表中 LINE_ID 與 PIN 碼皆空，視同未綁定！
-        if (matchedMember && !matchedMember.lineId && !matchedMember.pin) {
+        // ★ 若在手機 LINE App 中 (有 currentUserLineId)，該隊員在試算表中 LINE_ID 與 PIN 碼皆空才視同未綁定
+        // 若在電腦網頁端測試 (無 currentUserLineId)，允許保留指定隊員身分 (如許恆綻) 供展示與測試！
+        if (currentUserLineId && matchedMember && !matchedMember.lineId && !matchedMember.pin) {
           matchedMember = null;
         }
       }
@@ -2973,6 +2974,22 @@
     }
 
     window.onload = function() {
+      // ★ 支援電腦版網址快捷參數：例如 ?admin=8888 或 ?user=許恆綻
+      // 依幹部指示：自動代入隊員「許恆綻」身分，且載入時「不解鎖幹部權限」(維持一般隊友模式，畫面乾淨便於真實展示與測試)
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const adminParam = urlParams.get('admin');
+        const userParam = urlParams.get('user');
+        if (adminParam === '8888' || adminParam === '1' || userParam) {
+          const targetName = userParam ? decodeURIComponent(userParam) : '許恆綻';
+          currentUserName = targetName;
+          localStorage.setItem('bowling_player_name', currentUserName);
+          // 確保第一項「不解鎖幹部權限」，維持一般隊友視角
+          isAdmin = false;
+          localStorage.removeItem('bowling_admin');
+        }
+      } catch (ue) {}
+
       initEmptyRender();
       initUserGuideFontSize();
       if (typeof setupFirebaseListeners === 'function') {

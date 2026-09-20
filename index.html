@@ -990,6 +990,28 @@
     </div>
   </div>
 
+  <!-- 4.1 球道關閉自動移位 LINE 通知彈窗 -->
+  <div id="relocateNoticeModal" class="modal-overlay">
+    <div class="modal-card" style="max-width:380px;">
+      <h3 style="font-size:16px; font-weight:900; margin-bottom:6px; color:#1e293b;">📢 球道異動與自動移位完成</h3>
+      <p style="font-size:12px; color:#64748b; margin-bottom:12px; line-height:1.4;">
+        系統已自動將隊友安排至其他開放球道！以下為 LINE 發布通知訊息：
+      </p>
+      <div id="relocateNoticeText" style="white-space:pre-wrap; background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:10px; font-size:12px; font-family:monospace; color:#1e293b; max-height:220px; overflow-y:auto; margin-bottom:14px; text-align:left; line-height:1.5;"></div>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <button id="btnShareLine" onclick="shareRelocateNoticeToLine()" class="modal-btn" style="background:#06c755; color:#fff; font-weight:bold; margin-bottom:0; display:flex; align-items:center; justify-content:center; gap:6px;">
+          <span>📲 一鍵分享通知至 LINE 群組</span>
+        </button>
+        <button onclick="copyRelocateNoticeText()" class="modal-btn btn-primary" style="margin-bottom:0; background:#2563eb;">
+          📋 複製通知訊息
+        </button>
+        <button onclick="closeRelocateNoticeModal()" class="modal-btn btn-secondary" style="margin-bottom:0;">
+          關閉
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- 5. 首次使用／綁定身份彈窗 -->
   <div id="registerModal" class="modal-overlay">
     <div class="modal-card">
@@ -1232,8 +1254,8 @@
     let selectedOpenLanes = new Set(["3/4", "5/6", "7/8", "9/10", "11/12", "13/14", "15/16", "17/18", "19/20", "21/22", "23/24"]);
     let selectedStaffLanes = new Set(["7/8"]);
     let currentAllowedSlots = 4;
-
     let selectedSlotIndex = 1;
+    let currentRelocateNotice = '';
 
     function parseLaneList(input) {
       if (!input) return new Set();
@@ -1524,7 +1546,8 @@
               if (p && p.name && p.name !== '[開放入座]') {
                 totalCount++;
                 const gen = p.gender || memberMap[p.name] || 'M';
-                if (gen === 'F' || gen === '女') {
+                const genStr = String(gen).trim();
+                if (genStr.includes('女') || genStr.toUpperCase().startsWith('F') || genStr.toUpperCase() === 'W') {
                   femaleCount++;
                 } else {
                   maleCount++;
@@ -1636,7 +1659,8 @@
               const mem = rawResponse.members.find(m => m.name === p.name);
               if (mem && mem.gender) pGender = mem.gender;
             }
-            const isFem = (pGender === 'F' || pGender === '女' || pGender === '女生' || pGender === 'female' || pGender === 'W');
+            const pGenStr = String(pGender || 'M').trim();
+            const isFem = (pGenStr.includes('女') || pGenStr.toUpperCase().startsWith('F') || pGenStr.toUpperCase() === 'W');
             const colorClass = isFem ? 'female-text' : 'male-text';
             html += `
               <td onclick="handlePlayerClick('${p.name}', '${laneKey}', ${slotIndex})" style="cursor:pointer; width:60%;" class="${colorClass}">
@@ -2417,7 +2441,52 @@
       const rInput = document.querySelector('input[name="rotateMode"]:checked');
       const rotateMode = rInput ? rInput.value : 'sequential';
       const targetDay = currentSettingDay || currentDay;
-      
+      const isMon = targetDay === '週一';
+      const targetDayKey = isMon ? 'mon' : 'thu';
+
+      const cfg = rawResponse ? rawResponse.config : {};
+      const oldOpenStr = isMon ? (cfg.monOpenLanes || cfg.openLanes || '3-24') : (cfg.thuOpenLanes || cfg.openLanes || '3-24');
+      const previouslyOpenLanes = parseLaneList(oldOpenStr);
+
+      // 檢查即將關閉的球道
+      const closedLanes = [];
+      previouslyOpenLanes.forEach(lk => {
+        if (!selectedOpenLanes.has(lk)) closedLanes.push(lk);
+      });
+
+      // 檢查即將關閉的球道上是否已有隊友
+      const currentDayData = (rawResponse && rawResponse.data && rawResponse.data[targetDayKey]) ? rawResponse.data[targetDayKey] : [];
+      const affectedPlayers = [];
+      closedLanes.forEach(lk => {
+        const laneObj = currentDayData.find(l => l && l.lane === lk);
+        if (laneObj && laneObj.players) {
+          laneObj.players.forEach((p, idx) => {
+            if (p && p.name && p.name !== '[開放入座]') {
+              affectedPlayers.push({
+                name: p.name,
+                gender: p.gender || 'M',
+                oldLane: lk,
+                oldSlot: idx + 1
+              });
+            }
+          });
+        }
+      });
+
+      if (affectedPlayers.length > 0) {
+        const playerNames = affectedPlayers.map(p => p.name).join('、');
+        const confirmMsg = `⚠️【${targetDay}賽事】${closedLanes.join('、')} 道目前有 ${affectedPlayers.length} 位隊友入座 (${playerNames})！\n\n確定關閉此道並由系統【智能自動移位】至其他開放球道嗎？\n（移位後將產生 LINE 標註通知）`;
+        customConfirm(confirmMsg, async (confirmed) => {
+          if (!confirmed) return;
+          await executeSaveSettingsWithRelocate(targetDay, openLanesStr, staffLanesStr, rotateMode, closedLanes, affectedPlayers);
+        });
+        return;
+      }
+
+      await executeSaveSettings(targetDay, openLanesStr, staffLanesStr, rotateMode);
+    }
+
+    async function executeSaveSettings(targetDay, openLanesStr, staffLanesStr, rotateMode) {
       showToast(`⏳ 正在儲存【${targetDay}】設定中...`, 0, true);
       const url = `${API_BASE}?action=updateSettings&openLanes=${encodeURIComponent(openLanesStr)}&staffLanes=${encodeURIComponent(staffLanesStr)}&rotateMode=${encodeURIComponent(rotateMode)}&day=${encodeURIComponent(targetDay)}`;
       try {
@@ -2425,7 +2494,6 @@
         showToast(res.message || `✅ 【${targetDay}】賽事設定儲存成功！`, 3000, false);
         closeSettingsModal();
 
-        // 同步更新 Firebase 即時設定
         if (rtdb) {
           const cfgUpdate = {};
           if (targetDay === '週一') {
@@ -2444,6 +2512,204 @@
       } catch (e) {
         showToast('❌ 儲存失敗，請檢查網路。', 3000, false);
       }
+    }
+
+    async function executeSaveSettingsWithRelocate(targetDay, openLanesStr, staffLanesStr, rotateMode, closedLanes, affectedPlayers) {
+      const isMon = targetDay === '週一';
+      const targetDayKey = isMon ? 'mon' : 'thu';
+      const cfg = rawResponse ? rawResponse.config : {};
+      
+      showToast(`⏳ 正在為 ${affectedPlayers.length} 位隊友自動移位並儲存中...`, 0, true);
+
+      const currentDayData = (rawResponse && rawResponse.data && rawResponse.data[targetDayKey]) ? rawResponse.data[targetDayKey] : [];
+      const dayDataCopy = JSON.parse(JSON.stringify(currentDayData));
+
+      // 候選開放球道（優先排除工作人員專用道）
+      let openCandidateLanes = ALL_LANES.filter(lk => selectedOpenLanes.has(lk) && !selectedStaffLanes.has(lk));
+      if (openCandidateLanes.length === 0) {
+        openCandidateLanes = ALL_LANES.filter(lk => selectedOpenLanes.has(lk));
+      }
+
+      const relocatedList = [];
+      let playerIdx = 0;
+
+      // 依序搜尋第 1~7 席空位分配
+      for (let slot = 1; slot <= 7 && playerIdx < affectedPlayers.length; slot++) {
+        for (const lk of openCandidateLanes) {
+          if (playerIdx >= affectedPlayers.length) break;
+          let targetLaneObj = dayDataCopy.find(l => l && l.lane === lk);
+          if (!targetLaneObj) {
+            targetLaneObj = { lane: lk, players: [] };
+            dayDataCopy.push(targetLaneObj);
+          }
+          if (!targetLaneObj.players) targetLaneObj.players = [];
+          while (targetLaneObj.players.length < 7) targetLaneObj.players.push(null);
+
+          const curP = targetLaneObj.players[slot - 1];
+          if (!curP || !curP.name || curP.name === '[開放入座]') {
+            const p = affectedPlayers[playerIdx];
+            targetLaneObj.players[slot - 1] = {
+              name: p.name,
+              gender: p.gender,
+              code: ''
+            };
+            relocatedList.push({
+              name: p.name,
+              gender: p.gender,
+              oldLane: p.oldLane,
+              oldSlot: p.oldSlot,
+              newLane: lk,
+              newSlot: slot
+            });
+            playerIdx++;
+          }
+        }
+      }
+
+      // 清空被關閉球道上的席位
+      closedLanes.forEach(lk => {
+        const laneObj = dayDataCopy.find(l => l && l.lane === lk);
+        if (laneObj && laneObj.players) {
+          laneObj.players = [null, null, null, null, null, null, null];
+        }
+      });
+
+      // 1. 同步更新 Firebase RTDB
+      if (rtdb) {
+        rtdb.ref(`data/${targetDayKey}`).set(dayDataCopy).catch(e => console.warn('Firebase RTDB day update error:', e));
+        const cfgUpdate = {};
+        if (isMon) {
+          cfgUpdate.monOpenLanes = openLanesStr;
+          cfgUpdate.monStaffLanes = staffLanesStr;
+          cfgUpdate.monRotateMode = rotateMode;
+        } else {
+          cfgUpdate.thuOpenLanes = openLanesStr;
+          cfgUpdate.thuStaffLanes = staffLanesStr;
+          cfgUpdate.thuRotateMode = rotateMode;
+        }
+        rtdb.ref('config').update(cfgUpdate).catch(e => console.warn('Firebase config error:', e));
+      }
+
+      // 2. 更新本地記憶體
+      if (rawResponse && rawResponse.data) {
+        rawResponse.data[targetDayKey] = dayDataCopy;
+      }
+      if (rawResponse && rawResponse.config) {
+        if (isMon) {
+          rawResponse.config.monOpenLanes = openLanesStr;
+          rawResponse.config.monStaffLanes = staffLanesStr;
+          rawResponse.config.monRotateMode = rotateMode;
+        } else {
+          rawResponse.config.thuOpenLanes = openLanesStr;
+          rawResponse.config.thuStaffLanes = staffLanesStr;
+          rawResponse.config.thuRotateMode = rotateMode;
+        }
+      }
+
+      // 3. 後端更新設定並同步試算表
+      try {
+        const url = `${API_BASE}?action=updateSettings&openLanes=${encodeURIComponent(openLanesStr)}&staffLanes=${encodeURIComponent(staffLanesStr)}&rotateMode=${encodeURIComponent(rotateMode)}&day=${encodeURIComponent(targetDay)}`;
+        fetch(url).catch(e => console.warn('Update settings err:', e));
+
+        const syncData = { [targetDayKey]: dayDataCopy };
+        const syncUrl = `${API_BASE}?action=batchSyncLanes&data=${encodeURIComponent(JSON.stringify(syncData))}`;
+        fetch(syncUrl).catch(e => console.warn('Batch sync err:', e));
+      } catch (err) {
+        console.warn('Backend sync calls error:', err);
+      }
+
+      closeSettingsModal();
+      renderAll();
+
+      // 4. 組裝 LINE 異動通知 (含星期、日期、版本2結尾叮嚀)
+      const dateDisplay = getFormattedMatchDate(targetDay, isMon ? cfg.monDate : cfg.thuDate);
+      let notice = `📢【內湖隊 賽事球道異動通知】\n`;
+      notice += `📅 賽事場次：${targetDay} (${dateDisplay})\n`;
+      notice += `⚠️ 異動原因：因 ${closedLanes.join('、')} 球道關閉，系統已為隊友自動安排移位：\n\n`;
+      relocatedList.forEach(r => {
+        notice += `• @${r.name} 移至 ${r.newLane}道 第${r.newSlot}位\n`;
+      });
+      notice += `\n👉 敬請相關隊友留意！如需更換球道可至系統自行重選，或隨時告知幹部協助調整，謝謝！🙏`;
+
+      currentRelocateNotice = notice;
+
+      // 5. 呼叫後端 LINE 推播 (帶入隊員清單比對 LINE_ID)
+      try {
+        const lineNoticeUrl = `${API_BASE}?action=sendRelocateNotice&day=${encodeURIComponent(targetDay)}&noticeText=${encodeURIComponent(notice)}&playersJson=${encodeURIComponent(JSON.stringify(relocatedList))}`;
+        fetch(lineNoticeUrl).then(r => r.json()).then(res => {
+          if (res && res.status === 'success') {
+            showToast(res.message, 3000, false);
+          }
+        }).catch(e => console.warn('Line notice fetch err:', e));
+      } catch (ne) {}
+
+      showToast(`🎉 已成功自動移位 ${relocatedList.length} 位隊友！`, 3000, false);
+      openRelocateNoticeModal(notice);
+    }
+
+    function openRelocateNoticeModal(notice) {
+      const modal = document.getElementById('relocateNoticeModal');
+      const textDiv = document.getElementById('relocateNoticeText');
+      if (modal && textDiv) {
+        textDiv.innerText = notice;
+        modal.style.display = 'flex';
+      }
+    }
+
+    function closeRelocateNoticeModal() {
+      const modal = document.getElementById('relocateNoticeModal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    async function shareRelocateNoticeToLine() {
+      if (!currentRelocateNotice) return;
+      if (window.liff && liff.isApiAvailable && liff.isApiAvailable('shareTargetPicker')) {
+        try {
+          const res = await liff.shareTargetPicker([
+            {
+              type: 'text',
+              text: currentRelocateNotice
+            }
+          ]);
+          if (res) {
+            showToast('✅ 訊息已成功分享至 LINE 群組！', 3000, false);
+            closeRelocateNoticeModal();
+            return;
+          }
+        } catch (err) {
+          console.warn('shareTargetPicker error:', err);
+        }
+      }
+      copyRelocateNoticeText();
+      showToast('📋 已複製通知！請直接切換至 LINE 群組貼上發布。', 3500, false);
+    }
+
+    function copyRelocateNoticeText() {
+      if (!currentRelocateNotice) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(currentRelocateNotice).then(() => {
+          showToast('📋 已複製異動通知訊息至剪貼簿！', 3000, false);
+        }).catch(() => fallbackCopy(currentRelocateNotice));
+      } else {
+        fallbackCopy(currentRelocateNotice);
+      }
+    }
+
+    function fallbackCopy(text) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      try {
+        document.execCommand('copy');
+        showToast('📋 已複製異動通知訊息至剪貼簿！', 3000, false);
+      } catch (e) {
+        showToast('⚠️ 複製失敗，請手動選取文字。', 3000, false);
+      }
+      document.body.removeChild(ta);
     }
 
     function triggerManualRotation(mode, desc) {

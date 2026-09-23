@@ -1064,7 +1064,10 @@
 
       <div style="display:flex; flex-direction:column; gap:10px;">
         <div>
-          <label style="font-weight:900; font-size:12px; display:block; margin-bottom:4px;">1️⃣ 請選擇您的姓名：</label>
+          <label style="font-weight:900; font-size:12px; display:block; margin-bottom:4px;">1️⃣ 請選擇您的姓名（支援即時搜尋）：</label>
+          <div style="position:relative; margin-bottom:6px;">
+            <input type="text" id="regMemberSearchInput" oninput="filterRegMembers()" placeholder="🔍 輸入 1 字快速篩選（如：許、綻）" style="width:100%; box-sizing:border-box; padding:8px 10px; border-radius:6px; border:1.5px solid #3b82f6; font-size:13px; background:#eff6ff; outline:none;">
+          </div>
           <select id="regMemberSelect" style="width:100%; padding:9px; border-radius:6px; border:1px solid #cbd5e1; font-size:13px;"></select>
         </div>
         <div>
@@ -1180,7 +1183,7 @@
               if (!l) return null;
               let pl = l.players || [];
               if (!Array.isArray(pl)) pl = Object.values(pl);
-              while (pl.length < 7) pl.push(null);
+              while (pl.length < 8) pl.push(null);
               return { lane: l.lane, players: pl };
             }).filter(Boolean);
           };
@@ -1265,6 +1268,7 @@
     let currentDay = getAutoDefaultDay();
     let isAdmin = localStorage.getItem('bowling_admin') === 'true';
     let currentUserLineId = localStorage.getItem('bowling_line_id') || '';
+    let currentUserDisplayName = '';
     let currentUserName = localStorage.getItem('bowling_player_name') || '';
     let pendingLeaveAction = null; // 儲存非本人取消時的暫存資訊 { playerName, laneKey, slotIndex }
     let isActionInProgress = false; // 防連點與防止背景輪詢覆蓋暫存狀態
@@ -1359,6 +1363,7 @@
             const profile = await liff.getProfile();
             if (profile && profile.userId) {
               currentUserLineId = profile.userId;
+              currentUserDisplayName = profile.displayName || '';
               localStorage.setItem('bowling_line_id', currentUserLineId);
             }
           }
@@ -1638,9 +1643,11 @@
         const generalOpenCount = Math.max(1, totalOpenCount - staffLaneCount);
         const generalPlayerCount = Math.max(0, totalCount - staffPlayerCount);
 
-        // ★ 智慧水位規則：達 4N 解鎖第 5 列，達 5N 解鎖第 6 列，達 6N 解鎖第 7 列
+        // ★ 智慧水位規則：達 4N 解鎖第 5 列，達 5N 解鎖第 6 列，達 6N 解鎖第 7 列，達 7N 解鎖第 8 列
         let allowedSlots = 4;
-        if (generalPlayerCount >= 6 * generalOpenCount) {
+        if (generalPlayerCount >= 7 * generalOpenCount) {
+          allowedSlots = 8;
+        } else if (generalPlayerCount >= 6 * generalOpenCount) {
           allowedSlots = 7;
         } else if (generalPlayerCount >= 5 * generalOpenCount) {
           allowedSlots = 6;
@@ -1697,15 +1704,15 @@
             <tbody>
         `;
 
-        // ★ 固定 7 列，序號 1~7
-        for (let slotIndex = 1; slotIndex <= 7; slotIndex++) {
+        // ★ 固定 8 列，序號 1~8
+        for (let slotIndex = 1; slotIndex <= 8; slotIndex++) {
           const r = slotIndex - 1;
           html += `<tr>`;
           if (slotIndex === 1) {
-            html += `<td rowspan="7" class="lane-number-cell">${laneKey}</td>`;
+            html += `<td rowspan="8" class="lane-number-cell">${laneKey}</td>`;
           }
 
-          // 序號欄位 (固定 1~7，寬度14%)
+          // 序號欄位 (固定 1~8，寬度14%)
           html += `<td style="font-weight:900; color:#475569; width:14%;">${slotIndex}</td>`;
 
           // 檢查該號位是否有人 (若姓名為 [開放入座]，視為開放空位處理)
@@ -1980,12 +1987,12 @@
             // 檢查目標席位
             let targetLane = list.find(l => l && l.lane === lane);
             if (!targetLane) {
-              targetLane = { lane: lane, players: Array(7).fill(null) };
+              targetLane = { lane: lane, players: Array(8).fill(null) };
               list.push(targetLane);
             }
-            if (!targetLane.players) targetLane.players = Array(7).fill(null);
+            if (!targetLane.players) targetLane.players = Array(8).fill(null);
             if (!Array.isArray(targetLane.players)) targetLane.players = Object.values(targetLane.players);
-            while (targetLane.players.length < 7) targetLane.players.push(null);
+            while (targetLane.players.length < 8) targetLane.players.push(null);
 
             const existing = targetLane.players[slotIndex - 1];
             if (existing && existing.name && existing.name !== name && existing.name !== '[開放入座]') {
@@ -2039,11 +2046,11 @@
 
         let targetLaneObj = dayList.find(l => l.lane === lane);
         if (!targetLaneObj) {
-          targetLaneObj = { lane: lane, players: [null, null, null, null, null, null, null] };
+          targetLaneObj = { lane: lane, players: [null, null, null, null, null, null, null, null] };
           dayList.push(targetLaneObj);
         }
-        if (!targetLaneObj.players) targetLaneObj.players = [null, null, null, null, null, null, null];
-        while (targetLaneObj.players.length < 7) targetLaneObj.players.push(null);
+        if (!targetLaneObj.players) targetLaneObj.players = [null, null, null, null, null, null, null, null];
+        while (targetLaneObj.players.length < 8) targetLaneObj.players.push(null);
 
         targetLaneObj.players[slotIndex - 1] = {
           name: name,
@@ -2200,15 +2207,43 @@
       }
     }
 
+    function filterRegMembers() {
+      const q = (document.getElementById('regMemberSearchInput')?.value || '').trim();
+      const sel = document.getElementById('regMemberSelect');
+      if (!sel) return;
+      const members = (rawResponse && rawResponse.members) ? rawResponse.members : [];
+      const currentSelectedVal = sel.value;
+
+      sel.innerHTML = '<option value="">-- 請選擇您的姓名 --</option>';
+      const filtered = q ? members.filter(m => (m.name && m.name.includes(q)) || (m.code && m.code.includes(q))) : members;
+      filtered.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.name;
+        opt.innerText = m.code ? `${m.code} - ${m.name}` : m.name;
+        sel.appendChild(opt);
+      });
+
+      if (filtered.length === 1) {
+        sel.value = filtered[0].name;
+      } else if (currentSelectedVal && filtered.some(m => m.name === currentSelectedVal)) {
+        sel.value = currentSelectedVal;
+      }
+    }
+
     // ===== 彈窗邏輯：1. 首次使用綁定身分 =====
     function openRegisterModal(forceReset = false) {
       const modal = document.getElementById('registerModal');
       const isAlreadyOpen = modal && (modal.style.display === 'flex' || modal.style.display === 'block');
       const sel = document.getElementById('regMemberSelect');
+      const searchInput = document.getElementById('regMemberSearchInput');
       if (!sel) return;
 
       // ★ 記住使用者已選擇的姓名，避免背景重新整理時被洗掉
-      const currentSelectedVal = sel.value;
+      let currentSelectedVal = sel.value;
+
+      if (!isAlreadyOpen || forceReset) {
+        if (searchInput) searchInput.value = '';
+      }
 
       sel.innerHTML = '<option value="">-- 請選擇您的姓名 --</option>';
       const members = (rawResponse && rawResponse.members) ? rawResponse.members : [];
@@ -2219,7 +2254,16 @@
         sel.appendChild(opt);
       });
 
-      // ★ 重新生成選項後，100% 自動還原隊友剛才選中的姓名！
+      // ★ 若尚未手動選擇，嘗試以 LINE 暱稱自動比對預選
+      if (!currentSelectedVal && currentUserDisplayName && members.length > 0) {
+        const matched = members.find(m => m.name && (m.name === currentUserDisplayName || currentUserDisplayName.includes(m.name) || m.name.includes(currentUserDisplayName)));
+        if (matched) {
+          currentSelectedVal = matched.name;
+          if (searchInput) searchInput.value = matched.name;
+        }
+      }
+
+      // ★ 重新生成選項後，自動選取
       if (currentSelectedVal) {
         sel.value = currentSelectedVal;
       }
@@ -2625,8 +2669,8 @@
       const relocatedList = [];
       let playerIdx = 0;
 
-      // 依序搜尋第 1~7 席空位分配
-      for (let slot = 1; slot <= 7 && playerIdx < affectedPlayers.length; slot++) {
+      // 依序搜尋第 1~8 席空位分配
+      for (let slot = 1; slot <= 8 && playerIdx < affectedPlayers.length; slot++) {
         for (const lk of openCandidateLanes) {
           if (playerIdx >= affectedPlayers.length) break;
           let targetLaneObj = dayDataCopy.find(l => l && l.lane === lk);
@@ -2635,7 +2679,7 @@
             dayDataCopy.push(targetLaneObj);
           }
           if (!targetLaneObj.players) targetLaneObj.players = [];
-          while (targetLaneObj.players.length < 7) targetLaneObj.players.push(null);
+          while (targetLaneObj.players.length < 8) targetLaneObj.players.push(null);
 
           const curP = targetLaneObj.players[slot - 1];
           if (!curP || !curP.name || curP.name === '[開放入座]') {

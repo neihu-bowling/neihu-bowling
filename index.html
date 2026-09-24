@@ -134,6 +134,11 @@
       color: #1e40af;
       border: 1px solid #93c5fd;
     }
+    .event-badge-paused {
+      background: #fee2e2 !important;
+      color: #b91c1c !important;
+      border: 1px solid #f87171 !important;
+    }
     .operator-badge {
       display: inline-flex;
       align-items: center;
@@ -903,6 +908,19 @@
       </div>
 
       <div style="font-size:12px; display:flex; flex-direction:column; gap:12px;">
+        <!-- 🛑 連假停練開關專區 -->
+        <div id="holidayPauseCard" style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; padding:10px 12px; margin-bottom:2px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+            <div style="flex:1;">
+              <span id="holidayPauseTitle" style="font-weight:900; font-size:13px; color:#1e293b;">🛑 連假停練設定：</span>
+              <div id="holidayPauseDesc" style="font-size:11px; color:#64748b; margin-top:2px;">目前狀態：正常開打 (未停練)</div>
+            </div>
+            <button type="button" id="btnToggleHolidayPause" onclick="toggleHolidayPauseSetting()" class="quick-btn" style="background:#dc2626; color:#ffffff; font-weight:900; border:none; padding:7px 12px; border-radius:6px; font-size:12px; cursor:pointer; white-space:nowrap; box-shadow:0 1px 2px rgba(0,0,0,0.1);">
+              🛑 設定本場停練
+            </button>
+          </div>
+        </div>
+
         <!-- 1. 開放球道 -->
         <div>
           <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -1594,6 +1612,14 @@
             if (savedThu && (!res.config.thuOpenLanes || res.config.thuOpenLanes === '3-24')) {
               res.config.thuOpenLanes = savedThu;
             }
+            const savedMonPause = localStorage.getItem('bowling_mon_pause_date');
+            const savedThuPause = localStorage.getItem('bowling_thu_pause_date');
+            if (savedMonPause && res.config.monPauseDate === undefined) {
+              res.config.monPauseDate = savedMonPause;
+            }
+            if (savedThuPause && res.config.thuPauseDate === undefined) {
+              res.config.thuPauseDate = savedThuPause;
+            }
           }
           // 若 Firebase 已連線且已有球道資料，保留 Firebase 的最新即時球道資料，僅更新隊員名單與設定
           if (isFirebaseReady && rawResponse && rawResponse.data && (rawResponse.data.mon || rawResponse.data.thu) && !force) {
@@ -1652,6 +1678,35 @@
       return `${mm}/${dd}`;
     }
 
+    // ★ 智能比對日期字串 (容許 9/28、09/28、2026-09-28 等格式)
+    function isSameDateStr(d1, d2) {
+      if (!d1 || !d2) return false;
+      const s1 = String(d1).trim();
+      const s2 = String(d2).trim();
+      if (s1 === s2) return true;
+      const m1 = s1.match(/(\d{1,2})[\/\-\.月](\d{1,2})/);
+      const m2 = s2.match(/(\d{1,2})[\/\-\.月](\d{1,2})/);
+      if (m1 && m2) {
+        return parseInt(m1[1], 10) === parseInt(m2[1], 10) && parseInt(m1[2], 10) === parseInt(m2[2], 10);
+      }
+      return false;
+    }
+
+    // ★ 判定當前賽事是否已啟用「🛑 連假停練一次」
+    function isDayHolidayPaused(dayStr) {
+      const isMon = dayStr === '週一';
+      const cfg = (rawResponse && rawResponse.config) ? rawResponse.config : {};
+      const savedPause = localStorage.getItem(isMon ? 'bowling_mon_pause_date' : 'bowling_thu_pause_date');
+      const pauseDate = (isMon ? cfg.monPauseDate : cfg.thuPauseDate) || savedPause || '';
+      if (!pauseDate || pauseDate === '無' || pauseDate === 'none') return false;
+      const currentMatchDate = getFormattedMatchDate(dayStr, isMon ? cfg.monDate : cfg.thuDate);
+      return isSameDateStr(pauseDate, currentMatchDate);
+    }
+
+    function showHolidayPausedToast() {
+      showToast('⚠️ 本場賽事因逢國定連假停練一次，暫停入座報名！', 3500, false);
+    }
+
     function renderAll() {
       try {
         const cfg = (rawResponse && rawResponse.config) ? rawResponse.config : { openLanes: '3-24', staffLanes: '7/8', monDate: '', thuDate: '' };
@@ -1666,10 +1721,20 @@
         if (btnT) btnT.className = !isMon ? 'btn-day btn-day-thu active' : 'btn-day btn-day-thu';
 
         const dateStr = getFormattedMatchDate(currentDay, isMon ? cfg.monDate : cfg.thuDate);
+        const isPaused = isDayHolidayPaused(currentDay);
         const eventBadge = document.getElementById('eventBadge');
         if (eventBadge) {
-          eventBadge.className = isMon ? 'event-badge event-badge-mon' : 'event-badge event-badge-thu';
-          eventBadge.innerHTML = isMon ? `🟢 週一賽事：<span id="actDateDisplay">${dateStr}</span>` : `🔵 週四賽事：<span id="actDateDisplay">${dateStr}</span>`;
+          if (isPaused) {
+            eventBadge.className = 'event-badge event-badge-paused';
+            eventBadge.innerHTML = isMon 
+              ? `🛑 週一賽事：<span id="actDateDisplay">${dateStr}</span> (連假停練一次)` 
+              : `🛑 週四賽事：<span id="actDateDisplay">${dateStr}</span> (連假停練一次)`;
+          } else {
+            eventBadge.className = isMon ? 'event-badge event-badge-mon' : 'event-badge event-badge-thu';
+            eventBadge.innerHTML = isMon 
+              ? `🟢 週一賽事：<span id="actDateDisplay">${dateStr}</span>` 
+              : `🔵 週四賽事：<span id="actDateDisplay">${dateStr}</span>`;
+          }
         }
 
         const adminBar = document.getElementById('adminToolbar');
@@ -1825,15 +1890,18 @@
             const pGenStr = String(pGender || 'M').trim();
             const isFem = (pGenStr.includes('女') || pGenStr.toUpperCase().startsWith('F') || pGenStr.toUpperCase() === 'W');
             const colorClass = isFem ? 'female-text' : 'male-text';
+            const pausePrefix = isPaused ? '<span style="color:#dc2626; font-weight:900; margin-right:2px;">🚫</span>' : '';
             html += `
               <td onclick="handlePlayerClick('${p.name}', '${laneKey}', ${slotIndex})" style="cursor:pointer; width:60%;" class="${colorClass}">
-                ${p.name}
+                ${pausePrefix}${p.name}
               </td>
             `;
           } else {
             if (!isOpen) {
               const closedLabel = isAdmin ? '🚫 不開放 (已關閉)' : '🚫 不開放';
               html += `<td class="slot-locked" style="width:60%;">${closedLabel}</td>`;
+            } else if (isPaused) {
+              html += `<td class="slot-locked" style="width:60%; color:#dc2626; font-weight:bold; cursor:not-allowed;" onclick="showHolidayPausedToast()">🚫 停練一次</td>`;
             } else if (deadPassed && !isAdmin) {
               html += `<td class="slot-locked" style="width:60%;">⏰ 報名已截止</td>`;
             } else if (slotIndex > allowedSlots && !isAdmin) {
@@ -1869,6 +1937,10 @@
         showToast('⚠️ 首次使用請先綁定隊員姓名！', 3500);
         openRegisterModal();
         return;
+      }
+
+      if (isDayHolidayPaused(currentDay) && !isAdmin) {
+        return showHolidayPausedToast();
       }
 
       const cfg = rawResponse ? rawResponse.config : {};
@@ -2197,6 +2269,10 @@
       const deadPassed = isDeadlinePassed(currentDay, currentDay === '週一' ? cfg.monDate : cfg.thuDate, currentDay === '週一' ? cfg.monDeadline : cfg.thuDeadline);
       if (deadPassed && !isAdmin) {
         return showToast('⏰ 本次賽事報名已截止，名單已定案！若需異動請洽幹部。', 4500, false);
+      }
+
+      if (isDayHolidayPaused(currentDay) && !isAdmin) {
+        return showToast('⚠️ 本場賽事因逢國定連假停練一次，席位已鎖定保留，暫停更動！', 3500, false);
       }
 
       // 1. 幹部操作 ➔ 二次確認直接取消，免 PIN 碼
@@ -2608,6 +2684,39 @@
     }
 
     let currentSettingDay = '週一';
+    let currentSettingHolidayPause = false;
+
+    function updateHolidayPauseUI(day, targetMatchDate) {
+      const card = document.getElementById('holidayPauseCard');
+      const title = document.getElementById('holidayPauseTitle');
+      const desc = document.getElementById('holidayPauseDesc');
+      const btn = document.getElementById('btnToggleHolidayPause');
+      if (!card || !title || !desc || !btn) return;
+
+      title.innerText = `🛑 【${day}】連假停練設定：`;
+      if (currentSettingHolidayPause) {
+        card.style.background = '#fef2f2';
+        card.style.borderColor = '#f87171';
+        desc.innerHTML = `⚠️ <b style="color:#b91c1c;">本場賽事 (${targetMatchDate}) 已設定連假停練一次</b><br><span style="color:#991b1b;">球道保留原有位置並標記 🚫，空位鎖定為「🚫 停練一次」，09:20 暫停輪調</span>`;
+        btn.innerText = '🟢 取消停練 (恢復打球)';
+        btn.style.background = '#16a34a';
+      } else {
+        card.style.background = '#f8fafc';
+        card.style.borderColor = '#cbd5e1';
+        desc.innerHTML = `✅ <b style="color:#15803d;">本場賽事 (${targetMatchDate}) 正常開打中</b><br><span style="color:#64748b;">若逢連續假期球隊停練一次，可點擊右側按鈕設定停練</span>`;
+        btn.innerText = '🛑 設定本場停練';
+        btn.style.background = '#dc2626';
+      }
+    }
+
+    function toggleHolidayPauseSetting() {
+      currentSettingHolidayPause = !currentSettingHolidayPause;
+      const targetDay = currentSettingDay || currentDay;
+      const isMon = (targetDay === '週一');
+      const cfg = rawResponse ? rawResponse.config : {};
+      const targetMatchDate = getFormattedMatchDate(targetDay, isMon ? cfg.monDate : cfg.thuDate);
+      updateHolidayPauseUI(targetDay, targetMatchDate);
+    }
 
     function openSettingsModal() {
       currentSettingDay = currentDay || '週一';
@@ -2647,6 +2756,13 @@
       const dayStaff = isMon ? (cfg.monStaffLanes || savedStaff || cfg.staffLanes || '7/8') : (cfg.thuStaffLanes || savedStaff || cfg.staffLanes || '7/8');
       const dayOpen = isMon ? (cfg.monOpenLanes || savedOpen || cfg.openLanes || '3-24') : (cfg.thuOpenLanes || savedOpen || cfg.openLanes || '3-24');
       const dayRotate = isMon ? (cfg.monRotateMode || cfg.rotateMode || 'sequential') : (cfg.thuRotateMode || cfg.rotateMode || 'sequential');
+
+      // 初始化連假停練狀態
+      const savedPause = isMon ? localStorage.getItem('bowling_mon_pause_date') : localStorage.getItem('bowling_thu_pause_date');
+      const currentPauseDate = (isMon ? cfg.monPauseDate : cfg.thuPauseDate) || savedPause || '';
+      const targetMatchDate = getFormattedMatchDate(day, isMon ? cfg.monDate : cfg.thuDate);
+      currentSettingHolidayPause = isSameDateStr(currentPauseDate, targetMatchDate);
+      updateHolidayPauseUI(day, targetMatchDate);
 
       const staffLbl = document.getElementById('staffLanesLabel');
       if (staffLbl) staffLbl.innerText = `2️⃣ 【${day}】工作人員專用道：`;
@@ -2741,6 +2857,9 @@
       const targetDayKey = isMon ? 'mon' : 'thu';
 
       const cfg = rawResponse ? rawResponse.config : {};
+      const targetMatchDate = getFormattedMatchDate(targetDay, isMon ? cfg.monDate : cfg.thuDate);
+      const targetPauseDate = currentSettingHolidayPause ? targetMatchDate : '';
+
       const oldOpenStr = isMon ? (cfg.monOpenLanes || cfg.openLanes || '3-24') : (cfg.thuOpenLanes || cfg.openLanes || '3-24');
       const previouslyOpenLanes = parseLaneList(oldOpenStr);
 
@@ -2774,15 +2893,15 @@
         const confirmMsg = `⚠️【${targetDay}賽事】${closedLanes.join('、')} 道目前有 ${affectedPlayers.length} 位隊友入座 (${playerNames})！\n\n確定關閉此道並由系統【智能自動移位】至其他開放球道嗎？\n（移位後將產生 LINE 標註通知）`;
         customConfirm(confirmMsg, async (confirmed) => {
           if (!confirmed) return;
-          await executeSaveSettingsWithRelocate(targetDay, openLanesStr, staffLanesStr, rotateMode, closedLanes, affectedPlayers);
+          await executeSaveSettingsWithRelocate(targetDay, openLanesStr, staffLanesStr, rotateMode, closedLanes, affectedPlayers, targetPauseDate);
         });
         return;
       }
 
-      await executeSaveSettings(targetDay, openLanesStr, staffLanesStr, rotateMode);
+      await executeSaveSettings(targetDay, openLanesStr, staffLanesStr, rotateMode, targetPauseDate);
     }
 
-    async function executeSaveSettings(targetDay, openLanesStr, staffLanesStr, rotateMode) {
+    async function executeSaveSettings(targetDay, openLanesStr, staffLanesStr, rotateMode, targetPauseDate = '') {
       // 1. 0.05 秒立即生效：關閉彈窗並彈出成功提示
       closeSettingsModal();
       showToast(`✅ 【${targetDay}】賽事設定儲存成功！`, 3000, false);
@@ -2791,9 +2910,11 @@
       if (targetDay === '週一') {
         localStorage.setItem('bowling_mon_open_lanes', openLanesStr);
         localStorage.setItem('bowling_mon_staff_lanes', staffLanesStr);
+        localStorage.setItem('bowling_mon_pause_date', targetPauseDate);
       } else {
         localStorage.setItem('bowling_thu_open_lanes', openLanesStr);
         localStorage.setItem('bowling_thu_staff_lanes', staffLanesStr);
+        localStorage.setItem('bowling_thu_pause_date', targetPauseDate);
       }
 
       // 3. 立即更新本地記憶體並重新渲染球道
@@ -2802,10 +2923,12 @@
           rawResponse.config.monOpenLanes = openLanesStr;
           rawResponse.config.monStaffLanes = staffLanesStr;
           rawResponse.config.monRotateMode = rotateMode;
+          rawResponse.config.monPauseDate = targetPauseDate;
         } else {
           rawResponse.config.thuOpenLanes = openLanesStr;
           rawResponse.config.thuStaffLanes = staffLanesStr;
           rawResponse.config.thuRotateMode = rotateMode;
+          rawResponse.config.thuPauseDate = targetPauseDate;
         }
       }
       renderAll();
@@ -2817,22 +2940,24 @@
           cfgUpdate.monOpenLanes = openLanesStr;
           cfgUpdate.monStaffLanes = staffLanesStr;
           cfgUpdate.monRotateMode = rotateMode;
+          cfgUpdate.monPauseDate = targetPauseDate;
         } else {
           cfgUpdate.thuOpenLanes = openLanesStr;
           cfgUpdate.thuStaffLanes = staffLanesStr;
           cfgUpdate.thuRotateMode = rotateMode;
+          cfgUpdate.thuPauseDate = targetPauseDate;
         }
         rtdb.ref('config').update(cfgUpdate).catch(err => console.warn('Firebase config update error:', err));
       }
 
       // 5. 背景非同步同步至 Google 試算表 (完全不卡頓手機介面)
       try {
-        const url = `${API_BASE}?action=updateSettings&openLanes=${encodeURIComponent(openLanesStr)}&staffLanes=${encodeURIComponent(staffLanesStr)}&rotateMode=${encodeURIComponent(rotateMode)}&day=${encodeURIComponent(targetDay)}`;
+        const url = `${API_BASE}?action=updateSettings&openLanes=${encodeURIComponent(openLanesStr)}&staffLanes=${encodeURIComponent(staffLanesStr)}&rotateMode=${encodeURIComponent(rotateMode)}&day=${encodeURIComponent(targetDay)}&pauseDate=${encodeURIComponent(targetPauseDate)}`;
         fetch(url).catch(e => console.warn('Background updateSettings error:', e));
       } catch (e) {}
     }
 
-    async function executeSaveSettingsWithRelocate(targetDay, openLanesStr, staffLanesStr, rotateMode, closedLanes, affectedPlayers) {
+    async function executeSaveSettingsWithRelocate(targetDay, openLanesStr, staffLanesStr, rotateMode, closedLanes, affectedPlayers, targetPauseDate = '') {
       const isMon = targetDay === '週一';
       const targetDayKey = isMon ? 'mon' : 'thu';
       const cfg = rawResponse ? rawResponse.config : {};
@@ -2900,10 +3025,12 @@
           cfgUpdate.monOpenLanes = openLanesStr;
           cfgUpdate.monStaffLanes = staffLanesStr;
           cfgUpdate.monRotateMode = rotateMode;
+          cfgUpdate.monPauseDate = targetPauseDate;
         } else {
           cfgUpdate.thuOpenLanes = openLanesStr;
           cfgUpdate.thuStaffLanes = staffLanesStr;
           cfgUpdate.thuRotateMode = rotateMode;
+          cfgUpdate.thuPauseDate = targetPauseDate;
         }
         rtdb.ref('config').update(cfgUpdate).catch(e => console.warn('Firebase config error:', e));
       }
@@ -2915,9 +3042,11 @@
       if (isMon) {
         localStorage.setItem('bowling_mon_open_lanes', openLanesStr);
         localStorage.setItem('bowling_mon_staff_lanes', staffLanesStr);
+        localStorage.setItem('bowling_mon_pause_date', targetPauseDate);
       } else {
         localStorage.setItem('bowling_thu_open_lanes', openLanesStr);
         localStorage.setItem('bowling_thu_staff_lanes', staffLanesStr);
+        localStorage.setItem('bowling_thu_pause_date', targetPauseDate);
       }
 
       if (rawResponse && rawResponse.config) {
@@ -2925,16 +3054,18 @@
           rawResponse.config.monOpenLanes = openLanesStr;
           rawResponse.config.monStaffLanes = staffLanesStr;
           rawResponse.config.monRotateMode = rotateMode;
+          rawResponse.config.monPauseDate = targetPauseDate;
         } else {
           rawResponse.config.thuOpenLanes = openLanesStr;
           rawResponse.config.thuStaffLanes = staffLanesStr;
           rawResponse.config.thuRotateMode = rotateMode;
+          rawResponse.config.thuPauseDate = targetPauseDate;
         }
       }
 
       // 3. 後端更新設定並同步試算表
       try {
-        const url = `${API_BASE}?action=updateSettings&openLanes=${encodeURIComponent(openLanesStr)}&staffLanes=${encodeURIComponent(staffLanesStr)}&rotateMode=${encodeURIComponent(rotateMode)}&day=${encodeURIComponent(targetDay)}`;
+        const url = `${API_BASE}?action=updateSettings&openLanes=${encodeURIComponent(openLanesStr)}&staffLanes=${encodeURIComponent(staffLanesStr)}&rotateMode=${encodeURIComponent(rotateMode)}&day=${encodeURIComponent(targetDay)}&pauseDate=${encodeURIComponent(targetPauseDate)}`;
         fetch(url).catch(e => console.warn('Update settings err:', e));
 
         const syncData = { [targetDayKey]: dayDataCopy };
@@ -2944,20 +3075,8 @@
         console.warn('Backend sync calls error:', err);
       }
 
-        if (rawResponse && rawResponse.config) {
-          if (targetDay === '週一') {
-            rawResponse.config.monOpenLanes = openLanesStr;
-            rawResponse.config.monStaffLanes = staffLanesStr;
-            rawResponse.config.monRotateMode = rotateMode;
-          } else {
-            rawResponse.config.thuOpenLanes = openLanesStr;
-            rawResponse.config.thuStaffLanes = staffLanesStr;
-            rawResponse.config.thuRotateMode = rotateMode;
-          }
-        }
-
-        closeSettingsModal();
-        renderAll();
+      closeSettingsModal();
+      renderAll();
 
         // 4. 組裝 LINE 異動通知 (含星期、日期、版本2結尾叮嚀)
         const dateDisplay = getFormattedMatchDate(targetDay, isMon ? cfg.monDate : cfg.thuDate).replace('/', '-');

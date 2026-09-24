@@ -1839,6 +1839,7 @@
       const isMon = currentDay === '週一';
       const defaultHeaderClass = isMon ? 'lane-box-header-mon' : 'lane-box-header-thu';
       const deadPassed = isDeadlinePassed(currentDay, isMon ? cfg.monDate : cfg.thuDate, isMon ? cfg.monDeadline : cfg.thuDeadline);
+      const isPaused = isDayHolidayPaused(currentDay);
 
       let html = '';
       lanesArray.forEach(laneKey => {

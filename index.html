@@ -1295,6 +1295,7 @@
     let currentUserLineId = localStorage.getItem('bowling_line_id') || '';
     let currentUserDisplayName = '';
     let currentUserName = localStorage.getItem('bowling_player_name') || '';
+    let isVerifyingIdentity = true; // ★ 身分識別安全鎖：比對完成前禁止入座與任何非必要彈窗
     let pendingLeaveAction = null; // 儲存非本人取消時的暫存資訊 { playerName, laneKey, slotIndex }
     let isActionInProgress = false; // 防連點與防止背景輪詢覆蓋暫存狀態
     let selectedLane = '';
@@ -1380,9 +1381,16 @@
             badge.title = '';
             badge.onclick = null;
           }
+        } else if (isVerifyingIdentity) {
+          badge.innerText = '⏳ 身分識別中...';
+          badge.className = 'operator-badge operator-badge-unbound';
+          badge.style.cursor = 'wait';
+          badge.title = '系統正在與 LINE 連線確認身分...';
+          badge.onclick = null;
         } else {
           badge.innerText = '⚠️ 點此綁定姓名';
           badge.className = 'operator-badge operator-badge-unbound';
+          badge.style.cursor = 'pointer';
           badge.title = '點此綁定隊員姓名';
           badge.onclick = openRegisterModal;
         }
@@ -1408,6 +1416,7 @@
           console.warn('LIFF init warning:', err);
         }
       }
+      isLiffInitialized = true;
     }
 
     // ★ 核心身分檢驗與即刻彈窗判定 (支援同步秒讀，無須等待網路延遲)
@@ -1416,9 +1425,10 @@
 
       let matchedMember = null;
 
-      // 1. 優先以 LINE ID 比對
+      // 1. 優先以 LINE ID 比對 (去除前後空白、統一小寫比對)
       if (currentUserLineId) {
-        matchedMember = members.find(m => m.lineId && m.lineId === currentUserLineId);
+        const cleanCurId = String(currentUserLineId).trim().toLowerCase();
+        matchedMember = members.find(m => m.lineId && String(m.lineId).trim().toLowerCase() === cleanCurId);
       }
 
       // 2. 若未比對到 LINE ID，則比對本地存儲姓名
@@ -1431,17 +1441,18 @@
       }
 
       // 3. 若已找到隊員但試算表尚未記錄 LINE ID，且目前已取得 LINE ID，自動靜默更新到試算表
-      if (matchedMember && currentUserLineId && !matchedMember.lineId) {
+      if (matchedMember && currentUserLineId && (!matchedMember.lineId || matchedMember.lineId !== currentUserLineId)) {
         matchedMember.lineId = currentUserLineId;
         fetch(`${API_BASE}?action=bindUser&name=${encodeURIComponent(matchedMember.name)}&lineId=${encodeURIComponent(currentUserLineId)}&pin=${encodeURIComponent(matchedMember.pin || '')}`)
           .catch(e => console.warn('Auto sync LINE ID err:', e));
       }
 
-      // 4. 狀態更新 (只有在明確確定查無此人時才清空)
+      // 4. 狀態更新
       if (matchedMember) {
         currentUserName = matchedMember.name;
         localStorage.setItem('bowling_player_name', currentUserName);
-      } else {
+      } else if (!isVerifyingIdentity) {
+        // 只有在明確完成身分識別後確定查無此人，才清空暫存
         currentUserName = '';
         localStorage.removeItem('bowling_player_name');
       }
@@ -1451,37 +1462,53 @@
       // 5. 彈窗判斷 (管理者模式不彈窗)
       if (isAdmin) return;
 
-      if (!currentUserName) {
-        // 未綁定身份 ➔ 彈出【首次使用綁定身份】彈窗
+      // ★ 情況 A：隊員已綁定且已有 PIN 碼 ➔ 絕對關閉任何彈窗，暢通操作！
+      if (matchedMember && matchedMember.pin) {
+        closeRegisterModal();
+        closeSetupPinModal();
+        return;
+      }
+
+      // ★ 情況 B：隊員已綁定姓名但尚未設定 PIN 碼 ➔ 關閉綁定窗，立即彈出專屬設定 PIN 碼視窗！
+      if (matchedMember && !matchedMember.pin) {
+        closeRegisterModal();
+        openSetupPinModal(matchedMember.name);
+        return;
+      }
+
+      // ★ 情況 C：未綁定身分 ➔ 嚴格限制：身分識別進行中絕對不主動彈窗！
+      if (!currentUserName && !isVerifyingIdentity) {
         const regModal = document.getElementById('registerModal');
         const isRegOpen = regModal && (regModal.style.display === 'flex' || regModal.style.display === 'block');
         if (!isRegOpen) {
           openRegisterModal();
         }
-      } else if (matchedMember && !matchedMember.pin) {
-        // 🔥 已綁定姓名但尚未設定 PIN 碼 ➔ 0 秒即刻彈出專屬【設定個人 PIN 碼】視窗！
-        openSetupPinModal(matchedMember.name);
       }
     }
 
     // ★ 初始化使用者身份 (LIFF非同步背景辨識 + 試算表校驗)
     async function initUserIdentity() {
-      // 1. 若 LIFF 尚未完成初始化，在背景非同步進行，不阻擋既有畫面顯示
-      ensureLiffInit().then(() => {
-        // LIFF 完成取得最新 LINE ID 後，若已有隊員名單，重新校驗
-        if (rawResponse && rawResponse.members && rawResponse.members.length > 0) {
-          checkAndPromptUserIdentity(rawResponse.members);
-        }
-      }).catch(e => console.warn('ensureLiffInit warning:', e));
-
-      // 2. 若當前已有隊員名單 (來自本地快取或伺服器)，立即進行身分判定
+      // 1. 若當前已有隊員名單 (來自本地快取或伺服器)，優先進行身分判定
       const members = (rawResponse && rawResponse.members) ? rawResponse.members : [];
       if (members.length > 0) {
         checkAndPromptUserIdentity(members);
       } else {
-        // ★ 名單尚未自網路取得前，絕對保留本地 currentUserName，不清除暫存！
         updateOperatorDisplay();
       }
+
+      // 2. 背景完成 LIFF 初始化後，重新校驗並解開身分驗證鎖
+      ensureLiffInit().then(() => {
+        isVerifyingIdentity = false;
+        if (rawResponse && rawResponse.members && rawResponse.members.length > 0) {
+          checkAndPromptUserIdentity(rawResponse.members);
+        } else {
+          updateOperatorDisplay();
+        }
+      }).catch(e => {
+        console.warn('ensureLiffInit warning:', e);
+        isVerifyingIdentity = false;
+        updateOperatorDisplay();
+      });
     }
 
     // ★ 升級版提示框：置中、字體放大、顯示 3 秒 + 支援關閉按鈕
@@ -1546,8 +1573,10 @@
     async function fetchData(force = false) {
       if (isActionInProgress && !force) return;
       // 若隊友正在註冊彈窗中選擇姓名或輸入密碼，暫緩背景輪詢覆蓋
-      const regModal = document.getElementById('registerModal');
-      if (regModal && (regModal.style.display === 'flex' || regModal.style.display === 'block') && !force) {
+      const regMemberSelect = document.getElementById('regMemberSelect');
+      const regPinInput = document.getElementById('regPinInput');
+      const isUserActivelyTyping = (regMemberSelect && regMemberSelect.value) || (regPinInput && regPinInput.value);
+      if (isUserActivelyTyping && !force) {
         return;
       }
       try {
@@ -1832,6 +1861,10 @@
     }
 
     function openSlotAction(laneKey, slotIndex) {
+      if (isVerifyingIdentity) {
+        showToast('⏳ 系統正在確認身分，請稍候片刻...', 2000, false);
+        return;
+      }
       if (!currentUserName && !isAdmin) {
         showToast('⚠️ 首次使用請先綁定隊員姓名！', 3500);
         openRegisterModal();
@@ -2156,6 +2189,10 @@
 
     // ★ 取消席位判斷 (幹部免PIN / 本人免PIN / 他人需輸PIN)
     function handlePlayerClick(playerName, laneKey, slotIndex) {
+      if (isVerifyingIdentity) {
+        showToast('⏳ 系統正在確認身分，請稍候片刻...', 2000, false);
+        return;
+      }
       const cfg = rawResponse ? rawResponse.config : {};
       const deadPassed = isDeadlinePassed(currentDay, currentDay === '週一' ? cfg.monDate : cfg.thuDate, currentDay === '週一' ? cfg.monDeadline : cfg.thuDeadline);
       if (deadPassed && !isAdmin) {
@@ -2456,6 +2493,10 @@
 
     // ===== 彈窗邏輯：3. 本人修改個人 PIN 碼 =====
     function openChangePinModal() {
+      if (isVerifyingIdentity) {
+        showToast('⏳ 正在同步確認身分，請稍候片刻...', 2000, false);
+        return;
+      }
       if (!currentUserName) {
         showToast('⚠️ 請先綁定隊員身分！', 3000);
         openRegisterModal();
@@ -3173,8 +3214,14 @@
       }
       Promise.all([
         ensureLiffInit(),
-        fetchData()
-      ]);
+        fetchData(true)
+      ]).then(() => {
+        isVerifyingIdentity = false;
+        if (rawResponse && rawResponse.members) {
+          checkAndPromptUserIdentity(rawResponse.members);
+        }
+        updateOperatorDisplay();
+      });
       setInterval(fetchData, 30000);
     };
   </script>

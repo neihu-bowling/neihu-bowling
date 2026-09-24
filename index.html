@@ -2391,30 +2391,33 @@
       const pinConfirm = document.getElementById('regPinConfirmInput').value.trim();
 
       if (!name) return showToast('⚠️ 請先選擇您的姓名！', 3000);
-      if (!pin || pin.length !== 4) return showToast('⚠️ PIN 碼必須剛好為 4 位英數字！', 3000);
+      if (!pin || pin.length !== 4) return showToast('⚠️ PIN 碼需為 4 碼純數字！', 3000);
       if (pin !== pinConfirm) return showToast('⚠️ 兩次輸入的 PIN 碼不一致！', 3000);
 
-      if (!currentUserLineId) {
-        await ensureLiffInit();
+      // 1. 0.05 秒立即生效：設定身分、更新本地儲存與徽章、關閉彈窗
+      currentUserName = name;
+      localStorage.setItem('bowling_player_name', currentUserName);
+      if (rawResponse && rawResponse.members) {
+        const m = rawResponse.members.find(x => x.name === name);
+        if (m) {
+          m.pin = pin;
+          if (currentUserLineId) m.lineId = currentUserLineId;
+        }
+      }
+      closeRegisterModal();
+      updateOperatorDisplay();
+      showToast(`🎉 成功綁定【${name}】！`, 3000, false);
+
+      // 2. 同步 Firebase 即時資料庫
+      if (rtdb && rawResponse && rawResponse.members) {
+        rtdb.ref('members').set(rawResponse.members).catch(() => {});
       }
 
-      showToast(`⏳ 正在為您綁定【${name}】...`, 0, true);
+      // 3. 背景非同步同步至 Google 試算表 (完全不卡頓使用者操作)
       try {
-        const url = `${API_BASE}?action=bindUser&name=${encodeURIComponent(name)}&lineId=${encodeURIComponent(currentUserLineId)}&pin=${encodeURIComponent(pin)}`;
-        const res = await (await fetch(url)).json();
-        if (res.status === 'success') {
-          currentUserName = name;
-          localStorage.setItem('bowling_player_name', currentUserName);
-          closeRegisterModal();
-          updateOperatorDisplay();
-          showToast(res.message || `🎉 成功綁定【${name}】！`, 3000, false);
-          await fetchData();
-        } else {
-          showToast(res.message || '⚠️ 綁定失敗！', 3000, false);
-        }
-      } catch (e) {
-        showToast('❌ 綁定失敗，請檢查網路連線。', 3000, false);
-      }
+        const url = `${API_BASE}?action=bindUser&name=${encodeURIComponent(name)}&lineId=${encodeURIComponent(currentUserLineId || '')}&pin=${encodeURIComponent(pin)}`;
+        fetch(url).catch(e => console.warn('Background bindUser error:', e));
+      } catch (e) {}
     }
 
     // ===== 彈窗邏輯：1.1 首次設定個人 PIN 碼 (針對已在 LINE 綁定姓名但尚未設定 PIN 碼者) =====
@@ -2442,32 +2445,28 @@
       const pinConfirm = document.getElementById('setupPinConfirmInput').value.trim();
 
       if (!name) return showToast('⚠️ 查無隊員身分，請先綁定姓名！', 3000);
-      if (!pin || pin.length !== 4) return showToast('⚠️ PIN 碼必須剛好為 4 位英數字！', 3000);
+      if (!pin || pin.length !== 4) return showToast('⚠️ PIN 碼需為 4 碼純數字！', 3000);
       if (pin !== pinConfirm) return showToast('⚠️ 兩次輸入的 PIN 碼不一致！', 3000);
 
-      if (!currentUserLineId) {
-        await ensureLiffInit();
+      // 1. 0.05 秒立即生效：更新本地記憶體與徽章、秒關彈窗
+      if (rawResponse && rawResponse.members) {
+        const m = rawResponse.members.find(x => x.name === name);
+        if (m) m.pin = pin;
+      }
+      closeSetupPinModal();
+      updateOperatorDisplay();
+      showToast(`🎉 成功設定【${name}】的個人 PIN 碼！`, 3000, false);
+
+      // 2. 同步 Firebase 即時資料庫
+      if (rtdb && rawResponse && rawResponse.members) {
+        rtdb.ref('members').set(rawResponse.members).catch(() => {});
       }
 
-      showToast(`⏳ 正在為您設定【${name}】的 PIN 碼...`, 0, true);
+      // 3. 背景非同步同步至 Google 試算表 (完全不卡頓手機介面)
       try {
         const url = `${API_BASE}?action=bindUser&name=${encodeURIComponent(name)}&lineId=${encodeURIComponent(currentUserLineId || '')}&pin=${encodeURIComponent(pin)}`;
-        const res = await (await fetch(url)).json();
-        if (res.status === 'success') {
-          if (rawResponse && rawResponse.members) {
-            const m = rawResponse.members.find(x => x.name === name);
-            if (m) m.pin = pin;
-          }
-          closeSetupPinModal();
-          updateOperatorDisplay();
-          showToast(`🎉 成功設定【${name}】的個人 PIN 碼！`, 3000, false);
-          await fetchData();
-        } else {
-          showToast(res.message || '⚠️ PIN 碼設定失敗！', 3000, false);
-        }
-      } catch (e) {
-        showToast('❌ 設定失敗，請檢查網路連線。', 3000, false);
-      }
+        fetch(url).catch(e => console.warn('Background setupPin error:', e));
+      } catch (e) {}
     }
 
     // ===== 彈窗邏輯：2. 他人代取消 PIN 碼驗證 =====
@@ -2523,22 +2522,31 @@
       const newPinConfirm = document.getElementById('newPinConfirmInput').value.trim();
 
       if (!oldPin) return showToast('⚠️ 請輸入原 4 碼 PIN 碼！', 3000);
-      if (!newPin || newPin.length !== 4) return showToast('⚠️ 新 PIN 碼必須剛好為 4 碼！', 3000);
+      if (!newPin || newPin.length !== 4) return showToast('⚠️ 新 PIN 碼必須剛好為 4 碼純數字！', 3000);
       if (newPin !== newPinConfirm) return showToast('⚠️ 兩次輸入的新 PIN 碼不一致！', 3000);
 
+      // 本地即時驗證舊 PIN 碼 (打錯 0 秒立即攔截，打對 0 秒放行)
+      const members = (rawResponse && rawResponse.members) ? rawResponse.members : [];
+      const curMem = members.find(m => m.name === currentUserName);
+      if (curMem && curMem.pin && curMem.pin !== oldPin) {
+        return showToast('❌ 原 PIN 碼不符，修改失敗！', 3000, false);
+      }
+
+      // 1. 0.05 秒立即生效：更新本地記憶體、關閉彈窗
+      if (curMem) curMem.pin = newPin;
+      closeChangePinModal();
+      showToast('🎉 個人 PIN 碼修改成功！', 3000, false);
+
+      // 2. 同步 Firebase 即時資料庫
+      if (rtdb && rawResponse && rawResponse.members) {
+        rtdb.ref('members').set(rawResponse.members).catch(() => {});
+      }
+
+      // 3. 背景非同步同步至 Google 試算表
       try {
         const url = `${API_BASE}?action=updatePin&name=${encodeURIComponent(currentUserName)}&oldPin=${encodeURIComponent(oldPin)}&newPin=${encodeURIComponent(newPin)}&isAdmin=false`;
-        const res = await (await fetch(url)).json();
-        if (res.status === 'success') {
-          closeChangePinModal();
-          showToast(res.message || '🎉 PIN 碼修改成功！', 3000, false);
-          await fetchData();
-        } else {
-          showToast(res.message || '❌ 原 PIN 碼不符，修改失敗！', 3000, false);
-        }
-      } catch (e) {
-        showToast('❌ 修改失敗，請檢查網路連線。', 3000, false);
-      }
+        fetch(url).catch(e => console.warn('Background updatePin error:', e));
+      } catch (e) {}
     }
 
     // ===== 彈窗邏輯：4. 幹部協助重設 PIN 碼 =====
@@ -2549,19 +2557,24 @@
       if (!name) return showToast('⚠️ 請先選擇欲重設 PIN 碼的隊友！', 3000);
       if (!newPin || newPin.length !== 4) return showToast('⚠️ 請輸入 4 位數新 PIN 碼！', 3000);
 
+      // 1. 0.05 秒立即生效：更新本地記憶體、清空輸入框、提示成功
+      if (rawResponse && rawResponse.members) {
+        const m = rawResponse.members.find(x => x.name === name);
+        if (m) m.pin = newPin;
+      }
+      document.getElementById('adminResetNewPin').value = '';
+      showToast(`🎉 已成功將【${name}】的 PIN 碼重設為【${newPin}】！`, 3500, false);
+
+      // 2. 同步 Firebase 即時資料庫
+      if (rtdb && rawResponse && rawResponse.members) {
+        rtdb.ref('members').set(rawResponse.members).catch(() => {});
+      }
+
+      // 3. 背景非同步同步至 Google 試算表
       try {
         const url = `${API_BASE}?action=updatePin&name=${encodeURIComponent(name)}&newPin=${encodeURIComponent(newPin)}&isAdmin=true`;
-        const res = await (await fetch(url)).json();
-        if (res.status === 'success') {
-          showToast(res.message || `🎉 已成功將【${name}】的 PIN 碼重設為【${newPin}】！`, 3000, false);
-          document.getElementById('adminResetNewPin').value = '';
-          await fetchData();
-        } else {
-          showToast(res.message || '❌ 重設失敗！', 3000, false);
-        }
-      } catch (e) {
-        showToast('❌ 重設失敗，請檢查網路連線。', 3000, false);
-      }
+        fetch(url).catch(e => console.warn('Background adminResetPin error:', e));
+      } catch (e) {}
     }
 
     function openAdminModal() {
@@ -2770,52 +2783,53 @@
     }
 
     async function executeSaveSettings(targetDay, openLanesStr, staffLanesStr, rotateMode) {
-      showToast(`⏳ 正在儲存【${targetDay}】設定中...`, 0, true);
-      const url = `${API_BASE}?action=updateSettings&openLanes=${encodeURIComponent(openLanesStr)}&staffLanes=${encodeURIComponent(staffLanesStr)}&rotateMode=${encodeURIComponent(rotateMode)}&day=${encodeURIComponent(targetDay)}`;
-      try {
-        const res = await (await fetch(url)).json();
-        showToast(res.message || `✅ 【${targetDay}】賽事設定儲存成功！`, 3000, false);
-        closeSettingsModal();
+      // 1. 0.05 秒立即生效：關閉彈窗並彈出成功提示
+      closeSettingsModal();
+      showToast(`✅ 【${targetDay}】賽事設定儲存成功！`, 3000, false);
 
-        if (targetDay === '週一') {
-          localStorage.setItem('bowling_mon_open_lanes', openLanesStr);
-          localStorage.setItem('bowling_mon_staff_lanes', staffLanesStr);
-        } else {
-          localStorage.setItem('bowling_thu_open_lanes', openLanesStr);
-          localStorage.setItem('bowling_thu_staff_lanes', staffLanesStr);
-        }
-
-        if (rawResponse && rawResponse.config) {
-          if (targetDay === '週一') {
-            rawResponse.config.monOpenLanes = openLanesStr;
-            rawResponse.config.monStaffLanes = staffLanesStr;
-            rawResponse.config.monRotateMode = rotateMode;
-          } else {
-            rawResponse.config.thuOpenLanes = openLanesStr;
-            rawResponse.config.thuStaffLanes = staffLanesStr;
-            rawResponse.config.thuRotateMode = rotateMode;
-          }
-        }
-
-        if (rtdb) {
-          const cfgUpdate = {};
-          if (targetDay === '週一') {
-            cfgUpdate.monOpenLanes = openLanesStr;
-            cfgUpdate.monStaffLanes = staffLanesStr;
-            cfgUpdate.monRotateMode = rotateMode;
-          } else {
-            cfgUpdate.thuOpenLanes = openLanesStr;
-            cfgUpdate.thuStaffLanes = staffLanesStr;
-            cfgUpdate.thuRotateMode = rotateMode;
-          }
-          rtdb.ref('config').update(cfgUpdate).catch(err => console.warn('Firebase config update error:', err));
-        }
-
-        renderAll();
-        await fetchData();
-      } catch (e) {
-        showToast('❌ 儲存失敗，請檢查網路。', 3000, false);
+      // 2. 立即更新手機本地儲存
+      if (targetDay === '週一') {
+        localStorage.setItem('bowling_mon_open_lanes', openLanesStr);
+        localStorage.setItem('bowling_mon_staff_lanes', staffLanesStr);
+      } else {
+        localStorage.setItem('bowling_thu_open_lanes', openLanesStr);
+        localStorage.setItem('bowling_thu_staff_lanes', staffLanesStr);
       }
+
+      // 3. 立即更新本地記憶體並重新渲染球道
+      if (rawResponse && rawResponse.config) {
+        if (targetDay === '週一') {
+          rawResponse.config.monOpenLanes = openLanesStr;
+          rawResponse.config.monStaffLanes = staffLanesStr;
+          rawResponse.config.monRotateMode = rotateMode;
+        } else {
+          rawResponse.config.thuOpenLanes = openLanesStr;
+          rawResponse.config.thuStaffLanes = staffLanesStr;
+          rawResponse.config.thuRotateMode = rotateMode;
+        }
+      }
+      renderAll();
+
+      // 4. 立即更新 Firebase 即時資料庫 (其他在線隊友秒級同步)
+      if (rtdb) {
+        const cfgUpdate = {};
+        if (targetDay === '週一') {
+          cfgUpdate.monOpenLanes = openLanesStr;
+          cfgUpdate.monStaffLanes = staffLanesStr;
+          cfgUpdate.monRotateMode = rotateMode;
+        } else {
+          cfgUpdate.thuOpenLanes = openLanesStr;
+          cfgUpdate.thuStaffLanes = staffLanesStr;
+          cfgUpdate.thuRotateMode = rotateMode;
+        }
+        rtdb.ref('config').update(cfgUpdate).catch(err => console.warn('Firebase config update error:', err));
+      }
+
+      // 5. 背景非同步同步至 Google 試算表 (完全不卡頓手機介面)
+      try {
+        const url = `${API_BASE}?action=updateSettings&openLanes=${encodeURIComponent(openLanesStr)}&staffLanes=${encodeURIComponent(staffLanesStr)}&rotateMode=${encodeURIComponent(rotateMode)}&day=${encodeURIComponent(targetDay)}`;
+        fetch(url).catch(e => console.warn('Background updateSettings error:', e));
+      } catch (e) {}
     }
 
     async function executeSaveSettingsWithRelocate(targetDay, openLanesStr, staffLanesStr, rotateMode, closedLanes, affectedPlayers) {

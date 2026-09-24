@@ -1086,6 +1086,31 @@
     </div>
   </div>
 
+  <!-- 5.1 首次設定個人 PIN 碼彈窗 (針對已在 LINE 綁定姓名但尚未設定 PIN 碼者) -->
+  <div id="setupPinModal" class="modal-overlay">
+    <div class="modal-card">
+      <h3 style="font-size:16px; font-weight:900; margin-bottom:6px; color:#1e40af;">🔑 請先設定個人專屬 PIN 碼</h3>
+      <p id="setupPinSub" style="font-size:12px; color:#64748b; margin-bottom:14px; line-height:1.4;">
+        您好！您的身分已綁定，為保障個人席位安全與防誤刪，進入系統前請先自訂一組專屬 4 碼 PIN 碼。
+      </p>
+
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <div>
+          <label style="font-weight:900; font-size:12px; display:block; margin-bottom:4px;">1️⃣ 請自訂專屬 4 碼 PIN 碼：</label>
+          <input type="password" id="setupPinInput" maxlength="4" placeholder="例如 1234 (限 4 位英數字)" style="width:100%; padding:9px; border-radius:6px; border:1.5px solid #3b82f6; font-size:14px; text-align:center; letter-spacing:4px;">
+        </div>
+        <div>
+          <label style="font-weight:900; font-size:12px; display:block; margin-bottom:4px;">2️⃣ 再次確認 PIN 碼：</label>
+          <input type="password" id="setupPinConfirmInput" maxlength="4" placeholder="請再次輸入 4 碼 PIN" style="width:100%; padding:9px; border-radius:6px; border:1.5px solid #3b82f6; font-size:14px; text-align:center; letter-spacing:4px;">
+        </div>
+      </div>
+
+      <div style="margin-top:16px;">
+        <button onclick="submitSetupPin()" class="modal-btn btn-primary" style="margin-bottom:0;">確認設定個人 PIN 碼</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 6. 輸入他人 PIN 碼以確認取消席位彈窗 -->
   <div id="pinConfirmModal" class="modal-overlay">
     <div class="modal-card">
@@ -1339,14 +1364,26 @@
       const badge = document.getElementById('operatorBadge');
       if (badge) {
         if (currentUserName) {
-          badge.innerText = currentUserName;
+          const members = (rawResponse && rawResponse.members) ? rawResponse.members : [];
+          const curMem = members.find(m => m.name === currentUserName);
+          const hasPin = curMem && curMem.pin;
+
+          badge.innerText = hasPin ? currentUserName : `${currentUserName} (未設PIN)`;
           const isMon = currentDay === '週一';
           badge.className = isMon ? 'operator-badge operator-badge-mon' : 'operator-badge operator-badge-thu';
-          badge.style.cursor = 'default';
-          badge.onclick = null;
+          if (!hasPin) {
+            badge.style.cursor = 'pointer';
+            badge.title = '點此設定個人專屬 4 碼 PIN 碼';
+            badge.onclick = () => openSetupPinModal(currentUserName);
+          } else {
+            badge.style.cursor = 'default';
+            badge.title = '';
+            badge.onclick = null;
+          }
         } else {
           badge.innerText = '⚠️ 點此綁定姓名';
           badge.className = 'operator-badge operator-badge-unbound';
+          badge.title = '點此綁定隊員姓名';
           badge.onclick = openRegisterModal;
         }
       }
@@ -1412,12 +1449,19 @@
 
       updateOperatorDisplay();
 
-      // 若未綁定且非管理者，自動彈出綁定視窗（若已開啟則不重複調用，避免清空隊友剛選的姓名與密碼）
+      // 1. 若未綁定且非管理者，自動彈出【綁定身份】視窗
       if (!currentUserName && !isAdmin && members.length > 0) {
         const regModal = document.getElementById('registerModal');
         const isModalOpen = regModal && (regModal.style.display === 'flex' || regModal.style.display === 'block');
         if (!isModalOpen) {
           setTimeout(openRegisterModal, 350);
+        }
+      } else if (matchedMember && !matchedMember.pin && !isAdmin) {
+        // 2. 🔥 若已綁定姓名但尚未設定 PIN 碼，自動彈出專屬【設定個人 PIN 碼】視窗
+        const setupModal = document.getElementById('setupPinModal');
+        const isModalOpen = setupModal && (setupModal.style.display === 'flex' || setupModal.style.display === 'block');
+        if (!isModalOpen) {
+          setTimeout(() => openSetupPinModal(matchedMember.name), 350);
         }
       }
     }
@@ -2312,6 +2356,56 @@
       }
     }
 
+    // ===== 彈窗邏輯：1.1 首次設定個人 PIN 碼 (針對已在 LINE 綁定姓名但尚未設定 PIN 碼者) =====
+    function openSetupPinModal(name) {
+      const modal = document.getElementById('setupPinModal');
+      const sub = document.getElementById('setupPinSub');
+      const targetName = name || currentUserName;
+      if (sub && targetName) {
+        sub.innerHTML = `【<strong style="color:#1e40af;">${targetName}</strong>】您好！<br>您的身分已綁定，為保障個人席位安全與防誤刪，進入系統前請先自訂一組 4 碼 PIN 碼。`;
+      }
+      document.getElementById('setupPinInput').value = '';
+      document.getElementById('setupPinConfirmInput').value = '';
+      if (modal) modal.style.display = 'flex';
+    }
+    function closeSetupPinModal() {
+      const modal = document.getElementById('setupPinModal');
+      if (modal) modal.style.display = 'none';
+    }
+    async function submitSetupPin() {
+      const name = currentUserName;
+      const pin = document.getElementById('setupPinInput').value.trim();
+      const pinConfirm = document.getElementById('setupPinConfirmInput').value.trim();
+
+      if (!name) return showToast('⚠️ 查無隊員身分，請先綁定姓名！', 3000);
+      if (!pin || pin.length !== 4) return showToast('⚠️ PIN 碼必須剛好為 4 位英數字！', 3000);
+      if (pin !== pinConfirm) return showToast('⚠️ 兩次輸入的 PIN 碼不一致！', 3000);
+
+      if (!currentUserLineId) {
+        await ensureLiffInit();
+      }
+
+      showToast(`⏳ 正在為您設定【${name}】的 PIN 碼...`, 0, true);
+      try {
+        const url = `${API_BASE}?action=bindUser&name=${encodeURIComponent(name)}&lineId=${encodeURIComponent(currentUserLineId || '')}&pin=${encodeURIComponent(pin)}`;
+        const res = await (await fetch(url)).json();
+        if (res.status === 'success') {
+          if (rawResponse && rawResponse.members) {
+            const m = rawResponse.members.find(x => x.name === name);
+            if (m) m.pin = pin;
+          }
+          closeSetupPinModal();
+          updateOperatorDisplay();
+          showToast(`🎉 成功設定【${name}】的個人 PIN 碼！`, 3000, false);
+          await fetchData();
+        } else {
+          showToast(res.message || '⚠️ PIN 碼設定失敗！', 3000, false);
+        }
+      } catch (e) {
+        showToast('❌ 設定失敗，請檢查網路連線。', 3000, false);
+      }
+    }
+
     // ===== 彈窗邏輯：2. 他人代取消 PIN 碼驗證 =====
     function openPinConfirmModal(playerName, laneKey, slotIndex) {
       pendingLeaveAction = { playerName, laneKey, slotIndex };
@@ -2338,6 +2432,12 @@
       if (!currentUserName) {
         showToast('⚠️ 請先綁定隊員身分！', 3000);
         openRegisterModal();
+        return;
+      }
+      const members = (rawResponse && rawResponse.members) ? rawResponse.members : [];
+      const curMem = members.find(m => m.name === currentUserName);
+      if (curMem && !curMem.pin) {
+        openSetupPinModal(currentUserName);
         return;
       }
       document.getElementById('changePinSub').innerText = `目前操作者：【${currentUserName}】`;

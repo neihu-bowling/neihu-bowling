@@ -1410,35 +1410,34 @@
       }
     }
 
-    // ★ 初始化使用者身份 (LIFF自動辨識 + 試算表校驗)
-    async function initUserIdentity() {
-      await ensureLiffInit();
+    // ★ 核心身分檢驗與即刻彈窗判定 (支援同步秒讀，無須等待網路延遲)
+    function checkAndPromptUserIdentity(members) {
+      if (!members || members.length === 0) return;
 
-      const members = (rawResponse && rawResponse.members) ? rawResponse.members : [];
       let matchedMember = null;
 
-      // 優先以 LINE ID 比對
-      if (currentUserLineId && members.length > 0) {
+      // 1. 優先以 LINE ID 比對
+      if (currentUserLineId) {
         matchedMember = members.find(m => m.lineId && m.lineId === currentUserLineId);
       }
 
-      // 若未比對到 LINE ID，則比對本地存儲姓名
-      if (!matchedMember && currentUserName && members.length > 0) {
+      // 2. 若未比對到 LINE ID，則比對本地存儲姓名
+      if (!matchedMember && currentUserName) {
         matchedMember = members.find(m => m.name === currentUserName);
-        // ★ 若在手機 LINE App 中 (有 currentUserLineId)，該隊員在試算表中 LINE_ID 與 PIN 碼皆空才視同未綁定
-        // 若在電腦網頁端測試 (無 currentUserLineId)，允許保留指定隊員身分 (如許恆綻) 供展示與測試！
+        // 若在手機 LINE App 中 (有 currentUserLineId)，該隊員在試算表中 LINE_ID 與 PIN 碼皆空才視同未綁定
         if (currentUserLineId && matchedMember && !matchedMember.lineId && !matchedMember.pin) {
           matchedMember = null;
         }
       }
 
-      // ★ 若已找到隊員但試算表尚未記錄 LINE ID，且目前已取得 LINE ID，自動靜默更新到試算表
+      // 3. 若已找到隊員但試算表尚未記錄 LINE ID，且目前已取得 LINE ID，自動靜默更新到試算表
       if (matchedMember && currentUserLineId && !matchedMember.lineId) {
         matchedMember.lineId = currentUserLineId;
         fetch(`${API_BASE}?action=bindUser&name=${encodeURIComponent(matchedMember.name)}&lineId=${encodeURIComponent(currentUserLineId)}&pin=${encodeURIComponent(matchedMember.pin || '')}`)
           .catch(e => console.warn('Auto sync LINE ID err:', e));
       }
 
+      // 4. 狀態更新 (只有在明確確定查無此人時才清空)
       if (matchedMember) {
         currentUserName = matchedMember.name;
         localStorage.setItem('bowling_player_name', currentUserName);
@@ -1449,20 +1448,39 @@
 
       updateOperatorDisplay();
 
-      // 1. 若未綁定且非管理者，自動彈出【綁定身份】視窗
-      if (!currentUserName && !isAdmin && members.length > 0) {
+      // 5. 彈窗判斷 (管理者模式不彈窗)
+      if (isAdmin) return;
+
+      if (!currentUserName) {
+        // 未綁定身份 ➔ 彈出【首次使用綁定身份】彈窗
         const regModal = document.getElementById('registerModal');
-        const isModalOpen = regModal && (regModal.style.display === 'flex' || regModal.style.display === 'block');
-        if (!isModalOpen) {
-          setTimeout(openRegisterModal, 350);
+        const isRegOpen = regModal && (regModal.style.display === 'flex' || regModal.style.display === 'block');
+        if (!isRegOpen) {
+          openRegisterModal();
         }
-      } else if (matchedMember && !matchedMember.pin && !isAdmin) {
-        // 2. 🔥 若已綁定姓名但尚未設定 PIN 碼，自動彈出專屬【設定個人 PIN 碼】視窗
-        const setupModal = document.getElementById('setupPinModal');
-        const isModalOpen = setupModal && (setupModal.style.display === 'flex' || setupModal.style.display === 'block');
-        if (!isModalOpen) {
-          setTimeout(() => openSetupPinModal(matchedMember.name), 350);
+      } else if (matchedMember && !matchedMember.pin) {
+        // 🔥 已綁定姓名但尚未設定 PIN 碼 ➔ 0 秒即刻彈出專屬【設定個人 PIN 碼】視窗！
+        openSetupPinModal(matchedMember.name);
+      }
+    }
+
+    // ★ 初始化使用者身份 (LIFF非同步背景辨識 + 試算表校驗)
+    async function initUserIdentity() {
+      // 1. 若 LIFF 尚未完成初始化，在背景非同步進行，不阻擋既有畫面顯示
+      ensureLiffInit().then(() => {
+        // LIFF 完成取得最新 LINE ID 後，若已有隊員名單，重新校驗
+        if (rawResponse && rawResponse.members && rawResponse.members.length > 0) {
+          checkAndPromptUserIdentity(rawResponse.members);
         }
+      }).catch(e => console.warn('ensureLiffInit warning:', e));
+
+      // 2. 若當前已有隊員名單 (來自本地快取或伺服器)，立即進行身分判定
+      const members = (rawResponse && rawResponse.members) ? rawResponse.members : [];
+      if (members.length > 0) {
+        checkAndPromptUserIdentity(members);
+      } else {
+        // ★ 名單尚未自網路取得前，絕對保留本地 currentUserName，不清除暫存！
+        updateOperatorDisplay();
       }
     }
 
@@ -1507,11 +1525,17 @@
         if (cachedStr) {
           try {
             const cached = JSON.parse(cachedStr);
-            if (cached && cached.data) {
+            if (cached && (cached.data || cached.members)) {
               rawResponse = cached;
             }
           } catch (ce) {}
         }
+
+        // ★ 0.05 秒極速秒查：若本地快取已有隊員名單，第一時間同步核對身分並秒彈 PIN 碼視窗！
+        if (rawResponse && rawResponse.members && rawResponse.members.length > 0) {
+          checkAndPromptUserIdentity(rawResponse.members);
+        }
+
         initUserIdentity();
         renderAll();
       } catch (e) {
@@ -2359,13 +2383,16 @@
     // ===== 彈窗邏輯：1.1 首次設定個人 PIN 碼 (針對已在 LINE 綁定姓名但尚未設定 PIN 碼者) =====
     function openSetupPinModal(name) {
       const modal = document.getElementById('setupPinModal');
+      const isAlreadyOpen = modal && (modal.style.display === 'flex' || modal.style.display === 'block');
       const sub = document.getElementById('setupPinSub');
       const targetName = name || currentUserName;
       if (sub && targetName) {
         sub.innerHTML = `【<strong style="color:#1e40af;">${targetName}</strong>】您好！<br>您的身分已綁定，為保障個人席位安全與防誤刪，進入系統前請先自訂一組 4 碼 PIN 碼。`;
       }
-      document.getElementById('setupPinInput').value = '';
-      document.getElementById('setupPinConfirmInput').value = '';
+      if (!isAlreadyOpen) {
+        document.getElementById('setupPinInput').value = '';
+        document.getElementById('setupPinConfirmInput').value = '';
+      }
       if (modal) modal.style.display = 'flex';
     }
     function closeSetupPinModal() {

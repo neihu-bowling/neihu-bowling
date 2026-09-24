@@ -2127,11 +2127,11 @@
       const currentStaffLane = isMonDay ? (cfg.monStaffLanes || cfg.staffLanes || '7/8') : (cfg.thuStaffLanes || cfg.staffLanes || '7/8');
       const targetDayKey = isMonDay ? 'mon' : 'thu';
 
-      // 檢查 PIN 碼 (若非本人且非管理者且提供 PIN，進行比對)
-      if (pin && !isAdmin && currentUserName !== playerName) {
+      // 檢查 PIN 碼 (若非本人且非管理者，進行比對；若隊友未設 PIN 碼，輸入任何 PIN 碼皆無效)
+      if (!isAdmin && currentUserName !== playerName) {
         const members = (rawResponse && rawResponse.members) ? rawResponse.members : [];
         const targetMember = members.find(m => m.name === playerName);
-        if (targetMember && targetMember.pin && targetMember.pin !== pin) {
+        if (!targetMember || !targetMember.pin || targetMember.pin !== pin) {
           isActionInProgress = false;
           return showToast('⚠️ 取消失敗，PIN 碼不符！', 3000, false);
         }

@@ -728,9 +728,10 @@
   <!-- 管理者工具列 -->
   <div id="adminToolbar" class="admin-bar" style="display: none;">
     <div>👑 管理者模式已解鎖</div>
-    <div style="display:flex; gap:4px;">
-      <button onclick="openSettingsModal()" style="background:#d97706; color:#fff; border:none; padding:4px 8px; border-radius:4px; font-weight:bold;">⚙️ 賽事設定</button>
-      <button onclick="logoutAdmin()" style="background:#e2e8f0; color:#334155; border:none; padding:4px 8px; border-radius:4px; font-weight:bold;">登出</button>
+    <div style="display:flex; gap:6px;">
+      <button onclick="openMemberMgmtModal()" style="background:#2563eb; color:#fff; border:none; padding:4px 9px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:12px;">👥 隊員管理</button>
+      <button onclick="openSettingsModal()" style="background:#d97706; color:#fff; border:none; padding:4px 9px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:12px;">⚙️ 賽事設定</button>
+      <button onclick="logoutAdmin()" style="background:#e2e8f0; color:#334155; border:none; padding:4px 8px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:12px;">登出</button>
     </div>
   </div>
 
@@ -1054,6 +1055,86 @@
       <div style="display:flex; gap:6px; margin-top:16px;">
         <button onclick="closeSettingsModal()" class="modal-btn btn-secondary" style="margin-bottom:0;">取消</button>
         <button id="btnSaveSettings" onclick="saveSettings()" class="modal-btn btn-primary" style="margin-bottom:0;">儲存設定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3.1 隊員母檔管理彈窗 (幹部專用) -->
+  <div id="memberMgmtModal" class="modal-overlay">
+    <div class="modal-card" style="max-width:440px; max-height:92vh; display:flex; flex-direction:column; padding:14px 16px;">
+      <!-- 彈窗頂部：標題與關閉按鈕 -->
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid #e2e8f0; padding-bottom:8px;">
+        <h3 style="font-size:15px; font-weight:900; color:#1e293b; margin:0; display:flex; align-items:center; gap:6px;">
+          👥 隊員母檔管理 <span id="memberMgmtTotalCount" style="font-size:12px; font-weight:normal; color:#64748b;">(載入中...)</span>
+        </h3>
+        <button type="button" onclick="closeMemberMgmtModal()" style="border:none; background:transparent; font-size:18px; color:#64748b; cursor:pointer; padding:2px 6px; border-radius:4px; font-weight:bold;">✕</button>
+      </div>
+
+      <!-- 搜尋與新增按鈕列 -->
+      <div style="display:flex; gap:8px; margin-bottom:8px;">
+        <input type="text" id="memberSearchInput" placeholder="🔍 搜尋姓名或代號..." oninput="filterMemberListUI()" style="flex:1; padding:7px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; outline:none; background:#ffffff;">
+        <button type="button" onclick="openAddMemberForm()" class="quick-btn" style="background:#2563eb; color:#fff; border-color:#1d4ed8; padding:7px 12px; font-size:12px; font-weight:900; white-space:nowrap;">➕ 新增隊員</button>
+      </div>
+
+      <!-- 新增 / 編輯 表單卡片 (預設隱藏，點擊新增或編輯時展開) -->
+      <div id="memberEditCard" style="display:none; background:#f0fdf4; border:1.5px solid #86efac; border-radius:8px; padding:10px 12px; margin-bottom:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span id="memberEditFormTitle" style="font-weight:900; font-size:13px; color:#166534;">➕ 新增隊友建檔</span>
+          <button type="button" onclick="closeMemberEditCard()" style="border:none; background:transparent; font-size:13px; color:#64748b; cursor:pointer;">取消</button>
+        </div>
+        <input type="hidden" id="editOriginalName" value="">
+        <div style="display:grid; grid-template-columns: 1fr 1.5fr; gap:8px; margin-bottom:8px;">
+          <div>
+            <label style="font-size:11px; font-weight:bold; color:#374151;">代號 (3碼)：</label>
+            <input type="text" id="editMemberCode" maxlength="3" placeholder="如 152" style="width:100%; padding:6px 8px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px; text-align:center; background:#fff;">
+          </div>
+          <div>
+            <label style="font-size:11px; font-weight:bold; color:#374151;">隊員姓名：</label>
+            <input type="text" id="editMemberName" placeholder="輸入真實姓名" style="width:100%; padding:6px 8px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px; background:#fff;">
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; margin-bottom:8px;">
+          <div>
+            <label style="font-size:11px; font-weight:bold; color:#374151;">性別：</label>
+            <select id="editMemberGender" onchange="autoCalcEditHandicap()" style="width:100%; padding:6px 4px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px; background:#fff;">
+              <option value="男生">男生</option>
+              <option value="女生">女生</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:11px; font-weight:bold; color:#374151;">年次：</label>
+            <input type="number" id="editMemberBirthYear" oninput="autoCalcEditHandicap()" placeholder="如 58" style="width:100%; padding:6px 6px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px; text-align:center; background:#fff;">
+          </div>
+          <div>
+            <label style="font-size:11px; font-weight:bold; color:#374151;">加分 (自動)：</label>
+            <input type="number" id="editMemberHandicap" placeholder="0" style="width:100%; padding:6px 6px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px; text-align:center; font-weight:bold; color:#047857; background:#fff;">
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns: 1fr 1.5fr; gap:8px; margin-bottom:10px;">
+          <div>
+            <label style="font-size:11px; font-weight:bold; color:#374151;">PIN 碼 (4碼)：</label>
+            <input type="text" id="editMemberPin" maxlength="4" placeholder="未設留空" style="width:100%; padding:6px 8px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px; text-align:center; background:#fff;">
+          </div>
+          <div id="editMemberLineBox" style="display:flex; flex-direction:column; justify-content:flex-end;">
+            <span id="editMemberLineStatus" style="font-size:11px; color:#64748b; margin-bottom:4px;">LINE：未綁定</span>
+            <button type="button" id="btnUnbindLine" onclick="unbindMemberLine()" style="display:none; padding:4px 8px; border:1px solid #ef4444; background:#fef2f2; color:#b91c1c; border-radius:4px; font-size:11px; cursor:pointer;">🔓 解除 LINE 綁定</button>
+          </div>
+        </div>
+        <div style="display:flex; gap:6px;">
+          <button type="button" onclick="closeMemberEditCard()" class="quick-btn" style="flex:1; padding:7px; font-size:12px;">取消</button>
+          <button type="button" id="btnSaveMember" onclick="saveMemberData()" class="quick-btn" style="flex:2; background:#16a34a; color:#fff; border-color:#15803d; font-weight:900; padding:7px; font-size:12px;">💾 儲存隊員</button>
+        </div>
+      </div>
+
+      <!-- 隊員卡片清單列表 (可滾動區) -->
+      <div id="memberListScrollArea" style="flex:1; overflow-y:auto; border:1px solid #e2e8f0; border-radius:6px; background:#f8fafc; padding:6px; min-height:220px; max-height:55vh;">
+        <!-- 動態渲染隊員卡片 -->
+      </div>
+
+      <!-- 底部統計與關閉按鈕 -->
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; padding-top:8px; border-top:1px solid #e2e8f0;">
+        <span style="font-size:11.5px; color:#64748b;">提示：點擊任一隊友右側「✏️ 編輯」可修改資料</span>
+        <button type="button" onclick="closeMemberMgmtModal()" class="quick-btn" style="padding:6px 14px; font-size:12px;">關閉</button>
       </div>
     </div>
   </div>
@@ -2792,6 +2873,292 @@
       updateHolidayPauseUI(targetDay, targetMatchDate);
     }
 
+    // ===== 隊員母檔管理邏輯 (幹部專用) =====
+    function calculateHandicap(gender, birthYearStr) {
+      const by = parseInt(birthYearStr, 10);
+      if (isNaN(by)) return 0;
+      const currentYear = new Date().getFullYear();
+      const currentMinguoYear = currentYear - 1911; // 2026 -> 115
+      const age = currentMinguoYear - by;
+      const base = Math.max(0, age - 49);
+      const maleHandicap = base * 4;
+      const isFem = (gender === '女生' || gender === 'F');
+      return isFem ? (maleHandicap + 40) : maleHandicap;
+    }
+
+    function autoCalcEditHandicap() {
+      const gender = document.getElementById('editMemberGender').value;
+      const byStr = document.getElementById('editMemberBirthYear').value.trim();
+      const handicapInput = document.getElementById('editMemberHandicap');
+      if (byStr) {
+        handicapInput.value = calculateHandicap(gender, byStr);
+      }
+    }
+
+    function openMemberMgmtModal() {
+      if (!isAdmin) {
+        openAdminModal();
+        return;
+      }
+      closeMemberEditCard();
+      const searchInput = document.getElementById('memberSearchInput');
+      if (searchInput) searchInput.value = '';
+      renderMemberListUI();
+      document.getElementById('memberMgmtModal').style.display = 'flex';
+    }
+
+    function closeMemberMgmtModal() {
+      document.getElementById('memberMgmtModal').style.display = 'none';
+      closeMemberEditCard();
+    }
+
+    function filterMemberListUI() {
+      const q = document.getElementById('memberSearchInput').value.trim().toLowerCase();
+      renderMemberListUI(q);
+    }
+
+    function renderMemberListUI(filterText = '') {
+      const container = document.getElementById('memberListScrollArea');
+      const totalCountEl = document.getElementById('memberMgmtTotalCount');
+      if (!container) return;
+
+      const members = (rawResponse && rawResponse.members) ? rawResponse.members : [];
+      if (totalCountEl) totalCountEl.innerText = `(共 ${members.length} 人)`;
+
+      const filtered = members.filter(m => {
+        if (!filterText) return true;
+        const nameMatch = m.name && m.name.toLowerCase().includes(filterText);
+        const codeMatch = m.code && String(m.code).toLowerCase().includes(filterText);
+        return nameMatch || codeMatch;
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div style="text-align:center; color:#94a3b8; padding:30px 10px; font-size:12px;">查無符合「${filterText}」的隊友</div>`;
+        return;
+      }
+
+      let html = '<div style="display:flex; flex-direction:column; gap:6px;">';
+      filtered.forEach(m => {
+        const isFem = (m.gender === '女生' || m.gender === 'F');
+        const nameColor = isFem ? '#be185d' : '#1e40af';
+        const genderBadge = isFem ? '<span style="color:#db2777; background:#fce7f3; font-size:10.5px; padding:1px 4px; border-radius:3px;">女</span>' : '<span style="color:#2563eb; background:#eff6ff; font-size:10.5px; padding:1px 4px; border-radius:3px;">男</span>';
+        const codeDisp = m.code ? `<span style="font-family:monospace; font-weight:bold; color:#64748b; background:#e2e8f0; padding:1px 5px; border-radius:3px; font-size:11px;">#${m.code}</span>` : '<span style="color:#cbd5e1; font-size:10px;">未設號</span>';
+        const lineBadge = m.lineId ? '<span style="color:#15803d; font-size:10.5px;" title="LINE已綁定">🟢 已綁LINE</span>' : '<span style="color:#94a3b8; font-size:10.5px;" title="未綁定LINE">⚪ 未綁LINE</span>';
+        const pinBadge = m.pin ? `<span style="color:#0369a1; background:#e0f2fe; font-size:10.5px; padding:1px 4px; border-radius:3px; font-family:monospace;" title="PIN: ${m.pin}">🔑 ${m.pin}</span>` : '<span style="color:#cbd5e1; font-size:10.5px;">無PIN</span>';
+        const handicapDisp = m.handicap ? `<span style="color:#b45309; font-weight:bold; font-size:11px;">+${m.handicap}</span>` : '<span style="color:#94a3b8; font-size:11px;">+0</span>';
+        const byDisp = m.birthYear ? `${m.birthYear}年次` : '無年次';
+
+        html += `
+          <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; padding:7px 10px; display:flex; justify-content:space-between; align-items:center; gap:6px;">
+            <div style="display:flex; align-items:center; gap:6px; flex:1; min-width:0;">
+              ${codeDisp}
+              <span style="font-weight:900; font-size:13px; color:${nameColor}; white-space:nowrap;">${m.name}</span>
+              ${genderBadge}
+              <span style="font-size:11px; color:#64748b; white-space:nowrap;">${byDisp} (${handicapDisp})</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+              ${pinBadge}
+              ${lineBadge}
+              <button type="button" onclick="openEditMemberForm('${m.name}')" style="background:#f1f5f9; border:1px solid #cbd5e1; color:#334155; padding:3px 7px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;">✏️ 編輯</button>
+            </div>
+          </div>
+        `;
+      });
+      html += '</div>';
+      container.innerHTML = html;
+    }
+
+    function openAddMemberForm() {
+      const card = document.getElementById('memberEditCard');
+      const title = document.getElementById('memberEditFormTitle');
+      const codeInput = document.getElementById('editMemberCode');
+      const nameInput = document.getElementById('editMemberName');
+      const genderSel = document.getElementById('editMemberGender');
+      const byInput = document.getElementById('editMemberBirthYear');
+      const handicapInput = document.getElementById('editMemberHandicap');
+      const pinInput = document.getElementById('editMemberPin');
+      const lineStatus = document.getElementById('editMemberLineStatus');
+      const unbindBtn = document.getElementById('btnUnbindLine');
+      const origName = document.getElementById('editOriginalName');
+
+      // 找尋當前最大代號 + 1
+      const members = (rawResponse && rawResponse.members) ? rawResponse.members : [];
+      let maxNum = 0;
+      members.forEach(m => {
+        const n = parseInt(m.code, 10);
+        if (!isNaN(n) && n > maxNum) maxNum = n;
+      });
+      const nextCode = String(maxNum + 1).padStart(3, '0');
+
+      title.innerText = '➕ 新增隊友建檔';
+      origName.value = '';
+      codeInput.value = nextCode;
+      nameInput.value = '';
+      genderSel.value = '男生';
+      byInput.value = '';
+      handicapInput.value = '0';
+      pinInput.value = '';
+      lineStatus.innerText = 'LINE：未綁定 (新隊員)';
+      unbindBtn.style.display = 'none';
+
+      card.style.display = 'block';
+      nameInput.focus();
+    }
+
+    function openEditMemberForm(name) {
+      const members = (rawResponse && rawResponse.members) ? rawResponse.members : [];
+      const m = members.find(x => x.name === name);
+      if (!m) return;
+
+      const card = document.getElementById('memberEditCard');
+      const title = document.getElementById('memberEditFormTitle');
+      const codeInput = document.getElementById('editMemberCode');
+      const nameInput = document.getElementById('editMemberName');
+      const genderSel = document.getElementById('editMemberGender');
+      const byInput = document.getElementById('editMemberBirthYear');
+      const handicapInput = document.getElementById('editMemberHandicap');
+      const pinInput = document.getElementById('editMemberPin');
+      const lineStatus = document.getElementById('editMemberLineStatus');
+      const unbindBtn = document.getElementById('btnUnbindLine');
+      const origName = document.getElementById('editOriginalName');
+
+      title.innerText = `✏️ 編輯隊員【${m.name}】`;
+      origName.value = m.name;
+      codeInput.value = m.code || '';
+      nameInput.value = m.name || '';
+      genderSel.value = (m.gender === '女生' || m.gender === 'F') ? '女生' : '男生';
+      byInput.value = m.birthYear || '';
+      handicapInput.value = m.handicap !== undefined ? m.handicap : calculateHandicap(genderSel.value, m.birthYear);
+      pinInput.value = m.pin || '';
+
+      if (m.lineId) {
+        lineStatus.innerHTML = `<span style="color:#15803d; font-weight:bold;">🟢 已綁定 LINE ID</span>`;
+        unbindBtn.style.display = 'block';
+      } else {
+        lineStatus.innerText = 'LINE：未綁定';
+        unbindBtn.style.display = 'none';
+      }
+
+      card.style.display = 'block';
+    }
+
+    function closeMemberEditCard() {
+      const card = document.getElementById('memberEditCard');
+      if (card) card.style.display = 'none';
+    }
+
+    function unbindMemberLine() {
+      const origName = document.getElementById('editOriginalName').value;
+      if (!origName) return;
+      if (!confirm(`確定要解除【${origName}】的 LINE 帳號綁定嗎？解除後該隊友需重新輸入「我是 本名」綁定。`)) return;
+
+      const members = (rawResponse && rawResponse.members) ? rawResponse.members : [];
+      const m = members.find(x => x.name === origName);
+      if (m) {
+        m.lineId = '';
+        if (rtdb) {
+          rtdb.ref('members').set(members).catch(err => console.warn('Unbind Firebase error:', err));
+        }
+        showToast(`🔓 已解除【${origName}】的 LINE 綁定！`, 3000, false);
+        openEditMemberForm(origName);
+        renderMemberListUI(document.getElementById('memberSearchInput').value.trim());
+      }
+    }
+
+    async function saveMemberData() {
+      const btnSave = document.getElementById('btnSaveMember');
+      const origName = document.getElementById('editOriginalName').value.trim();
+      const code = document.getElementById('editMemberCode').value.trim();
+      const name = document.getElementById('editMemberName').value.trim();
+      const gender = document.getElementById('editMemberGender').value;
+      const birthYear = document.getElementById('editMemberBirthYear').value.trim();
+      const handicap = document.getElementById('editMemberHandicap').value.trim() || '0';
+      const pin = document.getElementById('editMemberPin').value.trim();
+
+      if (!name) return showToast('⚠️ 請輸入隊員姓名！', 3000, false);
+      if (pin && pin.length !== 4) return showToast('⚠️ PIN 碼若有設定需為 4 碼！', 3000, false);
+
+      const members = (rawResponse && rawResponse.members) ? rawResponse.members : [];
+      
+      // 檢查重名
+      if (!origName || origName !== name) {
+        const exist = members.find(m => m.name === name);
+        if (exist) return showToast(`⚠️ 隊員【${name}】已存在，不可重複！`, 3000, false);
+      }
+
+      const formattedCode = (code && /^\d+$/.test(code)) ? code.padStart(3, '0') : code;
+
+      if (btnSave) {
+        btnSave.disabled = true;
+        btnSave.innerText = '儲存中...';
+      }
+
+      if (origName) {
+        // 編輯既有隊友
+        const idx = members.findIndex(m => m.name === origName);
+        if (idx !== -1) {
+          const oldLineId = members[idx].lineId || '';
+          members[idx] = {
+            code: formattedCode,
+            name: name,
+            gender: gender,
+            birthYear: birthYear,
+            handicap: handicap,
+            lineId: oldLineId,
+            pin: pin
+          };
+        }
+      } else {
+        // 新增隊友
+        members.push({
+          code: formattedCode,
+          name: name,
+          gender: gender,
+          birthYear: birthYear,
+          handicap: handicap,
+          lineId: '',
+          pin: pin
+        });
+      }
+
+      // 依代號排序
+      members.sort((a, b) => {
+        const na = parseInt(a.code, 10) || 9999;
+        const nb = parseInt(b.code, 10) || 9999;
+        return na - nb;
+      });
+
+      // 1. 立即更新本地記憶體與重新渲染介面
+      rawResponse.members = members;
+      closeMemberEditCard();
+      renderMemberListUI(document.getElementById('memberSearchInput').value.trim());
+      renderAll();
+      showToast(`🎉 成功儲存隊員【${name}】！`, 3000, false);
+
+      if (btnSave) {
+        btnSave.disabled = false;
+        btnSave.innerText = '💾 儲存隊員';
+      }
+
+      // 2. 立即同步 Firebase
+      if (rtdb) {
+        rtdb.ref('members').set(members).catch(err => console.warn('Firebase save member error:', err));
+      }
+
+      // 3. 背景非同步同步至 Google 試算表
+      try {
+        const syncUrl = `${API_BASE}`;
+        fetch(syncUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            action: 'batchSyncMembers',
+            members: members
+          })
+        }).catch(err => console.warn('GAS member sync error:', err));
+      } catch (ignore) {}
+    }
+
     function openSettingsModal() {
       currentSettingDay = currentDay || '週一';
       loadSettingDayData(currentSettingDay);
@@ -3318,14 +3685,20 @@
       try {
         let monData = [];
         let thuData = [];
+        let membersData = [];
 
-        // 優先從 Firebase 讀取最新球道
+        // 優先從 Firebase 讀取最新球道與隊員母檔
         if (rtdb) {
           const snapshot = await rtdb.ref('data').once('value');
           const val = snapshot.val();
           if (val) {
             monData = val.mon || [];
             thuData = val.thu || [];
+          }
+          const memSnap = await rtdb.ref('members').once('value');
+          const memVal = memSnap.val();
+          if (memVal) {
+            membersData = Array.isArray(memVal) ? memVal : Object.values(memVal);
           }
         }
 
@@ -3334,14 +3707,19 @@
           monData = rawResponse.data.mon || [];
           thuData = rawResponse.data.thu || [];
         }
+        if ((!membersData || membersData.length === 0) && rawResponse && rawResponse.members) {
+          membersData = rawResponse.members || [];
+        }
 
         if (!Array.isArray(monData)) monData = Object.values(monData);
         if (!Array.isArray(thuData)) thuData = Object.values(thuData);
+        if (!Array.isArray(membersData)) membersData = Object.values(membersData);
 
         const payload = {
-          action: 'batchSyncLanes',
+          action: 'batchSyncAll',
           mon: monData,
-          thu: thuData
+          thu: thuData,
+          members: membersData
         };
 
         const response = await fetch(API_BASE, {

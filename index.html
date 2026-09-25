@@ -1839,19 +1839,48 @@
           }
           // 若 Firebase 已連線且已有球道資料，保留 Firebase 的最新即時球道資料，僅更新隊員名單與設定
           if (isFirebaseReady && rawResponse && rawResponse.data && (rawResponse.data.mon || rawResponse.data.thu) && !force) {
-            if (res.members) rawResponse.members = res.members;
+            if (res.members) {
+              const curMap = {};
+              (rawResponse.members || []).forEach(m => { if (m && m.name) curMap[m.name] = m; });
+              rawResponse.members = res.members.map(m => {
+                if (!m) return m;
+                const ex = curMap[m.name];
+                return {
+                  code: m.code || (ex ? ex.code : ''),
+                  name: m.name,
+                  gender: m.gender || (ex ? ex.gender : '男生'),
+                  birthYear: m.birthYear || (ex ? ex.birthYear : ''),
+                  handicap: (m.handicap !== undefined && m.handicap !== '') ? m.handicap : (ex ? ex.handicap : '0'),
+                  lineId: m.lineId || (ex ? ex.lineId : ''),
+                  pin: m.pin || (ex ? ex.pin : '')
+                };
+              });
+            }
             if (res.config) rawResponse.config = Object.assign(rawResponse.config || {}, res.config);
           } else {
+            if (res.members && rawResponse && rawResponse.members) {
+              const curMap = {};
+              rawResponse.members.forEach(m => { if (m && m.name) curMap[m.name] = m; });
+              res.members = res.members.map(m => {
+                if (!m) return m;
+                const ex = curMap[m.name];
+                return {
+                  code: m.code || (ex ? ex.code : ''),
+                  name: m.name,
+                  gender: m.gender || (ex ? ex.gender : '男生'),
+                  birthYear: m.birthYear || (ex ? ex.birthYear : ''),
+                  handicap: (m.handicap !== undefined && m.handicap !== '') ? m.handicap : (ex ? ex.handicap : '0'),
+                  lineId: m.lineId || (ex ? ex.lineId : ''),
+                  pin: m.pin || (ex ? ex.pin : '')
+                };
+              });
+            }
             rawResponse = res;
           }
           try {
             localStorage.setItem('bowling_cache_raw', JSON.stringify(rawResponse));
             if (rawResponse.members && rawResponse.members.length > 0) {
               localStorage.setItem('bowling_cache_members', JSON.stringify(rawResponse.members));
-              // 若 Firebase 上的隊員名單尚未同步年次加分，自動更新 Firebase
-              if (rtdb && isFirebaseReady) {
-                rtdb.ref('members').set(rawResponse.members).catch(() => {});
-              }
             }
           } catch (se) {}
           if (!window.hasInit) {
@@ -3054,23 +3083,6 @@
       renderMemberListUI();
       document.getElementById('memberMgmtModal').style.display = 'flex';
 
-      // ★ 背景靜默補齊：若隊員名單中尚未載入年次（如初次開機或舊快取），立即向後端非同步抓取完整母檔並無感刷新
-      const curList = (rawResponse && rawResponse.members) ? rawResponse.members : [];
-      const hasAnyBirthYear = curList.some(m => m.birthYear);
-      if (!hasAnyBirthYear && API_BASE && API_BASE.includes('AKfycb')) {
-        safeFetchJson(`${API_BASE}?api=1&_t=${Date.now()}`, 1).then(res => {
-          if (res && res.status === 'success' && res.members && res.members.length > 0) {
-            if (!rawResponse) rawResponse = res;
-            else rawResponse.members = res.members;
-            try {
-              localStorage.setItem('bowling_cache_members', JSON.stringify(res.members));
-              localStorage.setItem('bowling_cache_raw', JSON.stringify(rawResponse));
-            } catch (e) {}
-            const searchVal = document.getElementById('memberSearchInput') ? document.getElementById('memberSearchInput').value.trim().toLowerCase() : '';
-            renderMemberListUI(searchVal);
-          }
-        }).catch(err => console.warn('Member modal silent refresh err:', err));
-      }
     }
 
     function closeMemberMgmtModal() {

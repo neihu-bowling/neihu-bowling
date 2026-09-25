@@ -1061,74 +1061,95 @@
 
   <!-- 3.1 隊員母檔管理彈窗 (幹部專用) -->
   <div id="memberMgmtModal" class="modal-overlay">
-    <div class="modal-card" style="max-width:440px; max-height:92vh; display:flex; flex-direction:column; padding:14px 16px;">
+    <div class="modal-card" style="max-width:540px; width:95%; max-height:92vh; display:flex; flex-direction:column; padding:14px 16px;">
       <!-- 彈窗頂部：標題與關閉按鈕 -->
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid #e2e8f0; padding-bottom:8px;">
-        <h3 style="font-size:15px; font-weight:900; color:#1e293b; margin:0; display:flex; align-items:center; gap:6px;">
-          👥 隊員母檔管理 <span id="memberMgmtTotalCount" style="font-size:12px; font-weight:normal; color:#64748b;">(載入中...)</span>
+        <h3 style="font-size:16px; font-weight:900; color:#1e293b; margin:0; display:flex; align-items:center; gap:6px;">
+          👥 隊員母檔管理 <span id="memberMgmtTotalCount" style="font-size:13px; font-weight:normal; color:#64748b;">(載入中...)</span>
         </h3>
-        <button type="button" onclick="closeMemberMgmtModal()" style="border:none; background:transparent; font-size:18px; color:#64748b; cursor:pointer; padding:2px 6px; border-radius:4px; font-weight:bold;">✕</button>
+        <button type="button" onclick="closeMemberMgmtModal()" style="border:none; background:transparent; font-size:20px; color:#64748b; cursor:pointer; padding:2px 6px; border-radius:4px; font-weight:bold;">✕</button>
       </div>
 
-      <!-- 搜尋與新增按鈕列 -->
-      <div style="display:flex; gap:8px; margin-bottom:8px;">
-        <input type="text" id="memberSearchInput" placeholder="🔍 搜尋姓名或代號..." oninput="filterMemberListUI()" style="flex:1; padding:7px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; outline:none; background:#ffffff;">
-        <button type="button" onclick="openAddMemberForm()" class="quick-btn" style="background:#2563eb; color:#fff; border-color:#1d4ed8; padding:7px 12px; font-size:12px; font-weight:900; white-space:nowrap;">➕ 新增隊員</button>
+      <!-- 搜尋與新增按鈕列 (搜尋字體放大至 15px) -->
+      <div style="display:flex; gap:8px; margin-bottom:10px;">
+        <input type="text" id="memberSearchInput" placeholder="🔍 搜尋隊員姓名或代號..." oninput="filterMemberListUI()" style="flex:1; padding:8px 12px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:15px; outline:none; background:#ffffff;">
+        <button type="button" onclick="openAddMemberForm()" class="quick-btn" style="background:#2563eb; color:#fff; border-color:#1d4ed8; padding:8px 14px; font-size:13px; font-weight:900; white-space:nowrap;">➕ 新增隊員</button>
       </div>
 
       <!-- 新增 / 編輯 表單卡片 (預設隱藏，點擊新增或編輯時展開) -->
-      <div id="memberEditCard" style="display:none; background:#f0fdf4; border:1.5px solid #86efac; border-radius:8px; padding:10px 12px; margin-bottom:10px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-          <span id="memberEditFormTitle" style="font-weight:900; font-size:13px; color:#166534;">➕ 新增隊友建檔</span>
-          <button type="button" onclick="closeMemberEditCard()" style="border:none; background:transparent; font-size:13px; color:#64748b; cursor:pointer;">取消</button>
+      <div id="memberEditCard" style="display:none; background:#f0fdf4; border:1.5px solid #86efac; border-radius:8px; padding:14px; margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <span id="memberEditFormTitle" style="font-weight:900; font-size:16px; color:#166534;">➕ 新增隊友建檔</span>
+          <button type="button" onclick="closeMemberEditCard()" style="border:none; background:transparent; font-size:15px; color:#64748b; cursor:pointer; font-weight:bold;">✕ 取消</button>
         </div>
         <input type="hidden" id="editOriginalName" value="">
-        <div style="display:grid; grid-template-columns: 1fr 1.5fr; gap:8px; margin-bottom:8px;">
+        <div style="display:grid; grid-template-columns: 1.1fr 1.5fr; gap:10px; margin-bottom:10px;">
           <div>
-            <label style="font-size:11px; font-weight:bold; color:#374151;">代號 (3碼)：</label>
-            <input type="text" id="editMemberCode" maxlength="3" placeholder="如 152" style="width:100%; padding:6px 8px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px; text-align:center; background:#fff;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <label style="font-size:13.5px; font-weight:bold; color:#1e293b;">代號 (3碼)：</label>
+              <select id="editMemberCodeHelper" onchange="applyCodeHelper(this.value)" style="font-size:12px; padding:2px 4px; border:1px solid #94a3b8; border-radius:4px; background:#f8fafc; color:#1e40af; cursor:pointer;">
+                <option value="">💡 選擇號碼...</option>
+              </select>
+            </div>
+            <input type="text" id="editMemberCode" maxlength="3" placeholder="如 001、152" style="width:100%; padding:8px 10px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:15px; text-align:center; font-family:monospace; font-weight:bold; background:#fff;">
           </div>
           <div>
-            <label style="font-size:11px; font-weight:bold; color:#374151;">隊員姓名：</label>
-            <input type="text" id="editMemberName" placeholder="輸入真實姓名" style="width:100%; padding:6px 8px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px; background:#fff;">
+            <label style="font-size:13.5px; font-weight:bold; color:#1e293b; display:block; margin-bottom:4px;">隊員姓名：</label>
+            <input type="text" id="editMemberName" placeholder="輸入真實姓名" style="width:100%; padding:8px 10px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:15px; font-weight:bold; background:#fff;">
           </div>
         </div>
-        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; margin-bottom:8px;">
+        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-bottom:10px;">
           <div>
-            <label style="font-size:11px; font-weight:bold; color:#374151;">性別：</label>
-            <select id="editMemberGender" onchange="autoCalcEditHandicap()" style="width:100%; padding:6px 4px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px; background:#fff;">
+            <label style="font-size:13.5px; font-weight:bold; color:#1e293b; display:block; margin-bottom:4px;">性別：</label>
+            <select id="editMemberGender" onchange="autoCalcEditHandicap()" style="width:100%; padding:8px 6px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:15px; background:#fff; font-weight:bold;">
               <option value="男生">男生</option>
               <option value="女生">女生</option>
             </select>
           </div>
           <div>
-            <label style="font-size:11px; font-weight:bold; color:#374151;">年次：</label>
-            <input type="number" id="editMemberBirthYear" oninput="autoCalcEditHandicap()" placeholder="如 58" style="width:100%; padding:6px 6px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px; text-align:center; background:#fff;">
+            <label style="font-size:13.5px; font-weight:bold; color:#1e293b; display:block; margin-bottom:4px;">年次：</label>
+            <input type="number" id="editMemberBirthYear" oninput="autoCalcEditHandicap()" placeholder="如 58" style="width:100%; padding:8px 8px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:15px; text-align:center; background:#fff;">
           </div>
           <div>
-            <label style="font-size:11px; font-weight:bold; color:#374151;">加分 (自動)：</label>
-            <input type="number" id="editMemberHandicap" placeholder="0" style="width:100%; padding:6px 6px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px; text-align:center; font-weight:bold; color:#047857; background:#fff;">
+            <label style="font-size:13.5px; font-weight:bold; color:#1e293b; display:block; margin-bottom:4px;">加分 (自動)：</label>
+            <input type="number" id="editMemberHandicap" placeholder="0" style="width:100%; padding:8px 8px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:15px; text-align:center; font-weight:900; color:#047857; background:#fff;">
           </div>
         </div>
-        <div style="display:grid; grid-template-columns: 1fr 1.5fr; gap:8px; margin-bottom:10px;">
+        <div style="display:grid; grid-template-columns: 1fr 1.5fr; gap:10px; margin-bottom:12px;">
           <div>
-            <label style="font-size:11px; font-weight:bold; color:#374151;">PIN 碼 (4碼)：</label>
-            <input type="text" id="editMemberPin" maxlength="4" placeholder="未設留空" style="width:100%; padding:6px 8px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px; text-align:center; background:#fff;">
+            <label style="font-size:13.5px; font-weight:bold; color:#1e293b; display:block; margin-bottom:4px;">PIN 碼 (4碼)：</label>
+            <input type="text" id="editMemberPin" maxlength="4" placeholder="未設留空" style="width:100%; padding:8px 10px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:15px; text-align:center; font-family:monospace; background:#fff;">
           </div>
           <div id="editMemberLineBox" style="display:flex; flex-direction:column; justify-content:flex-end;">
-            <span id="editMemberLineStatus" style="font-size:11px; color:#64748b; margin-bottom:4px;">LINE：未綁定</span>
-            <button type="button" id="btnUnbindLine" onclick="unbindMemberLine()" style="display:none; padding:4px 8px; border:1px solid #ef4444; background:#fef2f2; color:#b91c1c; border-radius:4px; font-size:11px; cursor:pointer;">🔓 解除 LINE 綁定</button>
+            <span id="editMemberLineStatus" style="font-size:13px; color:#475569; margin-bottom:6px; font-weight:bold;">LINE：未綁定</span>
+            <button type="button" id="btnUnbindLine" onclick="unbindMemberLine()" style="display:none; padding:6px 10px; border:1px solid #ef4444; background:#fef2f2; color:#b91c1c; border-radius:5px; font-size:12.5px; cursor:pointer; font-weight:bold;">🔓 解除 LINE 綁定</button>
           </div>
         </div>
-        <div style="display:flex; gap:6px;">
-          <button type="button" onclick="closeMemberEditCard()" class="quick-btn" style="flex:1; padding:7px; font-size:12px;">取消</button>
-          <button type="button" id="btnSaveMember" onclick="saveMemberData()" class="quick-btn" style="flex:2; background:#16a34a; color:#fff; border-color:#15803d; font-weight:900; padding:7px; font-size:12px;">💾 儲存隊員</button>
+        <div style="display:flex; gap:8px;">
+          <button type="button" id="btnDeleteMember" onclick="deleteMemberData()" style="display:none; padding:8px 10px; border:1.5px solid #ef4444; background:#fef2f2; color:#dc2626; border-radius:6px; font-size:13.5px; font-weight:900; cursor:pointer; white-space:nowrap;">🗑️ 刪除</button>
+          <button type="button" onclick="closeMemberEditCard()" class="quick-btn" style="flex:1; padding:8px; font-size:14px;">取消</button>
+          <button type="button" id="btnSaveMember" onclick="saveMemberData()" class="quick-btn" style="flex:2; background:#16a34a; color:#fff; border-color:#15803d; font-weight:900; padding:8px; font-size:14.5px;">💾 儲存隊員</button>
         </div>
       </div>
 
-      <!-- 隊員卡片清單列表 (可滾動區) -->
-      <div id="memberListScrollArea" style="flex:1; overflow-y:auto; border:1px solid #e2e8f0; border-radius:6px; background:#f8fafc; padding:6px; min-height:220px; max-height:55vh;">
-        <!-- 動態渲染隊員卡片 -->
+      <!-- 隊員卡片清單列表 (可滾動區，外層包裹水平捲軸防止手機破版) -->
+      <div style="flex:1; border:1px solid #e2e8f0; border-radius:6px; background:#ffffff; overflow-x:auto; overflow-y:hidden; display:flex; flex-direction:column; min-height:260px; max-height:56vh;">
+        <!-- 固定標題列 (滾動時不隨之移動) -->
+        <div style="display:grid; grid-template-columns: 46px 84px 44px 56px 46px 78px 60px 48px; background:#f1f5f9; border-bottom:1.5px solid #cbd5e1; padding:8px 8px; font-size:12px; font-weight:900; color:#475569; text-align:center; flex-shrink:0; white-space:nowrap; min-width:462px;">
+          <div>編號</div>
+          <div style="text-align:left; padding-left:4px;">姓名</div>
+          <div>性別</div>
+          <div>年次</div>
+          <div>加分</div>
+          <div>LINE狀態</div>
+          <div>PIN碼</div>
+          <div>操作</div>
+        </div>
+
+        <!-- 滾動內容清單 -->
+        <div id="memberListScrollArea" style="flex:1; overflow-y:auto; overflow-x:hidden; min-width:462px;">
+          <!-- 動態渲染隊員卡片 -->
+        </div>
       </div>
 
       <!-- 底部統計與關閉按鈕 -->
@@ -2933,39 +2954,104 @@
       });
 
       if (filtered.length === 0) {
-        container.innerHTML = `<div style="text-align:center; color:#94a3b8; padding:30px 10px; font-size:12px;">查無符合「${filterText}」的隊友</div>`;
+        container.innerHTML = `<div style="text-align:center; color:#94a3b8; padding:35px 10px; font-size:13px;">查無符合「${filterText}」的隊友</div>`;
         return;
       }
 
-      let html = '<div style="display:flex; flex-direction:column; gap:6px;">';
-      filtered.forEach(m => {
+      let html = '<div style="display:flex; flex-direction:column;">';
+      filtered.forEach((m, idx) => {
         const isFem = (m.gender === '女生' || m.gender === 'F');
-        const nameColor = isFem ? '#be185d' : '#1e40af';
-        const genderBadge = isFem ? '<span style="color:#db2777; background:#fce7f3; font-size:10.5px; padding:1px 4px; border-radius:3px;">女</span>' : '<span style="color:#2563eb; background:#eff6ff; font-size:10.5px; padding:1px 4px; border-radius:3px;">男</span>';
-        const codeDisp = m.code ? `<span style="font-family:monospace; font-weight:bold; color:#64748b; background:#e2e8f0; padding:1px 5px; border-radius:3px; font-size:11px;">#${m.code}</span>` : '<span style="color:#cbd5e1; font-size:10px;">未設號</span>';
-        const lineBadge = m.lineId ? '<span style="color:#15803d; font-size:10.5px;" title="LINE已綁定">🟢 已綁LINE</span>' : '<span style="color:#94a3b8; font-size:10.5px;" title="未綁定LINE">⚪ 未綁LINE</span>';
-        const pinBadge = m.pin ? `<span style="color:#0369a1; background:#e0f2fe; font-size:10.5px; padding:1px 4px; border-radius:3px; font-family:monospace;" title="PIN: ${m.pin}">🔑 ${m.pin}</span>` : '<span style="color:#cbd5e1; font-size:10.5px;">無PIN</span>';
-        const handicapDisp = m.handicap ? `<span style="color:#b45309; font-weight:bold; font-size:11px;">+${m.handicap}</span>` : '<span style="color:#94a3b8; font-size:11px;">+0</span>';
-        const byDisp = m.birthYear ? `${m.birthYear}年次` : '無年次';
+        // 與報名球道表一致的大字體 (16px, 900)
+        const nameClass = isFem ? 'female-text' : 'male-text';
+        const genderBadge = isFem ? '<span style="color:#db2777; background:#fce7f3; font-size:11px; padding:1px 5px; border-radius:3px; font-weight:bold;">女</span>' : '<span style="color:#2563eb; background:#eff6ff; font-size:11px; padding:1px 5px; border-radius:3px; font-weight:bold;">男</span>';
+        
+        // 編號去掉 #，純數字 monospace 居中
+        const codeDisp = m.code ? `<span style="font-family:monospace; font-weight:bold; color:#334155; font-size:12px;">${m.code}</span>` : '<span style="color:#cbd5e1; font-size:11px;">--</span>';
+        
+        // LINE 狀態 (保留原本圖示，已綁定/未綁定)
+        const lineBadge = m.lineId ? '<span style="color:#15803d; font-size:11px; font-weight:bold; white-space:nowrap;" title="LINE已綁定">🟢 已綁定</span>' : '<span style="color:#94a3b8; font-size:11px; white-space:nowrap;" title="未綁定LINE">⚪ 未綁定</span>';
+        
+        // 取消 PIN 碼 ICON，純顯示數字或未設
+        const pinDisp = m.pin ? `<span style="font-family:monospace; font-weight:bold; color:#0369a1; font-size:11.5px;">${m.pin}</span>` : '<span style="color:#cbd5e1; font-size:11px;">未設</span>';
+        
+        // 加分顯示
+        const handicapDisp = (m.handicap !== undefined && m.handicap !== '' && String(m.handicap) !== '0') ? `<span style="color:#b45309; font-weight:900; font-size:12px;">+${m.handicap}</span>` : '<span style="color:#94a3b8; font-size:12px;">+0</span>';
+        const byDisp = m.birthYear ? `<span style="font-size:12px; color:#475569;">${m.birthYear}</span>` : '<span style="color:#cbd5e1; font-size:11px;">--</span>';
+
+        const rowBg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
 
         html += `
-          <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; padding:7px 10px; display:flex; justify-content:space-between; align-items:center; gap:6px;">
-            <div style="display:flex; align-items:center; gap:6px; flex:1; min-width:0;">
-              ${codeDisp}
-              <span style="font-weight:900; font-size:13px; color:${nameColor}; white-space:nowrap;">${m.name}</span>
-              ${genderBadge}
-              <span style="font-size:11px; color:#64748b; white-space:nowrap;">${byDisp} (${handicapDisp})</span>
+          <div style="display:grid; grid-template-columns: 46px 84px 44px 56px 46px 78px 60px 48px; align-items:center; background:${rowBg}; border-bottom:1px solid #f1f5f9; padding:7px 8px; text-align:center; white-space:nowrap;">
+            <div>${codeDisp}</div>
+            <div style="text-align:left; padding-left:4px; overflow:hidden; text-overflow:ellipsis;">
+              <span class="${nameClass}" style="font-size:16px !important; font-weight:900 !important; cursor:pointer;" onclick="openEditMemberForm('${m.name}')">${m.name}</span>
             </div>
-            <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
-              ${pinBadge}
-              ${lineBadge}
-              <button type="button" onclick="openEditMemberForm('${m.name}')" style="background:#f1f5f9; border:1px solid #cbd5e1; color:#334155; padding:3px 7px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;">✏️ 編輯</button>
+            <div>${genderBadge}</div>
+            <div>${byDisp}</div>
+            <div>${handicapDisp}</div>
+            <div>${lineBadge}</div>
+            <div>${pinDisp}</div>
+            <div>
+              <button type="button" onclick="openEditMemberForm('${m.name}')" style="background:#f1f5f9; border:1px solid #cbd5e1; color:#334155; padding:3px 6px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;">✏️ 編輯</button>
             </div>
           </div>
         `;
       });
       html += '</div>';
       container.innerHTML = html;
+    }
+
+    // ★ 智慧尋找缺號與接續新號小幫手
+    function populateCodeHelper(currentMemberCode = '') {
+      const helperSel = document.getElementById('editMemberCodeHelper');
+      if (!helperSel) return;
+
+      const members = (rawResponse && rawResponse.members) ? rawResponse.members : [];
+      const usedCodes = new Set();
+      let maxNum = 0;
+
+      members.forEach(m => {
+        if (m.code) {
+          const num = parseInt(m.code, 10);
+          if (!isNaN(num)) {
+            usedCodes.add(num);
+            if (num > maxNum) maxNum = num;
+          }
+        }
+      });
+
+      // 找出小於 maxNum 的所有缺號 (例如 001, 041, 042, 045)
+      const missingCodes = [];
+      for (let i = 1; i < maxNum; i++) {
+        if (!usedCodes.has(i)) {
+          missingCodes.push(String(i).padStart(3, '0'));
+        }
+      }
+
+      const nextCode = String(maxNum + 1).padStart(3, '0');
+
+      let optionsHtml = '<option value="">💡 選擇號碼...</option>';
+      if (missingCodes.length > 0) {
+        optionsHtml += '<optgroup label="✨ 遞補缺號">';
+        missingCodes.forEach(c => {
+          optionsHtml += `<option value="${c}">${c} (歷史缺號)</option>`;
+        });
+        optionsHtml += '</optgroup>';
+      }
+      optionsHtml += '<optgroup label="🆕 接續新號">';
+      optionsHtml += `<option value="${nextCode}">${nextCode} (接續號)</option>`;
+      optionsHtml += '</optgroup>';
+
+      helperSel.innerHTML = optionsHtml;
+      return { missingCodes, nextCode };
+    }
+
+    function applyCodeHelper(val) {
+      if (!val) return;
+      const codeInput = document.getElementById('editMemberCode');
+      if (codeInput) {
+        codeInput.value = val;
+      }
     }
 
     function openAddMemberForm() {
@@ -2981,18 +3067,13 @@
       const unbindBtn = document.getElementById('btnUnbindLine');
       const origName = document.getElementById('editOriginalName');
 
-      // 找尋當前最大代號 + 1
-      const members = (rawResponse && rawResponse.members) ? rawResponse.members : [];
-      let maxNum = 0;
-      members.forEach(m => {
-        const n = parseInt(m.code, 10);
-        if (!isNaN(n) && n > maxNum) maxNum = n;
-      });
-      const nextCode = String(maxNum + 1).padStart(3, '0');
+      const { missingCodes, nextCode } = populateCodeHelper();
+      // 預設代入：若有缺號優先建議最小缺號，若無缺號則代入下一個接續新號
+      const defaultSuggestCode = missingCodes.length > 0 ? missingCodes[0] : nextCode;
 
       title.innerText = '➕ 新增隊友建檔';
       origName.value = '';
-      codeInput.value = nextCode;
+      codeInput.value = defaultSuggestCode;
       nameInput.value = '';
       genderSel.value = '男生';
       byInput.value = '';
@@ -3000,6 +3081,9 @@
       pinInput.value = '';
       lineStatus.innerText = 'LINE：未綁定 (新隊員)';
       unbindBtn.style.display = 'none';
+
+      const deleteBtn = document.getElementById('btnDeleteMember');
+      if (deleteBtn) deleteBtn.style.display = 'none';
 
       card.style.display = 'block';
       nameInput.focus();
@@ -3020,7 +3104,10 @@
       const pinInput = document.getElementById('editMemberPin');
       const lineStatus = document.getElementById('editMemberLineStatus');
       const unbindBtn = document.getElementById('btnUnbindLine');
+      const deleteBtn = document.getElementById('btnDeleteMember');
       const origName = document.getElementById('editOriginalName');
+
+      populateCodeHelper(m.code);
 
       title.innerText = `✏️ 編輯隊員【${m.name}】`;
       origName.value = m.name;
@@ -3038,6 +3125,8 @@
         lineStatus.innerText = 'LINE：未綁定';
         unbindBtn.style.display = 'none';
       }
+
+      if (deleteBtn) deleteBtn.style.display = 'block';
 
       card.style.display = 'block';
     }
@@ -3065,6 +3154,64 @@
       }
     }
 
+    // ★ 刪除隊友：彈出警告並要求輸入代號驗證
+    async function deleteMemberData() {
+      const origName = document.getElementById('editOriginalName').value.trim();
+      if (!origName) return;
+
+      const members = (rawResponse && rawResponse.members) ? rawResponse.members : [];
+      const m = members.find(x => x.name === origName);
+      if (!m) return showToast('⚠️ 查無該隊員資料！', 3000, false);
+
+      const targetCode = String(m.code || '').trim();
+      const promptMsg = `⚠️【重要警告：即將刪除隊友】\n\n您確定要將隊友【${m.name}】（編號：${targetCode}）從母檔中永久刪除嗎？\n\n刪除後該代號將釋出成為歷史空號。\n若確定要刪除，請在下方輸入該隊員的代號【${targetCode}】：`;
+      
+      const inputCode = window.prompt(promptMsg);
+      if (inputCode === null) {
+        // 使用者點擊取消
+        return;
+      }
+
+      const cleanInput = inputCode.trim();
+      // 容許使用者輸入純數字例如 17 或 017
+      const isCodeMatch = (cleanInput === targetCode) || (parseInt(cleanInput, 10) === parseInt(targetCode, 10));
+
+      if (!isCodeMatch) {
+        alert(`❌ 代號輸入不正確（您輸入了: "${cleanInput}"），已取消刪除操作！`);
+        return;
+      }
+
+      // 執行刪除
+      const deleteIdx = members.findIndex(x => x.name === origName);
+      if (deleteIdx === -1) return;
+
+      members.splice(deleteIdx, 1);
+
+      // 1. 本地更新與介面重新渲染
+      rawResponse.members = members;
+      closeMemberEditCard();
+      renderMemberListUI(document.getElementById('memberSearchInput').value.trim());
+      renderAll();
+      showToast(`🗑️ 已成功刪除隊友【${origName}】！`, 3500, false);
+
+      // 2. Firebase 即時資料庫同步更新
+      if (rtdb) {
+        rtdb.ref('members').set(members).catch(err => console.warn('Firebase delete member error:', err));
+      }
+
+      // 3. Google 試算表背景同步
+      try {
+        fetch(API_BASE, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            action: 'batchSyncMembers',
+            members: members
+          })
+        }).catch(err => console.warn('GAS member delete sync error:', err));
+      } catch (e) {}
+    }
+
     async function saveMemberData() {
       const btnSave = document.getElementById('btnSaveMember');
       const origName = document.getElementById('editOriginalName').value.trim();
@@ -3076,17 +3223,23 @@
       const pin = document.getElementById('editMemberPin').value.trim();
 
       if (!name) return showToast('⚠️ 請輸入隊員姓名！', 3000, false);
+      if (!code) return showToast('⚠️ 請輸入隊員代號！', 3000, false);
       if (pin && pin.length !== 4) return showToast('⚠️ PIN 碼若有設定需為 4 碼！', 3000, false);
 
+      const formattedCode = /^\d+$/.test(code) ? code.padStart(3, '0') : code;
       const members = (rawResponse && rawResponse.members) ? rawResponse.members : [];
       
-      // 檢查重名
+      // 1. 嚴格檢查姓名重複
       if (!origName || origName !== name) {
-        const exist = members.find(m => m.name === name);
-        if (exist) return showToast(`⚠️ 隊員【${name}】已存在，不可重複！`, 3000, false);
+        const existName = members.find(m => m.name === name);
+        if (existName) return showToast(`⚠️ 隊員【${name}】已存在，不可重複！`, 3000, false);
       }
 
-      const formattedCode = (code && /^\d+$/.test(code)) ? code.padStart(3, '0') : code;
+      // 2. 嚴格檢查代號重複 (保障未來統計數據唯一性，禁止互換與重號)
+      const duplicateCodeMember = members.find(m => m.code === formattedCode && m.name !== origName);
+      if (duplicateCodeMember) {
+        return showToast(`⚠️ 代號【${formattedCode}】目前已被隊友【${duplicateCodeMember.name}】使用，代號不可重複！`, 4000, false);
+      }
 
       if (btnSave) {
         btnSave.disabled = true;

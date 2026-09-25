@@ -912,15 +912,13 @@
       <div style="font-size:12px; display:flex; flex-direction:column; gap:12px;">
         <!-- 🛑 連假停練開關專區 -->
         <div id="holidayPauseCard" style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; padding:10px 12px; margin-bottom:2px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-            <div style="flex:1;">
-              <span id="holidayPauseTitle" style="font-weight:900; font-size:13px; color:#1e293b;">🛑 連假停練設定：</span>
-              <div id="holidayPauseDesc" style="font-size:11px; color:#64748b; margin-top:2px;">目前狀態：正常開打 (未停練)</div>
-            </div>
-            <button type="button" id="btnToggleHolidayPause" onclick="toggleHolidayPauseSetting()" class="quick-btn" style="background:#dc2626; color:#ffffff; font-weight:900; border:none; padding:7px 12px; border-radius:6px; font-size:12px; cursor:pointer; white-space:nowrap; box-shadow:0 1px 2px rgba(0,0,0,0.1);">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:6px;">
+            <span id="holidayPauseTitle" style="font-weight:900; font-size:13px; color:#1e293b;">🛑 連假停練設定：</span>
+            <button type="button" id="btnToggleHolidayPause" onclick="toggleHolidayPauseSetting()" class="quick-btn" style="background:#dc2626; color:#ffffff; font-weight:900; border:none; padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer; white-space:nowrap; box-shadow:0 1px 2px rgba(0,0,0,0.1);">
               🛑 設定本場停練
             </button>
           </div>
+          <div id="holidayPauseDesc" style="font-size:11.5px; color:#64748b; line-height:1.5;">目前狀態：正常開打 (未停練)</div>
         </div>
 
         <!-- 1. 開放球道 -->

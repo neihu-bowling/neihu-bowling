@@ -875,13 +875,31 @@
     </div>
   </div>
 
-  <!-- 2. 自訂白底確認視窗 -->
+  <!-- 2. 自訂白底確認視窗 (無網址列、白底高雅、深色模式保護) -->
   <div id="confirmDialogModal" class="modal-overlay" style="z-index: 10005 !important;">
-    <div class="modal-card" style="text-align:center;">
-      <h3 id="confirmDialogTitle" style="font-size:15px; font-weight:900; margin-bottom:12px; line-height:1.5;">確認操作？</h3>
+    <div class="modal-card" style="text-align:center; background:#ffffff; border-radius:14px; max-width:340px; padding:18px 16px; box-shadow:0 12px 30px rgba(0,0,0,0.25);">
+      <h3 id="confirmDialogTitle" style="font-size:15px; font-weight:900; margin-bottom:14px; line-height:1.5; color:#1e293b; white-space:pre-wrap;">確認操作？</h3>
       <div style="display:flex; gap:8px;">
-        <button onclick="closeConfirmDialog(false)" class="modal-btn btn-secondary" style="margin-bottom:0;">取消</button>
-        <button onclick="closeConfirmDialog(true)" class="modal-btn btn-primary" style="margin-bottom:0;">確定</button>
+        <button onclick="closeConfirmDialog(false)" class="modal-btn btn-secondary" style="margin-bottom:0; flex:1; padding:9px; font-size:14px; border-radius:6px;">取消</button>
+        <button onclick="closeConfirmDialog(true)" class="modal-btn btn-primary" style="margin-bottom:0; flex:1; padding:9px; font-size:14px; border-radius:6px; font-weight:bold;">確定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2.1 自訂白底「刪除隊友輸入代號」安全驗證彈窗 (無網址列、白底高雅) -->
+  <div id="deleteVerifyCodeModal" class="modal-overlay" style="z-index: 10006 !important;">
+    <div class="modal-card" style="text-align:center; background:#ffffff; border-radius:14px; max-width:340px; padding:18px 16px; box-shadow:0 12px 30px rgba(0,0,0,0.25);">
+      <div style="font-size:24px; margin-bottom:6px;">⚠️</div>
+      <h3 style="font-size:15.5px; font-weight:900; margin-bottom:8px; color:#dc2626;">【重要警告：刪除隊友】</h3>
+      <p id="deleteVerifyPromptText" style="font-size:13px; color:#475569; margin-bottom:12px; line-height:1.5; text-align:left; white-space:pre-wrap;"></p>
+      
+      <div style="margin-bottom:14px;">
+        <input type="text" id="deleteVerifyCodeInput" placeholder="請在此輸入隊員代號" maxlength="4" style="width:100%; box-sizing:border-box; padding:9px 12px; border:2px solid #ef4444; border-radius:6px; font-size:16px; text-align:center; font-family:monospace; font-weight:900; outline:none; background:#fef2f2; color:#b91c1c;">
+      </div>
+
+      <div style="display:flex; gap:8px;">
+        <button type="button" onclick="closeDeleteVerifyModal(false)" class="modal-btn btn-secondary" style="margin-bottom:0; flex:1; padding:9px; font-size:14px; border-radius:6px;">取消</button>
+        <button type="button" onclick="closeDeleteVerifyModal(true)" class="modal-btn" style="margin-bottom:0; flex:1; padding:9px; font-size:14px; border-radius:6px; background:#dc2626; color:#ffffff; font-weight:bold; border:none; cursor:pointer;">確認刪除</button>
       </div>
     </div>
   </div>
@@ -1059,13 +1077,13 @@
     </div>
   </div>
 
-  <!-- 3.1 隊員母檔管理彈窗 (幹部專用) -->
+  <!-- 3.1 隊員管理彈窗 (幹部專用) -->
   <div id="memberMgmtModal" class="modal-overlay">
     <div class="modal-card" style="max-width:480px; width:96%; max-height:92vh; display:flex; flex-direction:column; padding:12px 14px;">
       <!-- 彈窗頂部：標題與關閉按鈕 -->
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid #e2e8f0; padding-bottom:8px;">
-        <h3 style="font-size:16px; font-weight:900; color:#1e293b; margin:0; display:flex; align-items:center; gap:6px;">
-          👥 隊員母檔管理 <span id="memberMgmtTotalCount" style="font-size:13px; font-weight:normal; color:#64748b;">(載入中...)</span>
+        <h3 style="font-size:16.5px; font-weight:900; color:#1e293b; margin:0; display:flex; align-items:center; gap:6px;">
+          👥 隊員管理 <span id="memberMgmtTotalCount" style="font-size:13px; font-weight:normal; color:#64748b;">(載入中...)</span>
         </h3>
         <button type="button" onclick="closeMemberMgmtModal()" style="border:none; background:transparent; font-size:20px; color:#64748b; cursor:pointer; padding:2px 6px; border-radius:4px; font-weight:bold;">✕</button>
       </div>
@@ -2979,20 +2997,20 @@
         const isFem = (m.gender === '女生' || m.gender === 'F');
         // 與報名球道表一致的大字體 (16px, 900)
         const nameClass = isFem ? 'female-text' : 'male-text';
-        const genderBadge = isFem ? '<span style="color:#db2777; background:#fce7f3; font-size:10.5px; padding:1px 3px; border-radius:3px; font-weight:bold;">女</span>' : '<span style="color:#2563eb; background:#eff6ff; font-size:10.5px; padding:1px 3px; border-radius:3px; font-weight:bold;">男</span>';
+        const genderBadge = isFem ? '<span style="color:#db2777; background:#fce7f3; font-size:12px; padding:1px 4px; border-radius:3px; font-weight:bold;">女</span>' : '<span style="color:#2563eb; background:#eff6ff; font-size:12px; padding:1px 4px; border-radius:3px; font-weight:bold;">男</span>';
         
-        // 編號去掉 #，純數字 monospace 居中
-        const codeDisp = m.code ? `<span style="font-family:monospace; font-weight:bold; color:#334155; font-size:12px;">${m.code}</span>` : '<span style="color:#cbd5e1; font-size:11px;">--</span>';
+        // 編號去掉 #，純數字 monospace 居中，字體放大至 13.5px
+        const codeDisp = m.code ? `<span style="font-family:monospace; font-weight:900; color:#1e293b; font-size:13.5px;">${m.code}</span>` : '<span style="color:#cbd5e1; font-size:12px;">--</span>';
         
-        // LINE 狀態 (緊湊型：🟢 已綁 / ⚪ 未綁，保留原 ICON)
-        const lineBadge = m.lineId ? '<span style="color:#15803d; font-size:11px; font-weight:bold; white-space:nowrap;" title="LINE已綁定">🟢 已綁</span>' : '<span style="color:#94a3b8; font-size:11px; white-space:nowrap;" title="未綁定LINE">⚪ 未綁</span>';
+        // LINE 狀態 (緊湊型：🟢 已綁 / ⚪ 未綁，保留原 ICON，字體放大至 12px)
+        const lineBadge = m.lineId ? '<span style="color:#15803d; font-size:12px; font-weight:bold; white-space:nowrap;" title="LINE已綁定">🟢 已綁</span>' : '<span style="color:#64748b; font-size:12px; font-weight:bold; white-space:nowrap;" title="未綁定LINE">⚪ 未綁</span>';
         
-        // PIN 碼 (純顯示數字或未設)
-        const pinDisp = m.pin ? `<span style="font-family:monospace; font-weight:bold; color:#0369a1; font-size:11.5px;">${m.pin}</span>` : '<span style="color:#cbd5e1; font-size:11px;">未設</span>';
+        // PIN 碼 (純顯示數字或未設，字體放大至 13px)
+        const pinDisp = m.pin ? `<span style="font-family:monospace; font-weight:900; color:#0369a1; font-size:13px;">${m.pin}</span>` : '<span style="color:#94a3b8; font-size:11.5px;">未設</span>';
         
-        // 加分顯示
-        const handicapDisp = (m.handicap !== undefined && m.handicap !== '' && String(m.handicap) !== '0') ? `<span style="color:#b45309; font-weight:900; font-size:12px;">+${m.handicap}</span>` : '<span style="color:#94a3b8; font-size:12px;">+0</span>';
-        const byDisp = m.birthYear ? `<span style="font-size:12px; color:#475569;">${m.birthYear}</span>` : '<span style="color:#cbd5e1; font-size:11px;">--</span>';
+        // 加分顯示 (字體放大至 13px)
+        const handicapDisp = (m.handicap !== undefined && m.handicap !== '' && String(m.handicap) !== '0') ? `<span style="color:#b45309; font-weight:900; font-size:13px;">+${m.handicap}</span>` : '<span style="color:#94a3b8; font-size:13px;">+0</span>';
+        const byDisp = m.birthYear ? `<span style="font-size:13px; font-weight:bold; color:#334155;">${m.birthYear}</span>` : '<span style="color:#cbd5e1; font-size:12px;">--</span>';
 
         const rowBg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
 
@@ -3008,7 +3026,7 @@
             <div>${lineBadge}</div>
             <div>${pinDisp}</div>
             <div>
-              <button type="button" onclick="openEditMemberForm('${m.name}')" style="background:#f1f5f9; border:1px solid #cbd5e1; color:#334155; padding:2px 5px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;">✏️</button>
+              <button type="button" onclick="openEditMemberForm('${m.name}')" style="background:#f1f5f9; border:1px solid #cbd5e1; color:#334155; padding:3px 6px; border-radius:4px; font-size:12.5px; font-weight:bold; cursor:pointer;">✏️</button>
             </div>
           </div>
         `;
@@ -3152,25 +3170,56 @@
       if (card) card.style.display = 'none';
     }
 
+    // ★ 解除 LINE 綁定：改用專屬自訂白底彈窗 (無原生網址列)
     function unbindMemberLine() {
       const origName = document.getElementById('editOriginalName').value;
       if (!origName) return;
-      if (!confirm(`確定要解除【${origName}】的 LINE 帳號綁定嗎？解除後該隊友需重新輸入「我是 本名」綁定。`)) return;
 
-      const members = (rawResponse && rawResponse.members) ? rawResponse.members : [];
-      const m = members.find(x => x.name === origName);
-      if (m) {
-        m.lineId = '';
-        if (rtdb) {
-          rtdb.ref('members').set(members).catch(err => console.warn('Unbind Firebase error:', err));
+      customConfirm(`確定要解除【${origName}】的 LINE 帳號綁定嗎？\n解除後該隊友需重新輸入「我是 本名」綁定。`, (confirmed) => {
+        if (!confirmed) return;
+        const members = (rawResponse && rawResponse.members) ? rawResponse.members : [];
+        const m = members.find(x => x.name === origName);
+        if (m) {
+          m.lineId = '';
+          if (rtdb) {
+            rtdb.ref('members').set(members).catch(err => console.warn('Unbind Firebase error:', err));
+          }
+          showToast(`🔓 已解除【${origName}】的 LINE 綁定！`, 3000, false);
+          openEditMemberForm(origName);
+          renderMemberListUI(document.getElementById('memberSearchInput').value.trim());
         }
-        showToast(`🔓 已解除【${origName}】的 LINE 綁定！`, 3000, false);
-        openEditMemberForm(origName);
-        renderMemberListUI(document.getElementById('memberSearchInput').value.trim());
+      });
+    }
+
+    // ★ 刪除隊友驗證回調儲存
+    let deleteVerifyCallback = null;
+
+    function openDeleteVerifyModal(promptMsg, callback) {
+      deleteVerifyCallback = callback;
+      const textEl = document.getElementById('deleteVerifyPromptText');
+      const inputEl = document.getElementById('deleteVerifyCodeInput');
+      const modalEl = document.getElementById('deleteVerifyCodeModal');
+      if (textEl) textEl.innerText = promptMsg;
+      if (inputEl) {
+        inputEl.value = '';
+      }
+      if (modalEl) modalEl.style.display = 'flex';
+      setTimeout(() => { if (inputEl) inputEl.focus(); }, 150);
+    }
+
+    function closeDeleteVerifyModal(isConfirmed) {
+      const modalEl = document.getElementById('deleteVerifyCodeModal');
+      const inputEl = document.getElementById('deleteVerifyCodeInput');
+      const val = inputEl ? inputEl.value.trim() : '';
+      if (modalEl) modalEl.style.display = 'none';
+      if (deleteVerifyCallback) {
+        const cb = deleteVerifyCallback;
+        deleteVerifyCallback = null;
+        cb(isConfirmed ? val : null);
       }
     }
 
-    // ★ 刪除隊友：彈出警告並要求輸入代號驗證
+    // ★ 刪除隊友：使用純白底無網址列自訂彈窗，要求輸入代號驗證
     async function deleteMemberData() {
       const origName = document.getElementById('editOriginalName').value.trim();
       if (!origName) return;
@@ -3180,52 +3229,53 @@
       if (!m) return showToast('⚠️ 查無該隊員資料！', 3000, false);
 
       const targetCode = String(m.code || '').trim();
-      const promptMsg = `⚠️【重要警告：即將刪除隊友】\n\n您確定要將隊友【${m.name}】（編號：${targetCode}）從母檔中永久刪除嗎？\n\n刪除後該代號將釋出成為歷史空號。\n若確定要刪除，請在下方輸入該隊員的代號【${targetCode}】：`;
+      const promptMsg = `您確定要將隊友【${m.name}】（編號：${targetCode}）從母檔中永久刪除嗎？\n\n刪除後該代號將釋出成為歷史空號。\n若確定要刪除，請在下方輸入該隊員的代號【${targetCode}】：`;
       
-      const inputCode = window.prompt(promptMsg);
-      if (inputCode === null) {
-        // 使用者點擊取消
-        return;
-      }
+      openDeleteVerifyModal(promptMsg, (inputCode) => {
+        if (inputCode === null) {
+          // 使用者點擊取消
+          return;
+        }
 
-      const cleanInput = inputCode.trim();
-      // 容許使用者輸入純數字例如 17 或 017
-      const isCodeMatch = (cleanInput === targetCode) || (parseInt(cleanInput, 10) === parseInt(targetCode, 10));
+        const cleanInput = inputCode.trim();
+        // 容許使用者輸入純數字例如 17 或 017
+        const isCodeMatch = (cleanInput === targetCode) || (parseInt(cleanInput, 10) === parseInt(targetCode, 10));
 
-      if (!isCodeMatch) {
-        alert(`❌ 代號輸入不正確（您輸入了: "${cleanInput}"），已取消刪除操作！`);
-        return;
-      }
+        if (!isCodeMatch) {
+          showToast(`❌ 代號輸入不正確（您輸入了: "${cleanInput}"），已取消刪除操作！`, 4000, false);
+          return;
+        }
 
-      // 執行刪除
-      const deleteIdx = members.findIndex(x => x.name === origName);
-      if (deleteIdx === -1) return;
+        // 執行刪除
+        const deleteIdx = members.findIndex(x => x.name === origName);
+        if (deleteIdx === -1) return;
 
-      members.splice(deleteIdx, 1);
+        members.splice(deleteIdx, 1);
 
-      // 1. 本地更新與介面重新渲染
-      rawResponse.members = members;
-      closeMemberEditCard();
-      renderMemberListUI(document.getElementById('memberSearchInput').value.trim());
-      renderAll();
-      showToast(`🗑️ 已成功刪除隊友【${origName}】！`, 3500, false);
+        // 1. 本地更新與介面重新渲染
+        rawResponse.members = members;
+        closeMemberEditCard();
+        renderMemberListUI(document.getElementById('memberSearchInput').value.trim());
+        renderAll();
+        showToast(`🗑️ 已成功刪除隊友【${origName}】！`, 3500, false);
 
-      // 2. Firebase 即時資料庫同步更新
-      if (rtdb) {
-        rtdb.ref('members').set(members).catch(err => console.warn('Firebase delete member error:', err));
-      }
+        // 2. Firebase 即時資料庫同步更新
+        if (rtdb) {
+          rtdb.ref('members').set(members).catch(err => console.warn('Firebase delete member error:', err));
+        }
 
-      // 3. Google 試算表背景同步
-      try {
-        fetch(API_BASE, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({
-            action: 'batchSyncMembers',
-            members: members
-          })
-        }).catch(err => console.warn('GAS member delete sync error:', err));
-      } catch (e) {}
+        // 3. Google 試算表背景同步
+        try {
+          fetch(API_BASE, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({
+              action: 'batchSyncMembers',
+              members: members
+            })
+          }).catch(err => console.warn('GAS member delete sync error:', err));
+        } catch (e) {}
+      });
     }
 
     async function saveMemberData() {

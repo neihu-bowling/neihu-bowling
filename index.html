@@ -1106,16 +1106,16 @@
         </div>
         <input type="hidden" id="editOriginalName" value="">
 
-        <!-- 第 1 列：代號 ｜ 姓名 -->
+        <!-- 第 1 列：代號 (選擇號碼與輸入並排各 1/2) ｜ 姓名 -->
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
           <div>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-              <label style="font-size:13.5px; font-weight:bold; color:#1e293b;">代號 (3碼)：</label>
-              <select id="editMemberCodeHelper" onchange="applyCodeHelper(this.value)" style="font-size:11.5px; padding:1px 4px; border:1px solid #94a3b8; border-radius:4px; background:#f8fafc; color:#1e40af; cursor:pointer;">
-                <option value="">💡 選擇號碼...</option>
+            <label style="font-size:13.5px; font-weight:bold; color:#1e293b; display:block; margin-bottom:4px;">代號 (3碼)：</label>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px;">
+              <select id="editMemberCodeHelper" onchange="applyCodeHelper(this.value)" style="width:100%; padding:7px 4px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:13px; font-weight:bold; background:#f8fafc; color:#1e40af; cursor:pointer; text-align:center; text-align-last:center;">
+                <option value="">💡 選號...</option>
               </select>
+              <input type="text" id="editMemberCode" maxlength="3" placeholder="如 001" style="width:100%; padding:7px 6px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:15px; text-align:center; font-family:monospace; font-weight:bold; background:#fff;">
             </div>
-            <input type="text" id="editMemberCode" maxlength="3" placeholder="如 001、152" style="width:100%; padding:7px 10px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:15px; text-align:center; font-family:monospace; font-weight:bold; background:#fff;">
           </div>
           <div>
             <label style="font-size:13.5px; font-weight:bold; color:#1e293b; display:block; margin-bottom:4px;">隊員姓名：</label>
@@ -1123,13 +1123,13 @@
           </div>
         </div>
 
-        <!-- 第 2 列：性別 ｜ 年次 -->
+        <!-- 第 2 列：性別 (文字水平置中) ｜ 年次 -->
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
           <div>
             <label style="font-size:13.5px; font-weight:bold; color:#1e293b; display:block; margin-bottom:4px;">性別：</label>
-            <select id="editMemberGender" onchange="autoCalcEditHandicap()" style="width:100%; padding:7px 8px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:15px; background:#fff; font-weight:bold;">
-              <option value="男生">男生</option>
-              <option value="女生">女生</option>
+            <select id="editMemberGender" onchange="autoCalcEditHandicap()" style="width:100%; padding:7px 8px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:15px; background:#fff; font-weight:bold; text-align:center; text-align-last:center;">
+              <option value="男生" style="text-align:center;">男生</option>
+              <option value="女生" style="text-align:center;">女生</option>
             </select>
           </div>
           <div>
@@ -1168,8 +1168,8 @@
 
       <!-- 隊員清單列表 (100% 滿版無橫向滾動，各欄位精準佈局不重疊) -->
       <div style="flex:1; border:1px solid #e2e8f0; border-radius:6px; background:#ffffff; overflow:hidden; display:flex; flex-direction:column; min-height:260px; max-height:56vh;">
-        <!-- 固定標題列 (100% 寬度適應，不左右移動) -->
-        <div style="display:grid; grid-template-columns: 36px 1fr 28px 34px 34px 58px 42px 42px; background:#f1f5f9; border-bottom:1.5px solid #cbd5e1; padding:8px 4px; font-size:12px; font-weight:900; color:#475569; text-align:center; flex-shrink:0; white-space:nowrap; width:100%; box-sizing:border-box;">
+        <!-- 固定標題列 (100% 寬度適應，不左右移動，標題加大至 13px) -->
+        <div style="display:grid; grid-template-columns: 38px 1fr 28px 36px 36px 58px 44px 40px; background:#f1f5f9; border-bottom:1.5px solid #cbd5e1; padding:8px 3px; font-size:13px; font-weight:900; color:#334155; text-align:center; flex-shrink:0; white-space:nowrap; width:100%; box-sizing:border-box;">
           <div>編號</div>
           <div style="text-align:left; padding-left:2px;">姓名</div>
           <div>性別</div>
@@ -1407,7 +1407,17 @@
         if (val) {
           if (!rawResponse) rawResponse = { status: 'success', data: {}, config: {}, members: [] };
           rawResponse.members = Array.isArray(val) ? val : Object.values(val);
+          try {
+            localStorage.setItem('bowling_cache_members', JSON.stringify(rawResponse.members));
+            localStorage.setItem('bowling_cache_raw', JSON.stringify(rawResponse));
+          } catch (ce) {}
           initUserIdentity();
+          // ★ 若隊員管理彈窗剛好是打開的，即時刷新列表確保毫秒級無縫更新
+          const memberModal = document.getElementById('memberMgmtModal');
+          if (memberModal && memberModal.style.display === 'flex') {
+            const q = document.getElementById('memberSearchInput') ? document.getElementById('memberSearchInput').value.trim().toLowerCase() : '';
+            renderMemberListUI(q);
+          }
         }
       });
     }
@@ -2958,6 +2968,21 @@
       closeMemberEditCard();
       const searchInput = document.getElementById('memberSearchInput');
       if (searchInput) searchInput.value = '';
+
+      // ★ 0 秒極速秒開：若記憶體中隊員名單為空，優先從本地快取秒級載入完整名單
+      if ((!rawResponse || !rawResponse.members || rawResponse.members.length === 0)) {
+        try {
+          const cachedMem = localStorage.getItem('bowling_cache_members');
+          if (cachedMem) {
+            const parsed = JSON.parse(cachedMem);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              if (!rawResponse) rawResponse = { status: 'success', data: {}, config: {}, members: [] };
+              rawResponse.members = parsed;
+            }
+          }
+        } catch (e) {}
+      }
+
       renderMemberListUI();
       document.getElementById('memberMgmtModal').style.display = 'flex';
     }
@@ -2977,7 +3002,18 @@
       const totalCountEl = document.getElementById('memberMgmtTotalCount');
       if (!container) return;
 
-      const members = (rawResponse && rawResponse.members) ? rawResponse.members : [];
+      let members = (rawResponse && rawResponse.members) ? rawResponse.members : [];
+      // 雙重保險：若為空嘗試從快取讀取
+      if (members.length === 0) {
+        try {
+          const cachedMem = localStorage.getItem('bowling_cache_members');
+          if (cachedMem) {
+            members = JSON.parse(cachedMem) || [];
+            if (rawResponse) rawResponse.members = members;
+          }
+        } catch (e) {}
+      }
+
       if (totalCountEl) totalCountEl.innerText = `(共 ${members.length} 人)`;
 
       const filtered = members.filter(m => {
@@ -2997,25 +3033,25 @@
         const isFem = (m.gender === '女生' || m.gender === 'F');
         // 與報名球道表一致的大字體 (16px, 900)
         const nameClass = isFem ? 'female-text' : 'male-text';
-        const genderBadge = isFem ? '<span style="color:#db2777; background:#fce7f3; font-size:12px; padding:1px 4px; border-radius:3px; font-weight:bold;">女</span>' : '<span style="color:#2563eb; background:#eff6ff; font-size:12px; padding:1px 4px; border-radius:3px; font-weight:bold;">男</span>';
+        const genderBadge = isFem ? '<span style="color:#db2777; background:#fce7f3; font-size:13px; padding:1px 4px; border-radius:3px; font-weight:bold;">女</span>' : '<span style="color:#2563eb; background:#eff6ff; font-size:13px; padding:1px 4px; border-radius:3px; font-weight:bold;">男</span>';
         
-        // 編號去掉 #，純數字 monospace 居中，字體放大至 13.5px
-        const codeDisp = m.code ? `<span style="font-family:monospace; font-weight:900; color:#1e293b; font-size:13.5px;">${m.code}</span>` : '<span style="color:#cbd5e1; font-size:12px;">--</span>';
+        // 編號去掉 #，純數字 monospace 居中，字體放大至 14.5px (加粗 900)
+        const codeDisp = m.code ? `<span style="font-family:monospace; font-weight:900; color:#0f172a; font-size:14.5px;">${m.code}</span>` : '<span style="color:#cbd5e1; font-size:12px;">--</span>';
         
-        // LINE 狀態 (緊湊型：🟢 已綁 / ⚪ 未綁，保留原 ICON，字體放大至 12px)
-        const lineBadge = m.lineId ? '<span style="color:#15803d; font-size:12px; font-weight:bold; white-space:nowrap;" title="LINE已綁定">🟢 已綁</span>' : '<span style="color:#64748b; font-size:12px; font-weight:bold; white-space:nowrap;" title="未綁定LINE">⚪ 未綁</span>';
+        // LINE 狀態 (緊湊型：🟢已綁 / ⚪未綁，保留原 ICON，字體放大至 13px)
+        const lineBadge = m.lineId ? '<span style="color:#15803d; font-size:13px; font-weight:bold; white-space:nowrap;" title="LINE已綁定">🟢已綁</span>' : '<span style="color:#64748b; font-size:13px; font-weight:bold; white-space:nowrap;" title="未綁定LINE">⚪未綁</span>';
         
-        // PIN 碼 (純顯示數字或未設，字體放大至 13px)
-        const pinDisp = m.pin ? `<span style="font-family:monospace; font-weight:900; color:#0369a1; font-size:13px;">${m.pin}</span>` : '<span style="color:#94a3b8; font-size:11.5px;">未設</span>';
+        // PIN 碼 (純顯示數字或未設，字體放大至 14px)
+        const pinDisp = m.pin ? `<span style="font-family:monospace; font-weight:900; color:#0369a1; font-size:14px;">${m.pin}</span>` : '<span style="color:#94a3b8; font-size:12px;">未設</span>';
         
-        // 加分顯示 (字體放大至 13px)
-        const handicapDisp = (m.handicap !== undefined && m.handicap !== '' && String(m.handicap) !== '0') ? `<span style="color:#b45309; font-weight:900; font-size:13px;">+${m.handicap}</span>` : '<span style="color:#94a3b8; font-size:13px;">+0</span>';
-        const byDisp = m.birthYear ? `<span style="font-size:13px; font-weight:bold; color:#334155;">${m.birthYear}</span>` : '<span style="color:#cbd5e1; font-size:12px;">--</span>';
+        // 年次與加分顯示 (字體放大至 14px)
+        const handicapDisp = (m.handicap !== undefined && m.handicap !== '' && String(m.handicap) !== '0') ? `<span style="color:#b45309; font-weight:900; font-size:14px;">+${m.handicap}</span>` : '<span style="color:#94a3b8; font-size:14px;">+0</span>';
+        const byDisp = m.birthYear ? `<span style="font-size:14px; font-weight:bold; color:#1e293b;">${m.birthYear}</span>` : '<span style="color:#cbd5e1; font-size:12px;">--</span>';
 
         const rowBg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
 
         html += `
-          <div style="display:grid; grid-template-columns: 36px 1fr 28px 34px 34px 58px 42px 42px; align-items:center; background:${rowBg}; border-bottom:1px solid #f1f5f9; padding:7px 4px; text-align:center; white-space:nowrap; width:100%; box-sizing:border-box;">
+          <div style="display:grid; grid-template-columns: 38px 1fr 28px 36px 36px 58px 44px 40px; align-items:center; background:${rowBg}; border-bottom:1px solid #f1f5f9; padding:7px 3px; text-align:center; white-space:nowrap; width:100%; box-sizing:border-box;">
             <div>${codeDisp}</div>
             <div style="text-align:left; padding-left:2px; overflow:hidden; text-overflow:ellipsis;">
               <span class="${nameClass}" style="font-size:16px !important; font-weight:900 !important; cursor:pointer;" onclick="openEditMemberForm('${m.name}')">${m.name}</span>
@@ -3026,7 +3062,7 @@
             <div>${lineBadge}</div>
             <div>${pinDisp}</div>
             <div>
-              <button type="button" onclick="openEditMemberForm('${m.name}')" style="background:#f1f5f9; border:1px solid #cbd5e1; color:#334155; padding:3px 6px; border-radius:4px; font-size:12.5px; font-weight:bold; cursor:pointer;">✏️</button>
+              <button type="button" onclick="openEditMemberForm('${m.name}')" style="background:#f1f5f9; border:1px solid #cbd5e1; color:#334155; padding:3px 5px; border-radius:4px; font-size:13.5px; font-weight:bold; cursor:pointer;">✏️</button>
             </div>
           </div>
         `;

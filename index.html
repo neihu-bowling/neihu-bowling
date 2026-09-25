@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=385, initial-scale=1.0, minimum-scale=0.5, maximum-scale=3.0, user-scalable=yes">
   <meta name="color-scheme" content="light">
   <title>內湖保齡球隊 - 即時報名系統</title>
   <!-- LINE / 社群分享專屬圖文大卡片 (Open Graph) -->
@@ -28,6 +28,7 @@
       color: #0f172a !important;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft JhengHei", Arial, sans-serif;
       padding: 8px;
+      min-width: 375px;
       max-width: 600px;
       margin: 0 auto;
       /* ★ 全域防縮放變形第 1 盾：禁止手機瀏覽器私自篡改字級造成跑版 */
@@ -35,7 +36,8 @@
       -moz-text-size-adjust: 100% !important;
       -ms-text-size-adjust: 100% !important;
       text-size-adjust: 100% !important;
-      overflow-x: hidden;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
     }
     body.theme-thu {
       background-color: #f0f4f8 !important;
@@ -65,20 +67,26 @@
       justify-content: space-between;
       align-items: center;
       margin-bottom: 8px;
+      min-width: 0;
     }
     .title-box {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
     .title-text {
       font-size: 16px;
       font-weight: 900;
       color: #0f172a;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
     .btn-group {
       display: flex;
       gap: 6px;
+      white-space: nowrap;
     }
     .btn-day {
       border: 1.5px solid #cbd5e1;
@@ -90,6 +98,7 @@
       background: #f8fafc;
       color: #475569;
       transition: all 0.15s ease;
+      white-space: nowrap;
     }
     .btn-day-mon.active {
       background: #16a34a !important;
@@ -112,6 +121,8 @@
       padding: 4px 8px;
       border-radius: 6px;
       cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
     .info-bar {
       display: flex;
@@ -121,6 +132,7 @@
       border-top: 1px solid #e2e8f0;
       padding-top: 6px;
       font-weight: bold;
+      white-space: nowrap;
     }
     .event-badge {
       display: inline-flex;
@@ -129,6 +141,8 @@
       border-radius: 6px;
       font-size: 12px;
       font-weight: 900;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
     .event-badge-mon {
       background: #dcfce7;
@@ -424,6 +438,8 @@
       font-size: 12px;
       font-weight: bold;
       color: #78350f;
+      white-space: nowrap;
+      min-width: 360px;
     }
     .modal-overlay {
       display: none;
@@ -754,11 +770,11 @@
 
   <!-- 管理者工具列 -->
   <div id="adminToolbar" class="admin-bar" style="display: none;">
-    <div>👑 管理者模式已解鎖</div>
-    <div style="display:flex; gap:6px;">
-      <button onclick="openMemberMgmtModal()" style="background:#1d4ed8; color:#ffffff; border:1px solid #1e40af; padding:5px 11px; border-radius:6px; font-weight:900; cursor:pointer; font-size:12.5px; display:inline-flex; align-items:center; gap:5px; box-shadow:0 1px 2px rgba(0,0,0,0.15);"><span style="filter:drop-shadow(0 0 1px #fff);">👥</span> 隊員管理</button>
-      <button onclick="openSettingsModal()" style="background:#d97706; color:#ffffff; border:1px solid #b45309; padding:5px 11px; border-radius:6px; font-weight:900; cursor:pointer; font-size:12.5px; display:inline-flex; align-items:center; gap:5px; box-shadow:0 1px 2px rgba(0,0,0,0.15);"><span>⚙️</span> 賽事設定</button>
-      <button onclick="logoutAdmin()" style="background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; padding:5px 10px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:12px;">登出</button>
+    <div style="white-space:nowrap; flex-shrink:0;">👑 管理者模式已解鎖</div>
+    <div style="display:flex; gap:6px; flex-shrink:0; white-space:nowrap;">
+      <button onclick="openMemberMgmtModal()" style="background:#1d4ed8; color:#ffffff; border:1px solid #1e40af; padding:5px 11px; border-radius:6px; font-weight:900; cursor:pointer; font-size:12.5px; display:inline-flex; align-items:center; gap:5px; box-shadow:0 1px 2px rgba(0,0,0,0.15); white-space:nowrap;"><span style="filter:drop-shadow(0 0 1px #fff);">👥</span> 隊員管理</button>
+      <button onclick="openSettingsModal()" style="background:#d97706; color:#ffffff; border:1px solid #b45309; padding:5px 11px; border-radius:6px; font-weight:900; cursor:pointer; font-size:12.5px; display:inline-flex; align-items:center; gap:5px; box-shadow:0 1px 2px rgba(0,0,0,0.15); white-space:nowrap;"><span>⚙️</span> 賽事設定</button>
+      <button onclick="logoutAdmin()" style="background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; padding:5px 10px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:12px; white-space:nowrap;">登出</button>
     </div>
   </div>
 

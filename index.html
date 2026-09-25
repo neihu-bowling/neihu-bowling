@@ -901,30 +901,34 @@
   <!-- 4. 管理者設定面板 -->
   <div id="settingsModal" class="modal-overlay">
     <div class="modal-card" style="max-height:90vh; overflow-y:auto;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1.5px solid #e2e8f0; padding-bottom:8px;">
-        <h3 style="font-size:16px; font-weight:900; margin:0;">⚙️ 賽事快速設定</h3>
-        <div class="btn-group" style="margin:0;">
-          <button type="button" id="btnSettingMon" onclick="switchSettingDay('週一')" class="btn-day btn-day-mon">週一設定</button>
-          <button type="button" id="btnSettingThu" onclick="switchSettingDay('週四')" class="btn-day btn-day-thu">週四設定</button>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1.5px solid #e2e8f0; padding-bottom:8px; gap:8px;">
+        <h3 style="font-size:16px; font-weight:900; margin:0; white-space:nowrap;">⚙️ 賽事快速設定</h3>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <div class="btn-group" style="margin:0;">
+            <button type="button" id="btnSettingMon" onclick="switchSettingDay('週一')" class="btn-day btn-day-mon">週一設定</button>
+            <button type="button" id="btnSettingThu" onclick="switchSettingDay('週四')" class="btn-day btn-day-thu">週四設定</button>
+          </div>
+          <button type="button" onclick="closeSettingsModal()" style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:50%; width:28px; height:28px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:13px; font-weight:900; color:#64748b; padding:0; flex-shrink:0; line-height:1; transition:all 0.15s ease;" title="關閉">✕</button>
         </div>
       </div>
 
       <div style="font-size:12px; display:flex; flex-direction:column; gap:12px;">
-        <!-- 🛑 連假停練開關專區 -->
-        <div id="holidayPauseCard" style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; padding:10px 12px; margin-bottom:2px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:6px;">
-            <span id="holidayPauseTitle" style="font-weight:900; font-size:13px; color:#1e293b;">🛑 連假停練設定：</span>
-            <button type="button" id="btnToggleHolidayPause" onclick="toggleHolidayPauseSetting()" class="quick-btn" style="background:#dc2626; color:#ffffff; font-weight:900; border:none; padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer; white-space:nowrap; box-shadow:0 1px 2px rgba(0,0,0,0.1);">
+        <!-- 連假停練開關專區 -->
+        <div id="holidayPauseCard" style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; padding:10px 12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+            <span id="holidayPauseTitle" style="font-weight:900; font-size:13px; color:#1e293b; white-space:nowrap; flex-shrink:0;">連假停練設定：</span>
+            <button type="button" id="btnToggleHolidayPause" onclick="toggleHolidayPauseSetting()" class="quick-btn" style="background:#dc2626; color:#ffffff; font-weight:900; border:none; padding:5px 10px; border-radius:6px; font-size:12px; cursor:pointer; white-space:nowrap; box-shadow:0 1px 2px rgba(0,0,0,0.1);">
               🛑 設定本場停練
             </button>
           </div>
+          <div id="holidayPauseDivider" style="border-top:1px dashed #cbd5e1; margin:8px 0 6px 0;"></div>
           <div id="holidayPauseDesc" style="font-size:11.5px; color:#64748b; line-height:1.5;">目前狀態：正常開打 (未停練)</div>
         </div>
 
-        <!-- 1. 開放球道 -->
-        <div>
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <label id="openLanesLabel" style="font-weight:900; font-size:13px;">1️⃣ 開放球道：</label>
+        <!-- 開放球道卡片 -->
+        <div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; padding:10px 12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <label id="openLanesLabel" style="font-weight:900; font-size:13px; color:#1e293b;">開放球道：</label>
             <div class="quick-preset-bar">
               <button type="button" onclick="setOpenLanesPreset('3-24')" class="quick-btn">常用 3-24</button>
               <button type="button" onclick="setOpenLanesPreset('1-24')" class="quick-btn">全選</button>
@@ -934,10 +938,10 @@
           <div id="openLanesChips" class="lane-chips-grid"></div>
         </div>
 
-        <!-- 2. 工作人員專用道 -->
-        <div>
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <label id="staffLanesLabel" style="font-weight:900; font-size:13px;">2️⃣ 工作人員專用道：</label>
+        <!-- 工作人員專用道卡片 -->
+        <div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; padding:10px 12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <label id="staffLanesLabel" style="font-weight:900; font-size:13px; color:#1e293b;">工作人員專用道：</label>
             <div class="quick-preset-bar">
               <button type="button" onclick="setStaffLanesPreset('none')" class="quick-btn">無專用道</button>
             </div>
@@ -945,10 +949,10 @@
           <div id="staffLanesChips" class="lane-chips-grid"></div>
         </div>
 
-        <!-- 3. 自動輪調模式設定 (每週一/四 AM 09:20 採用) -->
-        <div>
-          <label id="rotateModeLabel" style="font-weight:900; font-size:13px; display:block; margin-bottom:6px;">3️⃣ 每週自動輪調模式 (一、四 09:20 自動排程)：</label>
-          <div style="display:flex; flex-direction:column; gap:6px; background:#f8fafc; padding:8px; border-radius:6px; border:1px solid #e2e8f0;">
+        <!-- 每週自動輪調模式設定卡片 -->
+        <div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; padding:10px 12px;">
+          <label id="rotateModeLabel" style="font-weight:900; font-size:13px; color:#1e293b; display:block; margin-bottom:6px;">每週自動輪調模式 (一、四 09:20 自動排程)：</label>
+          <div style="display:flex; flex-direction:column; gap:6px; background:#ffffff; padding:8px 10px; border-radius:6px; border:1px solid #e2e8f0;">
             <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:bold;">
               <input type="radio" name="rotateMode" value="sequential" checked>
               <span>🔄 順序輪調 (依序移動下一道 3/4➔5/6...)</span>
@@ -968,9 +972,9 @@
           </div>
         </div>
 
-        <!-- 幹部手動即時輪調專區 -->
-        <div style="padding-top:10px; border-top:1px solid #e2e8f0;">
-          <label id="manualRotateLabel" style="font-weight:900; font-size:13px; display:block; margin-bottom:6px; color:#4338ca;">⚡ 幹部手動即時輪調 (點擊立即生效)：</label>
+        <!-- 幹部即時輪調專區卡片 -->
+        <div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; padding:10px 12px;">
+          <label id="manualRotateLabel" style="font-weight:900; font-size:13px; display:block; margin-bottom:6px; color:#4338ca;">⚡ 幹部即時輪調 (點擊立即生效)：</label>
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px;">
             <button type="button" onclick="triggerManualRotation('sequential', '🔄 順序輪調 (3/4➔5/6...)')" class="quick-btn" style="background:#4f46e5; color:#fff; padding:6px 4px; font-size:11px; text-align:center;">🔄 順序輪調</button>
             <button type="button" onclick="triggerManualRotation('random_group_fixed', '🎲 隨機 1A (整組換道-棒次不變)')" class="quick-btn" style="background:#2563eb; color:#fff; padding:6px 4px; font-size:11px; text-align:center;">🎲 隨機1A(整組不變)</button>
@@ -979,27 +983,27 @@
           </div>
         </div>
 
-        <!-- 4. 幹部協助重設隊員 PIN 碼 -->
-        <div style="padding-top:10px; border-top:1px solid #e2e8f0;">
-          <label style="font-weight:900; font-size:13px; display:block; margin-bottom:4px; color:#1e40af;">🔑 4️⃣ 幹部協助重設隊員 PIN 碼：</label>
+        <!-- 幹部協助重設隊員 PIN 碼卡片 -->
+        <div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; padding:10px 12px;">
+          <label style="font-weight:900; font-size:13px; display:block; margin-bottom:6px; color:#1e40af;">🔑 幹部協助重設隊員 PIN 碼：</label>
           <div style="display:flex; flex-direction:column; gap:6px;">
-            <select id="adminResetMemberSelect" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px;">
+            <select id="adminResetMemberSelect" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; background:#ffffff;">
               <option value="">-- 請選擇欲重設 PIN 碼的隊友 --</option>
             </select>
             <div style="display:flex; gap:6px;">
-              <input type="text" id="adminResetNewPin" maxlength="4" placeholder="輸入新 4 碼 PIN" style="flex:1; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px;">
+              <input type="text" id="adminResetNewPin" maxlength="4" placeholder="輸入新 4 碼 PIN" style="flex:1; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; background:#ffffff;">
               <button type="button" onclick="submitAdminResetPin()" class="quick-btn" style="background:#2563eb; color:#fff; border-color:#1d4ed8; padding:8px 12px; font-size:12px;">確認重設</button>
             </div>
           </div>
         </div>
 
-        <!-- 5. 幹部管理與賽事調度操作手冊 (摺疊抽屜) -->
-        <div style="padding-top:10px; border-top:1px solid #e2e8f0;">
-          <button type="button" onclick="toggleAdminGuide()" style="width:100%; display:flex; justify-content:space-between; align-items:center; background:#fef9c3; border:1px solid #fde047; padding:8px 10px; border-radius:6px; cursor:pointer; text-align:left;">
+        <!-- 幹部管理與賽事調度操作手冊 (摺疊抽屜) -->
+        <div>
+          <button type="button" onclick="toggleAdminGuide()" style="width:100%; display:flex; justify-content:space-between; align-items:center; background:#fef9c3; border:1.5px solid #fde047; padding:9px 12px; border-radius:8px; cursor:pointer; text-align:left;">
             <span style="font-weight:900; font-size:13px; color:#854d0e;">👑 幹部管理與賽事調度操作手冊</span>
             <span id="adminGuideToggleIcon" style="font-size:12px; font-weight:bold; color:#a16207;">點擊展開 ▾</span>
           </button>
-          <div id="adminGuideContent" style="display:none; padding:10px; background:#fffbeb; border:1px solid #fde047; border-top:none; border-radius:0 0 6px 6px; font-size:11.5px; line-height:1.6; color:#78350f;">
+          <div id="adminGuideContent" style="display:none; padding:10px 12px; background:#fffbeb; border:1.5px solid #fde047; border-top:none; border-radius:0 0 8px 8px; font-size:11.5px; line-height:1.6; color:#78350f;">
             <div style="margin-bottom:8px;">
               <strong>🟢 / 🔒 專用道任意席位彈性開放與個別收回：</strong><br>
               在管理者模式下，專用道空位皆會亮起供幹部操作。點選空位後，點擊「🟢 開放此位供隊友自行入座」即可開放該席位；可同時任意開放多個席位（如第 4、5 位同時開放）。點擊已開放席位選擇「🔒 取消開放此位 (收回幹部專用)」即可單獨收回。
@@ -1034,9 +1038,9 @@
           </div>
         </div>
 
-        <!-- 6. Google 試算表同步備份 (對接現場計分 Excel) -->
-        <div style="padding-top:10px; border-top:1px solid #e2e8f0;">
-          <label style="font-weight:900; font-size:13px; display:block; margin-bottom:4px; color:#047857;">📊 6️⃣ Google 試算表同步備份 (供現場計分 Excel 讀取)：</label>
+        <!-- Google 試算表同步備份卡片 (對接現場計分 Excel) -->
+        <div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; padding:10px 12px;">
+          <label style="font-weight:900; font-size:13px; display:block; margin-bottom:4px; color:#047857;">📊 Google 試算表同步備份 (供現場計分 Excel 讀取)：</label>
           <p style="font-size:11px; color:#64748b; margin-bottom:6px; line-height:1.4;">
             隊友報名使用 Firebase 毫秒即時同步。點擊下方按鈕可隨時將最新球道名單整批寫入 Google 試算表，確保現場計分 Excel 讀取無誤。
           </p>
@@ -2756,20 +2760,23 @@
       const title = document.getElementById('holidayPauseTitle');
       const desc = document.getElementById('holidayPauseDesc');
       const btn = document.getElementById('btnToggleHolidayPause');
+      const divider = document.getElementById('holidayPauseDivider');
       if (!card || !title || !desc || !btn) return;
 
-      title.innerText = `🛑 【${day}】連假停練設定：`;
+      title.innerText = `【${day}】連假停練設定：`;
       const nextMatchDate = getNextWeekMatchDate(targetMatchDate);
 
       if (currentSettingHolidayPause) {
         card.style.background = '#fef2f2';
         card.style.borderColor = '#f87171';
+        if (divider) divider.style.borderColor = '#fca5a5';
         desc.innerHTML = `⚠️ <b style="color:#b91c1c;">本場賽事 (${targetMatchDate}) 已設定停練一次！</b><br><span style="color:#991b1b; line-height:1.6; display:inline-block; margin-top:2px;">• 頂部自動公告停練，賽事日期順延顯示隔週預排 (${nextMatchDate})<br>• ${targetMatchDate} 09:20 暫停輪調一次並自動取消停練(無須手動取消停練)</span>`;
         btn.innerText = '🟢 取消停練 (恢復打球)';
         btn.style.background = '#16a34a';
       } else {
         card.style.background = '#f8fafc';
         card.style.borderColor = '#cbd5e1';
+        if (divider) divider.style.borderColor = '#cbd5e1';
         desc.innerHTML = `✅ <b style="color:#15803d;">本場賽事 (${targetMatchDate}) 正常開打中</b><br><span style="color:#64748b;">若逢連續假期球隊停練一次，可點擊右側按鈕設定停練</span>`;
         btn.innerText = '🛑 設定本場停練';
         btn.style.background = '#dc2626';
@@ -2832,16 +2839,16 @@
       updateHolidayPauseUI(day, targetMatchDate);
 
       const staffLbl = document.getElementById('staffLanesLabel');
-      if (staffLbl) staffLbl.innerText = `2️⃣ 【${day}】工作人員專用道：`;
+      if (staffLbl) staffLbl.innerText = `【${day}】工作人員專用道：`;
 
       const openLbl = document.getElementById('openLanesLabel');
-      if (openLbl) openLbl.innerText = `1️⃣ 【${day}】開放球道：`;
+      if (openLbl) openLbl.innerText = `【${day}】開放球道：`;
 
       const rotateLbl = document.getElementById('rotateModeLabel');
-      if (rotateLbl) rotateLbl.innerText = `3️⃣ 【${day}】每週自動輪調模式 (一、四 09:20 自動排程)：`;
+      if (rotateLbl) rotateLbl.innerText = `【${day}】每週自動輪調模式 (一、四 09:20 自動排程)：`;
 
       const manualRotateLbl = document.getElementById('manualRotateLabel');
-      if (manualRotateLbl) manualRotateLbl.innerText = `⚡ 【${day}】幹部手動即時輪調 (點擊立即生效)：`;
+      if (manualRotateLbl) manualRotateLbl.innerText = `⚡ 【${day}】幹部即時輪調 (點擊立即生效)：`;
 
       // 初始化已選開放球道與專用道集合
       selectedOpenLanes = parseLaneList(dayOpen);

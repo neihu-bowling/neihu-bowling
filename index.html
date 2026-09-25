@@ -672,6 +672,8 @@
       </div>
       <button id="adminBtn" onclick="openAdminModal()" class="btn-admin">🔐 管理</button>
     </div>
+    <!-- 🛑 連假停練一次：醒目全列紅色膠囊公告 (停練時顯示) -->
+    <div id="holidayPauseNoticeBanner" style="display:none; background:#dc2626; color:#ffffff; font-weight:900; font-size:13.5px; padding:7px 12px; border-radius:20px; text-align:center; box-shadow:0 2px 4px rgba(220,38,38,0.25); margin:6px 0 4px 0; letter-spacing:0.5px;"></div>
     <div class="info-bar">
       <div class="btn-group">
         <button id="btnMon" onclick="switchDay('週一')" class="btn-day btn-day-mon">週一</button>
@@ -1023,6 +1025,10 @@
               <strong>👤 臨時來賓報名：</strong><br>
               點擊任一空位可展開「手動輸入臨時來賓」，輸入姓名並挑選性別（男藍/女紅），免建檔即刻入座。
             </div>
+            <div style="margin-bottom:8px;">
+              <strong>🛑 連假停練一次設定與自動恢復：</strong><br>
+              逢連續假期可一鍵設定停練。設定後：首頁頂部自動公告停練並顯示隔週預排賽事；球道表維持全面開放，供隊友正常預排報名與取消；開打當日 AM 09:20 暫停輪調一次，開打時間過後自動解除停練恢復正常顯示。
+            </div>
             <div>
               <strong>🔑 幹部協助重設隊員 PIN 碼：</strong><br>
               隊友若遺失或忘記 PIN 碼，在第 4 區下拉挑選該隊友並輸入新 4 碼 PIN，點選「確認重設」即可一鍵更新。
@@ -1045,7 +1051,7 @@
 
       <div style="display:flex; gap:6px; margin-top:16px;">
         <button onclick="closeSettingsModal()" class="modal-btn btn-secondary" style="margin-bottom:0;">取消</button>
-        <button onclick="saveSettings()" class="modal-btn btn-primary" style="margin-bottom:0;">儲存設定</button>
+        <button id="btnSaveSettings" onclick="saveSettings()" class="modal-btn btn-primary" style="margin-bottom:0;">儲存設定</button>
       </div>
     </div>
   </div>
@@ -1558,8 +1564,9 @@
     function closeConfirmDialog(isConfirmed) {
       document.getElementById('confirmDialogModal').style.display = 'none';
       if (confirmCallback) {
-        confirmCallback(isConfirmed);
+        const cb = confirmCallback;
         confirmCallback = null;
+        cb(isConfirmed);
       }
     }
 
@@ -1692,6 +1699,21 @@
       return false;
     }
 
+    // ★ 取得隔週賽事日期 (自動 +7 天)
+    function getNextWeekMatchDate(dateStr) {
+      if (!dateStr) return '';
+      const now = new Date();
+      const m = String(dateStr).match(/(\d{1,2})[\/\-\.月](\d{1,2})/);
+      if (!m) return dateStr;
+      const month = parseInt(m[1], 10) - 1;
+      const day = parseInt(m[2], 10);
+      const d = new Date(now.getFullYear(), month, day);
+      d.setDate(d.getDate() + 7);
+      const nextMm = String(d.getMonth() + 1).padStart(2, '0');
+      const nextDd = String(d.getDate()).padStart(2, '0');
+      return `${nextMm}/${nextDd}`;
+    }
+
     // ★ 判定當前賽事是否已啟用「🛑 連假停練一次」
     function isDayHolidayPaused(dayStr) {
       const isMon = dayStr === '週一';
@@ -1723,17 +1745,32 @@
         const dateStr = getFormattedMatchDate(currentDay, isMon ? cfg.monDate : cfg.thuDate);
         const isPaused = isDayHolidayPaused(currentDay);
         const eventBadge = document.getElementById('eventBadge');
-        if (eventBadge) {
-          if (isPaused) {
-            eventBadge.className = 'event-badge event-badge-paused';
+        const pauseBanner = document.getElementById('holidayPauseNoticeBanner');
+
+        if (isPaused) {
+          // 1. 標題旁膠囊顏色維持不變 (週一綠/週四藍)，日期直接跳隔週預排
+          const nextDateStr = getNextWeekMatchDate(dateStr);
+          if (eventBadge) {
+            eventBadge.className = isMon ? 'event-badge event-badge-mon' : 'event-badge event-badge-thu';
             eventBadge.innerHTML = isMon 
-              ? `🛑 週一賽事：<span id="actDateDisplay">${dateStr}</span> (連假停練一次)` 
-              : `🛑 週四賽事：<span id="actDateDisplay">${dateStr}</span> (連假停練一次)`;
-          } else {
+              ? `🟢 週一賽事：<span id="actDateDisplay">${nextDateStr}</span>` 
+              : `🔵 週四賽事：<span id="actDateDisplay">${nextDateStr}</span>`;
+          }
+          // 2. 下方整列醒目紅色膠囊公告
+          if (pauseBanner) {
+            pauseBanner.style.display = 'block';
+            pauseBanner.innerHTML = `🛑 ${dateStr} (停練一次)！目前為 ${nextDateStr} 預排名單（可正常入座報名）`;
+          }
+        } else {
+          if (eventBadge) {
             eventBadge.className = isMon ? 'event-badge event-badge-mon' : 'event-badge event-badge-thu';
             eventBadge.innerHTML = isMon 
               ? `🟢 週一賽事：<span id="actDateDisplay">${dateStr}</span>` 
               : `🔵 週四賽事：<span id="actDateDisplay">${dateStr}</span>`;
+          }
+          if (pauseBanner) {
+            pauseBanner.style.display = 'none';
+            pauseBanner.innerHTML = '';
           }
         }
 
@@ -1891,18 +1928,15 @@
             const pGenStr = String(pGender || 'M').trim();
             const isFem = (pGenStr.includes('女') || pGenStr.toUpperCase().startsWith('F') || pGenStr.toUpperCase() === 'W');
             const colorClass = isFem ? 'female-text' : 'male-text';
-            const pausePrefix = isPaused ? '<span style="color:#dc2626; font-weight:900; margin-right:2px;">🚫</span>' : '';
             html += `
               <td onclick="handlePlayerClick('${p.name}', '${laneKey}', ${slotIndex})" style="cursor:pointer; width:60%;" class="${colorClass}">
-                ${pausePrefix}${p.name}
+                ${p.name}
               </td>
             `;
           } else {
             if (!isOpen) {
               const closedLabel = isAdmin ? '🚫 不開放 (已關閉)' : '🚫 不開放';
               html += `<td class="slot-locked" style="width:60%;">${closedLabel}</td>`;
-            } else if (isPaused) {
-              html += `<td class="slot-locked" style="width:60%; color:#dc2626; font-weight:bold; cursor:not-allowed;" onclick="showHolidayPausedToast()">🚫 停練一次</td>`;
             } else if (deadPassed && !isAdmin) {
               html += `<td class="slot-locked" style="width:60%;">⏰ 報名已截止</td>`;
             } else if (slotIndex > allowedSlots && !isAdmin) {
@@ -1938,10 +1972,6 @@
         showToast('⚠️ 首次使用請先綁定隊員姓名！', 3500);
         openRegisterModal();
         return;
-      }
-
-      if (isDayHolidayPaused(currentDay) && !isAdmin) {
-        return showHolidayPausedToast();
       }
 
       const cfg = rawResponse ? rawResponse.config : {};
@@ -2272,10 +2302,6 @@
         return showToast('⏰ 本次賽事報名已截止，名單已定案！若需異動請洽幹部。', 4500, false);
       }
 
-      if (isDayHolidayPaused(currentDay) && !isAdmin) {
-        return showToast('⚠️ 本場賽事因逢國定連假停練一次，席位已鎖定保留，暫停更動！', 3500, false);
-      }
-
       // 1. 幹部操作 ➔ 二次確認直接取消，免 PIN 碼
       if (isAdmin) {
         customConfirm(`👑 管理者操作：確定要取消【${playerName}】在【${currentDay}】${laneKey} 道 第 ${slotIndex} 位的報名嗎？`, async (confirmed) => {
@@ -2319,19 +2345,59 @@
         }
       }
 
+      // ★ 0.05 秒極速樂觀本地清除 (無論開放或已關閉球道立即生效)
+      if (rawResponse && rawResponse.data && rawResponse.data[targetDayKey]) {
+        let dayList = rawResponse.data[targetDayKey];
+        if (!Array.isArray(dayList)) {
+          dayList = Object.values(dayList);
+          rawResponse.data[targetDayKey] = dayList;
+        }
+        let targetLaneObj = dayList.find(l => l && l.lane === laneKey);
+        if (targetLaneObj) {
+          if (!targetLaneObj.players) {
+            targetLaneObj.players = Array(8).fill(null);
+          } else if (!Array.isArray(targetLaneObj.players)) {
+            targetLaneObj.players = Object.values(targetLaneObj.players);
+          }
+          while (targetLaneObj.players.length < 8) targetLaneObj.players.push(null);
+
+          const isStaff = isLaneStaff(laneKey, currentStaffLane);
+          const shouldRestoreOpen = isStaff && (playerName !== '[開放入座]');
+          if (slotIndex && slotIndex >= 1 && slotIndex <= 8) {
+            targetLaneObj.players[slotIndex - 1] = shouldRestoreOpen ? { name: '[開放入座]', gender: 'M' } : null;
+          }
+          // 同時確保該球道上所有該姓名的席位都被清除
+          for (let pi = 0; pi < targetLaneObj.players.length; pi++) {
+            if (targetLaneObj.players[pi] && targetLaneObj.players[pi].name === playerName) {
+              targetLaneObj.players[pi] = shouldRestoreOpen ? { name: '[開放入座]', gender: 'M' } : null;
+            }
+          }
+        }
+        renderAll();
+      }
+
       // ★ 1. 優先使用 Firebase Realtime Database (0.1秒極速退座與還原)
       if (rtdb && isFirebaseReady) {
         try {
           await rtdb.ref(`data/${targetDayKey}`).transaction(dayLanes => {
             if (!dayLanes) return dayLanes;
             let list = Array.isArray(dayLanes) ? dayLanes : Object.values(dayLanes);
-            const targetLane = list.find(l => l && l.lane === laneKey);
-            if (!targetLane || !targetLane.players) return list;
+            let targetLane = list.find(l => l && l.lane === laneKey);
+            if (!targetLane) {
+              targetLane = { lane: laneKey, players: Array(8).fill(null) };
+              list.push(targetLane);
+            }
+            if (!targetLane.players) targetLane.players = Array(8).fill(null);
             if (!Array.isArray(targetLane.players)) targetLane.players = Object.values(targetLane.players);
+            while (targetLane.players.length < 8) targetLane.players.push(null);
 
             const isStaff = isLaneStaff(laneKey, currentStaffLane);
             const shouldRestoreOpen = isStaff && (playerName !== '[開放入座]');
-            targetLane.players[slotIndex - 1] = shouldRestoreOpen ? { name: '[開放入座]', gender: 'M' } : null;
+            if (slotIndex && slotIndex >= 1 && slotIndex <= 8) {
+              targetLane.players[slotIndex - 1] = shouldRestoreOpen ? { name: '[開放入座]', gender: 'M' } : null;
+            } else {
+              targetLane.players = targetLane.players.map(p => (p && p.name === playerName ? (shouldRestoreOpen ? { name: '[開放入座]', gender: 'M' } : null) : p));
+            }
             return list;
           });
 
@@ -2695,10 +2761,12 @@
       if (!card || !title || !desc || !btn) return;
 
       title.innerText = `🛑 【${day}】連假停練設定：`;
+      const nextMatchDate = getNextWeekMatchDate(targetMatchDate);
+
       if (currentSettingHolidayPause) {
         card.style.background = '#fef2f2';
         card.style.borderColor = '#f87171';
-        desc.innerHTML = `⚠️ <b style="color:#b91c1c;">本場賽事 (${targetMatchDate}) 已設定連假停練一次</b><br><span style="color:#991b1b;">球道保留原有位置並標記 🚫，空位鎖定為「🚫 停練一次」，09:20 暫停輪調</span>`;
+        desc.innerHTML = `⚠️ <b style="color:#b91c1c;">本場賽事 (${targetMatchDate}) 已設定停練一次！</b><br><span style="color:#991b1b; line-height:1.6; display:inline-block; margin-top:2px;">• 頂部自動公告停練，賽事日期順延顯示隔週預排 (${nextMatchDate})<br>• ${targetMatchDate} 09:20 暫停輪調一次並自動取消停練(無須手動取消停練)</span>`;
         btn.innerText = '🟢 取消停練 (恢復打球)';
         btn.style.background = '#16a34a';
       } else {
@@ -2848,7 +2916,17 @@
       document.getElementById('settingsModal').style.display = 'none';
     }
 
+    let lastRelocateNoticeTimestamp = 0;
+
     async function saveSettings() {
+      if (isActionInProgress) return;
+      isActionInProgress = true;
+      const btnSave = document.getElementById('btnSaveSettings');
+      if (btnSave) {
+        btnSave.disabled = true;
+        btnSave.innerText = '處理中...';
+      }
+
       const openLanesStr = Array.from(selectedOpenLanes).join(',') || '無';
       const staffLanesStr = Array.from(selectedStaffLanes).join(',') || '無';
       const rInput = document.querySelector('input[name="rotateMode"]:checked');
@@ -2876,7 +2954,8 @@
       closedLanes.forEach(lk => {
         const laneObj = currentDayData.find(l => l && l.lane === lk);
         if (laneObj && laneObj.players) {
-          laneObj.players.forEach((p, idx) => {
+          const playersArr = Array.isArray(laneObj.players) ? laneObj.players : Object.values(laneObj.players);
+          playersArr.forEach((p, idx) => {
             if (p && p.name && p.name !== '[開放入座]') {
               affectedPlayers.push({
                 name: p.name,
@@ -2893,13 +2972,28 @@
         const playerNames = affectedPlayers.map(p => p.name).join('、');
         const confirmMsg = `⚠️【${targetDay}賽事】${closedLanes.join('、')} 道目前有 ${affectedPlayers.length} 位隊友入座 (${playerNames})！\n\n確定關閉此道並由系統【智能自動移位】至其他開放球道嗎？\n（移位後將產生 LINE 標註通知）`;
         customConfirm(confirmMsg, async (confirmed) => {
-          if (!confirmed) return;
+          if (!confirmed) {
+            isActionInProgress = false;
+            if (btnSave) {
+              btnSave.disabled = false;
+              btnSave.innerText = '儲存設定';
+            }
+            return;
+          }
           await executeSaveSettingsWithRelocate(targetDay, openLanesStr, staffLanesStr, rotateMode, closedLanes, affectedPlayers, targetPauseDate);
         });
         return;
       }
 
-      await executeSaveSettings(targetDay, openLanesStr, staffLanesStr, rotateMode, targetPauseDate);
+      try {
+        await executeSaveSettings(targetDay, openLanesStr, staffLanesStr, rotateMode, targetPauseDate);
+      } finally {
+        isActionInProgress = false;
+        if (btnSave) {
+          btnSave.disabled = false;
+          btnSave.innerText = '儲存設定';
+        }
+      }
     }
 
     async function executeSaveSettings(targetDay, openLanesStr, staffLanesStr, rotateMode, targetPauseDate = '') {
@@ -2959,125 +3053,127 @@
     }
 
     async function executeSaveSettingsWithRelocate(targetDay, openLanesStr, staffLanesStr, rotateMode, closedLanes, affectedPlayers, targetPauseDate = '') {
-      const isMon = targetDay === '週一';
-      const targetDayKey = isMon ? 'mon' : 'thu';
-      const cfg = rawResponse ? rawResponse.config : {};
-      
-      showToast(`⏳ 正在為 ${affectedPlayers.length} 位隊友自動移位並儲存中...`, 0, true);
-
-      const currentDayData = (rawResponse && rawResponse.data && rawResponse.data[targetDayKey]) ? rawResponse.data[targetDayKey] : [];
-      const dayDataCopy = JSON.parse(JSON.stringify(currentDayData));
-
-      // 候選開放球道（優先排除工作人員專用道）
-      let openCandidateLanes = ALL_LANES.filter(lk => selectedOpenLanes.has(lk) && !selectedStaffLanes.has(lk));
-      if (openCandidateLanes.length === 0) {
-        openCandidateLanes = ALL_LANES.filter(lk => selectedOpenLanes.has(lk));
-      }
-
-      const relocatedList = [];
-      let playerIdx = 0;
-
-      // 依序搜尋第 1~8 席空位分配
-      for (let slot = 1; slot <= 8 && playerIdx < affectedPlayers.length; slot++) {
-        for (const lk of openCandidateLanes) {
-          if (playerIdx >= affectedPlayers.length) break;
-          let targetLaneObj = dayDataCopy.find(l => l && l.lane === lk);
-          if (!targetLaneObj) {
-            targetLaneObj = { lane: lk, players: [] };
-            dayDataCopy.push(targetLaneObj);
-          }
-          if (!targetLaneObj.players) targetLaneObj.players = [];
-          while (targetLaneObj.players.length < 8) targetLaneObj.players.push(null);
-
-          const curP = targetLaneObj.players[slot - 1];
-          if (!curP || !curP.name || curP.name === '[開放入座]') {
-            const p = affectedPlayers[playerIdx];
-            targetLaneObj.players[slot - 1] = {
-              name: p.name,
-              gender: p.gender,
-              code: ''
-            };
-            relocatedList.push({
-              name: p.name,
-              gender: p.gender,
-              oldLane: p.oldLane,
-              oldSlot: p.oldSlot,
-              newLane: lk,
-              newSlot: slot
-            });
-            playerIdx++;
-          }
-        }
-      }
-
-      // 清空被關閉球道上的席位
-      closedLanes.forEach(lk => {
-        const laneObj = dayDataCopy.find(l => l && l.lane === lk);
-        if (laneObj && laneObj.players) {
-          laneObj.players = [null, null, null, null, null, null, null];
-        }
-      });
-
-      // 1. 同步更新 Firebase RTDB
-      if (rtdb) {
-        rtdb.ref(`data/${targetDayKey}`).set(dayDataCopy).catch(e => console.warn('Firebase RTDB day update error:', e));
-        const cfgUpdate = {};
-        if (isMon) {
-          cfgUpdate.monOpenLanes = openLanesStr;
-          cfgUpdate.monStaffLanes = staffLanesStr;
-          cfgUpdate.monRotateMode = rotateMode;
-          cfgUpdate.monPauseDate = targetPauseDate;
-        } else {
-          cfgUpdate.thuOpenLanes = openLanesStr;
-          cfgUpdate.thuStaffLanes = staffLanesStr;
-          cfgUpdate.thuRotateMode = rotateMode;
-          cfgUpdate.thuPauseDate = targetPauseDate;
-        }
-        rtdb.ref('config').update(cfgUpdate).catch(e => console.warn('Firebase config error:', e));
-      }
-
-      // 2. 更新本地記憶體
-      if (rawResponse && rawResponse.data) {
-        rawResponse.data[targetDayKey] = dayDataCopy;
-      }
-      if (isMon) {
-        localStorage.setItem('bowling_mon_open_lanes', openLanesStr);
-        localStorage.setItem('bowling_mon_staff_lanes', staffLanesStr);
-        localStorage.setItem('bowling_mon_pause_date', targetPauseDate);
-      } else {
-        localStorage.setItem('bowling_thu_open_lanes', openLanesStr);
-        localStorage.setItem('bowling_thu_staff_lanes', staffLanesStr);
-        localStorage.setItem('bowling_thu_pause_date', targetPauseDate);
-      }
-
-      if (rawResponse && rawResponse.config) {
-        if (isMon) {
-          rawResponse.config.monOpenLanes = openLanesStr;
-          rawResponse.config.monStaffLanes = staffLanesStr;
-          rawResponse.config.monRotateMode = rotateMode;
-          rawResponse.config.monPauseDate = targetPauseDate;
-        } else {
-          rawResponse.config.thuOpenLanes = openLanesStr;
-          rawResponse.config.thuStaffLanes = staffLanesStr;
-          rawResponse.config.thuRotateMode = rotateMode;
-          rawResponse.config.thuPauseDate = targetPauseDate;
-        }
-      }
-
-      // 3. 後端更新設定並同步試算表
+      const btnSave = document.getElementById('btnSaveSettings');
       try {
-        const url = `${API_BASE}?action=updateSettings&openLanes=${encodeURIComponent(openLanesStr)}&staffLanes=${encodeURIComponent(staffLanesStr)}&rotateMode=${encodeURIComponent(rotateMode)}&day=${encodeURIComponent(targetDay)}&pauseDate=${encodeURIComponent(targetPauseDate)}`;
-        fetch(url).catch(e => console.warn('Update settings err:', e));
+        const isMon = targetDay === '週一';
+        const targetDayKey = isMon ? 'mon' : 'thu';
+        const cfg = rawResponse ? rawResponse.config : {};
+        
+        showToast(`⏳ 正在為 ${affectedPlayers.length} 位隊友自動移位並儲存中...`, 0, true);
 
-        const syncData = { [targetDayKey]: dayDataCopy };
-        const syncUrl = `${API_BASE}?action=batchSyncLanes&data=${encodeURIComponent(JSON.stringify(syncData))}`;
-        fetch(syncUrl).catch(e => console.warn('Batch sync err:', e));
-      } catch (err) {
-        console.warn('Backend sync calls error:', err);
-      }
+        const currentDayData = (rawResponse && rawResponse.data && rawResponse.data[targetDayKey]) ? rawResponse.data[targetDayKey] : [];
+        const dayDataCopy = JSON.parse(JSON.stringify(currentDayData));
 
-      closeSettingsModal();
-      renderAll();
+        // 候選開放球道（優先排除工作人員專用道）
+        let openCandidateLanes = ALL_LANES.filter(lk => selectedOpenLanes.has(lk) && !selectedStaffLanes.has(lk));
+        if (openCandidateLanes.length === 0) {
+          openCandidateLanes = ALL_LANES.filter(lk => selectedOpenLanes.has(lk));
+        }
+
+        const relocatedList = [];
+        let playerIdx = 0;
+
+        // 依序搜尋第 1~8 席空位分配
+        for (let slot = 1; slot <= 8 && playerIdx < affectedPlayers.length; slot++) {
+          for (const lk of openCandidateLanes) {
+            if (playerIdx >= affectedPlayers.length) break;
+            let targetLaneObj = dayDataCopy.find(l => l && l.lane === lk);
+            if (!targetLaneObj) {
+              targetLaneObj = { lane: lk, players: [] };
+              dayDataCopy.push(targetLaneObj);
+            }
+            if (!targetLaneObj.players) targetLaneObj.players = [];
+            while (targetLaneObj.players.length < 8) targetLaneObj.players.push(null);
+
+            const curP = targetLaneObj.players[slot - 1];
+            if (!curP || !curP.name || curP.name === '[開放入座]') {
+              const p = affectedPlayers[playerIdx];
+              targetLaneObj.players[slot - 1] = {
+                name: p.name,
+                gender: p.gender,
+                code: ''
+              };
+              relocatedList.push({
+                name: p.name,
+                gender: p.gender,
+                oldLane: p.oldLane,
+                oldSlot: p.oldSlot,
+                newLane: lk,
+                newSlot: slot
+              });
+              playerIdx++;
+            }
+          }
+        }
+
+        // 清空被關閉球道上的席位 (確保完整清空 8 席)
+        closedLanes.forEach(lk => {
+          const laneObj = dayDataCopy.find(l => l && l.lane === lk);
+          if (laneObj && laneObj.players) {
+            laneObj.players = Array(8).fill(null);
+          }
+        });
+
+        // 1. 同步更新 Firebase RTDB
+        if (rtdb) {
+          rtdb.ref(`data/${targetDayKey}`).set(dayDataCopy).catch(e => console.warn('Firebase RTDB day update error:', e));
+          const cfgUpdate = {};
+          if (isMon) {
+            cfgUpdate.monOpenLanes = openLanesStr;
+            cfgUpdate.monStaffLanes = staffLanesStr;
+            cfgUpdate.monRotateMode = rotateMode;
+            cfgUpdate.monPauseDate = targetPauseDate;
+          } else {
+            cfgUpdate.thuOpenLanes = openLanesStr;
+            cfgUpdate.thuStaffLanes = staffLanesStr;
+            cfgUpdate.thuRotateMode = rotateMode;
+            cfgUpdate.thuPauseDate = targetPauseDate;
+          }
+          rtdb.ref('config').update(cfgUpdate).catch(e => console.warn('Firebase config error:', e));
+        }
+
+        // 2. 更新本地記憶體
+        if (rawResponse && rawResponse.data) {
+          rawResponse.data[targetDayKey] = dayDataCopy;
+        }
+        if (isMon) {
+          localStorage.setItem('bowling_mon_open_lanes', openLanesStr);
+          localStorage.setItem('bowling_mon_staff_lanes', staffLanesStr);
+          localStorage.setItem('bowling_mon_pause_date', targetPauseDate);
+        } else {
+          localStorage.setItem('bowling_thu_open_lanes', openLanesStr);
+          localStorage.setItem('bowling_thu_staff_lanes', staffLanesStr);
+          localStorage.setItem('bowling_thu_pause_date', targetPauseDate);
+        }
+
+        if (rawResponse && rawResponse.config) {
+          if (isMon) {
+            rawResponse.config.monOpenLanes = openLanesStr;
+            rawResponse.config.monStaffLanes = staffLanesStr;
+            rawResponse.config.monRotateMode = rotateMode;
+            rawResponse.config.monPauseDate = targetPauseDate;
+          } else {
+            rawResponse.config.thuOpenLanes = openLanesStr;
+            rawResponse.config.thuStaffLanes = staffLanesStr;
+            rawResponse.config.thuRotateMode = rotateMode;
+            rawResponse.config.thuPauseDate = targetPauseDate;
+          }
+        }
+
+        // 3. 後端更新設定並同步試算表
+        try {
+          const url = `${API_BASE}?action=updateSettings&openLanes=${encodeURIComponent(openLanesStr)}&staffLanes=${encodeURIComponent(staffLanesStr)}&rotateMode=${encodeURIComponent(rotateMode)}&day=${encodeURIComponent(targetDay)}&pauseDate=${encodeURIComponent(targetPauseDate)}`;
+          fetch(url).catch(e => console.warn('Update settings err:', e));
+
+          const syncData = { [targetDayKey]: dayDataCopy };
+          const syncUrl = `${API_BASE}?action=batchSyncLanes&data=${encodeURIComponent(JSON.stringify(syncData))}`;
+          fetch(syncUrl).catch(e => console.warn('Batch sync err:', e));
+        } catch (err) {
+          console.warn('Backend sync calls error:', err);
+        }
+
+        closeSettingsModal();
+        renderAll();
 
         // 4. 組裝 LINE 異動通知 (含星期、日期、版本2結尾叮嚀)
         const dateDisplay = getFormattedMatchDate(targetDay, isMon ? cfg.monDate : cfg.thuDate).replace('/', '-');
@@ -3092,20 +3188,31 @@
         });
         notice += `\n👉 敬請相關隊友留意！如需更換球道可至系統自行重選，或隨時告知幹部協助調整，謝謝！🙏`;
 
-      currentRelocateNotice = notice;
+        currentRelocateNotice = notice;
 
-      // 5. 呼叫後端 LINE 推播 (帶入隊員清單比對 LINE_ID)
-      try {
-        const lineNoticeUrl = `${API_BASE}?action=sendRelocateNotice&day=${encodeURIComponent(targetDay)}&noticeText=${encodeURIComponent(notice)}&playersJson=${encodeURIComponent(JSON.stringify(relocatedList))}`;
-        fetch(lineNoticeUrl).then(r => r.json()).then(res => {
-          if (res && res.status === 'success') {
-            showToast(res.message, 3000, false);
-          }
-        }).catch(e => console.warn('Line notice fetch err:', e));
-      } catch (ne) {}
+        // 5. 呼叫後端 LINE 推播 (帶入隊員清單比對 LINE_ID) - 嚴格單次防重護盾 (5秒內不重複觸發)
+        const now = Date.now();
+        if (now - lastRelocateNoticeTimestamp > 5000) {
+          lastRelocateNoticeTimestamp = now;
+          try {
+            const lineNoticeUrl = `${API_BASE}?action=sendRelocateNotice&day=${encodeURIComponent(targetDay)}&noticeText=${encodeURIComponent(notice)}&playersJson=${encodeURIComponent(JSON.stringify(relocatedList))}`;
+            fetch(lineNoticeUrl).then(r => r.json()).then(res => {
+              if (res && res.status === 'success') {
+                showToast(res.message, 3000, false);
+              }
+            }).catch(e => console.warn('Line notice fetch err:', e));
+          } catch (ne) {}
+        }
 
-      showToast(`🎉 已成功自動移位 ${relocatedList.length} 位隊友！`, 3000, false);
-      openRelocateNoticeModal(notice);
+        showToast(`🎉 已成功自動移位 ${relocatedList.length} 位隊友！`, 3000, false);
+        openRelocateNoticeModal(notice);
+      } finally {
+        isActionInProgress = false;
+        if (btnSave) {
+          btnSave.disabled = false;
+          btnSave.innerText = '儲存設定';
+        }
+      }
     }
 
     function openRelocateNoticeModal(notice) {

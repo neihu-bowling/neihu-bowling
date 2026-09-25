@@ -1449,7 +1449,25 @@
         const val = snapshot.val();
         if (val) {
           if (!rawResponse) rawResponse = { status: 'success', data: {}, config: {}, members: [] };
-          rawResponse.members = Array.isArray(val) ? val : Object.values(val);
+          const incomingList = Array.isArray(val) ? val : Object.values(val);
+          // 智慧補丁：若 Firebase 現存資料缺少年次加分，保留記憶體或快取中已有的年次加分欄位
+          const existingMap = {};
+          (rawResponse.members || []).forEach(m => {
+            if (m && m.name) existingMap[m.name] = m;
+          });
+          rawResponse.members = incomingList.map(m => {
+            if (!m) return m;
+            const ex = existingMap[m.name];
+            return {
+              code: m.code || (ex ? ex.code : ''),
+              name: m.name,
+              gender: m.gender || (ex ? ex.gender : '男生'),
+              birthYear: m.birthYear || (ex ? ex.birthYear : ''),
+              handicap: (m.handicap !== undefined && m.handicap !== '') ? m.handicap : (ex ? ex.handicap : '0'),
+              lineId: m.lineId || (ex ? ex.lineId : ''),
+              pin: m.pin || (ex ? ex.pin : '')
+            };
+          });
           try {
             localStorage.setItem('bowling_cache_members', JSON.stringify(rawResponse.members));
             localStorage.setItem('bowling_cache_raw', JSON.stringify(rawResponse));
@@ -1828,6 +1846,13 @@
           }
           try {
             localStorage.setItem('bowling_cache_raw', JSON.stringify(rawResponse));
+            if (rawResponse.members && rawResponse.members.length > 0) {
+              localStorage.setItem('bowling_cache_members', JSON.stringify(rawResponse.members));
+              // 若 Firebase 上的隊員名單尚未同步年次加分，自動更新 Firebase
+              if (rtdb && isFirebaseReady) {
+                rtdb.ref('members').set(rawResponse.members).catch(() => {});
+              }
+            }
           } catch (se) {}
           if (!window.hasInit) {
             currentDay = getAutoDefaultDay();
@@ -3028,6 +3053,24 @@
 
       renderMemberListUI();
       document.getElementById('memberMgmtModal').style.display = 'flex';
+
+      // ★ 背景靜默補齊：若隊員名單中尚未載入年次（如初次開機或舊快取），立即向後端非同步抓取完整母檔並無感刷新
+      const curList = (rawResponse && rawResponse.members) ? rawResponse.members : [];
+      const hasAnyBirthYear = curList.some(m => m.birthYear);
+      if (!hasAnyBirthYear && API_BASE && API_BASE.includes('AKfycb')) {
+        safeFetchJson(`${API_BASE}?api=1&_t=${Date.now()}`, 1).then(res => {
+          if (res && res.status === 'success' && res.members && res.members.length > 0) {
+            if (!rawResponse) rawResponse = res;
+            else rawResponse.members = res.members;
+            try {
+              localStorage.setItem('bowling_cache_members', JSON.stringify(res.members));
+              localStorage.setItem('bowling_cache_raw', JSON.stringify(rawResponse));
+            } catch (e) {}
+            const searchVal = document.getElementById('memberSearchInput') ? document.getElementById('memberSearchInput').value.trim().toLowerCase() : '';
+            renderMemberListUI(searchVal);
+          }
+        }).catch(err => console.warn('Member modal silent refresh err:', err));
+      }
     }
 
     function closeMemberMgmtModal() {
@@ -3087,8 +3130,13 @@
         // PIN 碼 (純顯示數字或未設，字體放大至 14px)
         const pinDisp = m.pin ? `<span style="font-family:monospace; font-weight:900; color:#0369a1; font-size:14px;">${m.pin}</span>` : '<span style="color:#94a3b8; font-size:12px;">未設</span>';
         
-        // 年次與加分顯示 (字體放大至 14px)
-        const handicapDisp = (m.handicap !== undefined && m.handicap !== '' && String(m.handicap) !== '0') ? `<span style="color:#b45309; font-weight:900; font-size:14px;">+${m.handicap}</span>` : '<span style="color:#94a3b8; font-size:14px;">+0</span>';
+        // 年次與加分顯示 (若 handicap 未設或為0，但有年次時，自動即時計算加分保障精準顯示)
+        let calcHandicap = (m.handicap !== undefined && m.handicap !== '' && String(m.handicap) !== '0') ? String(m.handicap) : '';
+        if ((!calcHandicap || calcHandicap === '0') && m.birthYear) {
+          const autoVal = calculateHandicap(m.gender, m.birthYear);
+          if (autoVal > 0) calcHandicap = String(autoVal);
+        }
+        const handicapDisp = (calcHandicap && calcHandicap !== '0') ? `<span style="color:#b45309; font-weight:900; font-size:14px;">+${calcHandicap}</span>` : '<span style="color:#94a3b8; font-size:14px;">+0</span>';
         const byDisp = m.birthYear ? `<span style="font-size:14px; font-weight:bold; color:#1e293b;">${m.birthYear}</span>` : '<span style="color:#cbd5e1; font-size:12px;">--</span>';
 
         const rowBg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';

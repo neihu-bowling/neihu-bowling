@@ -30,6 +30,12 @@
       padding: 8px;
       max-width: 600px;
       margin: 0 auto;
+      /* ★ 全域防縮放變形第 1 盾：禁止手機瀏覽器私自篡改字級造成跑版 */
+      -webkit-text-size-adjust: 100% !important;
+      -moz-text-size-adjust: 100% !important;
+      -ms-text-size-adjust: 100% !important;
+      text-size-adjust: 100% !important;
+      overflow-x: hidden;
     }
     body.theme-thu {
       background-color: #f0f4f8 !important;
@@ -168,11 +174,20 @@
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 8px;
+      /* ★ 全域防縮放變形第 2 盾：防止雙欄在過度放大時擠成一團 */
+      width: 100%;
+      box-sizing: border-box;
+    }
+    @media (max-width: 320px) {
+      .grid-container {
+        gap: 4px;
+      }
     }
     .col-space {
       display: flex;
       flex-direction: column;
       gap: 8px;
+      min-width: 0;
     }
     .table-bordered {
       border-collapse: collapse;
@@ -180,6 +195,7 @@
       background-color: #ffffff;
       box-shadow: 0 1px 2px rgba(0,0,0,0.05);
       border: 1px solid #334155;
+      table-layout: fixed;
     }
     .table-bordered th, .table-bordered td {
       border: 1px solid #334155;
@@ -191,6 +207,9 @@
       max-height: 24px;
       vertical-align: middle;
       box-sizing: border-box;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: clip;
     }
     .lane-box-header-thu {
       background-color: #bfdbfe !important;
@@ -414,7 +433,10 @@
       z-index: 9999;
       align-items: center;
       justify-content: center;
-      padding: 12px;
+      padding: 10px;
+      /* ★ 全域防縮放變形第 3 盾：支援超大縮放時的外層平滑滾動 */
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
     }
     #confirmDialogModal {
       z-index: 10005 !important;
@@ -423,9 +445,14 @@
       background: #ffffff;
       border-radius: 16px;
       width: 100%;
-      max-width: 360px;
+      max-width: 380px;
       padding: 16px;
       box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+      max-height: 90vh;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      margin: auto;
+      box-sizing: border-box;
     }
     .modal-btn {
       width: 100%;
@@ -1166,12 +1193,12 @@
         </div>
       </div>
 
-      <!-- 隊員清單列表 (100% 滿版無橫向滾動，各欄位精準佈局不重疊) -->
-      <div style="flex:1; border:1px solid #e2e8f0; border-radius:6px; background:#ffffff; overflow:hidden; display:flex; flex-direction:column; min-height:260px; max-height:56vh;">
-        <!-- 固定標題列 (100% 寬度適應，不左右移動，標題加大至 13px) -->
-        <div style="display:grid; grid-template-columns: 38px 1fr 28px 36px 36px 58px 44px 40px; background:#f1f5f9; border-bottom:1.5px solid #cbd5e1; padding:8px 3px; font-size:13px; font-weight:900; color:#334155; text-align:center; flex-shrink:0; white-space:nowrap; width:100%; box-sizing:border-box;">
+      <!-- 隊員清單列表 (平時滿版，超大縮放時自動提供安全平滑橫向滑動，字級永不折行) -->
+      <div style="flex:1; border:1px solid #e2e8f0; border-radius:6px; background:#ffffff; overflow-x:auto; overflow-y:hidden; display:flex; flex-direction:column; min-height:260px; max-height:56vh; -webkit-overflow-scrolling:touch;">
+        <!-- 固定標題列 (100% 寬度適應，標題加大至 13px) -->
+        <div style="display:grid; grid-template-columns: 38px 1fr 28px 36px 36px 58px 44px 40px; background:#f1f5f9; border-bottom:1.5px solid #cbd5e1; padding:8px 3px; font-size:13px; font-weight:900; color:#334155; text-align:center; flex-shrink:0; white-space:nowrap; width:100%; min-width:350px; box-sizing:border-box;">
           <div>編號</div>
-          <div style="text-align:left; padding-left:2px;">姓名</div>
+          <div style="text-align:center;">姓名</div>
           <div>性別</div>
           <div>年次</div>
           <div>加分</div>
@@ -1181,7 +1208,7 @@
         </div>
 
         <!-- 滾動內容清單 -->
-        <div id="memberListScrollArea" style="flex:1; overflow-y:auto; overflow-x:hidden; width:100%; box-sizing:border-box;">
+        <div id="memberListScrollArea" style="flex:1; overflow-y:auto; overflow-x:hidden; width:100%; min-width:350px; box-sizing:border-box;">
           <!-- 動態渲染隊員卡片 -->
         </div>
       </div>
@@ -3051,9 +3078,9 @@
         const rowBg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
 
         html += `
-          <div style="display:grid; grid-template-columns: 38px 1fr 28px 36px 36px 58px 44px 40px; align-items:center; background:${rowBg}; border-bottom:1px solid #f1f5f9; padding:7px 3px; text-align:center; white-space:nowrap; width:100%; box-sizing:border-box;">
+          <div style="display:grid; grid-template-columns: 38px 1fr 28px 36px 36px 58px 44px 40px; align-items:center; background:${rowBg}; border-bottom:1px solid #f1f5f9; padding:7px 3px; text-align:center; white-space:nowrap; width:100%; min-width:350px; box-sizing:border-box;">
             <div>${codeDisp}</div>
-            <div style="text-align:left; padding-left:2px; overflow:hidden; text-overflow:ellipsis;">
+            <div style="text-align:center; overflow:hidden; text-overflow:ellipsis;">
               <span class="${nameClass}" style="font-size:16px !important; font-weight:900 !important; cursor:pointer;" onclick="openEditMemberForm('${m.name}')">${m.name}</span>
             </div>
             <div>${genderBadge}</div>

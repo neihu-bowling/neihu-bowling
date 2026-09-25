@@ -729,9 +729,9 @@
   <div id="adminToolbar" class="admin-bar" style="display: none;">
     <div>👑 管理者模式已解鎖</div>
     <div style="display:flex; gap:6px;">
-      <button onclick="openMemberMgmtModal()" style="background:#2563eb; color:#fff; border:none; padding:4px 9px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:12px;">👥 隊員管理</button>
-      <button onclick="openSettingsModal()" style="background:#d97706; color:#fff; border:none; padding:4px 9px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:12px;">⚙️ 賽事設定</button>
-      <button onclick="logoutAdmin()" style="background:#e2e8f0; color:#334155; border:none; padding:4px 8px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:12px;">登出</button>
+      <button onclick="openMemberMgmtModal()" style="background:#1d4ed8; color:#ffffff; border:1px solid #1e40af; padding:5px 11px; border-radius:6px; font-weight:900; cursor:pointer; font-size:12.5px; display:inline-flex; align-items:center; gap:5px; box-shadow:0 1px 2px rgba(0,0,0,0.15);"><span style="filter:drop-shadow(0 0 1px #fff);">👥</span> 隊員管理</button>
+      <button onclick="openSettingsModal()" style="background:#d97706; color:#ffffff; border:1px solid #b45309; padding:5px 11px; border-radius:6px; font-weight:900; cursor:pointer; font-size:12.5px; display:inline-flex; align-items:center; gap:5px; box-shadow:0 1px 2px rgba(0,0,0,0.15);"><span>⚙️</span> 賽事設定</button>
+      <button onclick="logoutAdmin()" style="background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; padding:5px 10px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:12px;">登出</button>
     </div>
   </div>
 
@@ -1061,7 +1061,7 @@
 
   <!-- 3.1 隊員母檔管理彈窗 (幹部專用) -->
   <div id="memberMgmtModal" class="modal-overlay">
-    <div class="modal-card" style="max-width:540px; width:95%; max-height:92vh; display:flex; flex-direction:column; padding:14px 16px;">
+    <div class="modal-card" style="max-width:480px; width:96%; max-height:92vh; display:flex; flex-direction:column; padding:12px 14px;">
       <!-- 彈窗頂部：標題與關閉按鈕 -->
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid #e2e8f0; padding-bottom:8px;">
         <h3 style="font-size:16px; font-weight:900; color:#1e293b; margin:0; display:flex; align-items:center; gap:6px;">
@@ -1070,91 +1070,107 @@
         <button type="button" onclick="closeMemberMgmtModal()" style="border:none; background:transparent; font-size:20px; color:#64748b; cursor:pointer; padding:2px 6px; border-radius:4px; font-weight:bold;">✕</button>
       </div>
 
-      <!-- 搜尋與新增按鈕列 (搜尋字體放大至 15px) -->
+      <!-- 搜尋與新增按鈕列 (搜尋字體放大至 15px，按鈕提升高對比立體感) -->
       <div style="display:flex; gap:8px; margin-bottom:10px;">
         <input type="text" id="memberSearchInput" placeholder="🔍 搜尋隊員姓名或代號..." oninput="filterMemberListUI()" style="flex:1; padding:8px 12px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:15px; outline:none; background:#ffffff;">
-        <button type="button" onclick="openAddMemberForm()" class="quick-btn" style="background:#2563eb; color:#fff; border-color:#1d4ed8; padding:8px 14px; font-size:13px; font-weight:900; white-space:nowrap;">➕ 新增隊員</button>
+        <button type="button" onclick="openAddMemberForm()" class="quick-btn" style="background:#1d4ed8; color:#ffffff; border-color:#1e40af; padding:8px 13px; font-size:13.5px; font-weight:900; white-space:nowrap; display:inline-flex; align-items:center; gap:5px; box-shadow:0 1px 2px rgba(0,0,0,0.1);"><span style="filter:drop-shadow(0 0 1px #fff); font-size:15px;">➕</span> 新增隊員</button>
       </div>
 
-      <!-- 新增 / 編輯 表單卡片 (預設隱藏，點擊新增或編輯時展開) -->
-      <div id="memberEditCard" style="display:none; background:#f0fdf4; border:1.5px solid #86efac; border-radius:8px; padding:14px; margin-bottom:12px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-          <span id="memberEditFormTitle" style="font-weight:900; font-size:16px; color:#166534;">➕ 新增隊友建檔</span>
-          <button type="button" onclick="closeMemberEditCard()" style="border:none; background:transparent; font-size:15px; color:#64748b; cursor:pointer; font-weight:bold;">✕ 取消</button>
+      <!-- 新增 / 編輯 表單卡片 (規整 2 欄對稱整齊網格，刪除按鈕移至標題列右側) -->
+      <div id="memberEditCard" style="display:none; background:#f0fdf4; border:1.5px solid #86efac; border-radius:8px; padding:12px 14px; margin-bottom:10px;">
+        <!-- 表單頂部標題列：左側標題、右側刪除與取消按鈕 -->
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding-bottom:6px; border-bottom:1px dashed #bbf7d0;">
+          <div style="display:flex; align-items:center; gap:8px; flex:1; min-width:0;">
+            <span id="memberEditFormTitle" style="font-weight:900; font-size:15px; color:#166534; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">➕ 新增隊友建檔</span>
+            <button type="button" id="btnDeleteMember" onclick="deleteMemberData()" style="display:none; padding:3px 8px; border:1px solid #ef4444; background:#fef2f2; color:#dc2626; border-radius:4px; font-size:12px; font-weight:900; cursor:pointer; height:26px; line-height:18px; white-space:nowrap;">🗑️ 刪除</button>
+          </div>
+          <button type="button" onclick="closeMemberEditCard()" style="border:none; background:transparent; font-size:14px; color:#64748b; cursor:pointer; font-weight:bold; padding:2px 4px;">✕ 取消</button>
         </div>
         <input type="hidden" id="editOriginalName" value="">
-        <div style="display:grid; grid-template-columns: 1.1fr 1.5fr; gap:10px; margin-bottom:10px;">
+
+        <!-- 第 1 列：代號 ｜ 姓名 -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
           <div>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
               <label style="font-size:13.5px; font-weight:bold; color:#1e293b;">代號 (3碼)：</label>
-              <select id="editMemberCodeHelper" onchange="applyCodeHelper(this.value)" style="font-size:12px; padding:2px 4px; border:1px solid #94a3b8; border-radius:4px; background:#f8fafc; color:#1e40af; cursor:pointer;">
+              <select id="editMemberCodeHelper" onchange="applyCodeHelper(this.value)" style="font-size:11.5px; padding:1px 4px; border:1px solid #94a3b8; border-radius:4px; background:#f8fafc; color:#1e40af; cursor:pointer;">
                 <option value="">💡 選擇號碼...</option>
               </select>
             </div>
-            <input type="text" id="editMemberCode" maxlength="3" placeholder="如 001、152" style="width:100%; padding:8px 10px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:15px; text-align:center; font-family:monospace; font-weight:bold; background:#fff;">
+            <input type="text" id="editMemberCode" maxlength="3" placeholder="如 001、152" style="width:100%; padding:7px 10px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:15px; text-align:center; font-family:monospace; font-weight:bold; background:#fff;">
           </div>
           <div>
             <label style="font-size:13.5px; font-weight:bold; color:#1e293b; display:block; margin-bottom:4px;">隊員姓名：</label>
-            <input type="text" id="editMemberName" placeholder="輸入真實姓名" style="width:100%; padding:8px 10px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:15px; font-weight:bold; background:#fff;">
+            <input type="text" id="editMemberName" placeholder="輸入真實姓名" style="width:100%; padding:7px 10px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:15px; font-weight:bold; background:#fff;">
           </div>
         </div>
-        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-bottom:10px;">
+
+        <!-- 第 2 列：性別 ｜ 年次 -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
           <div>
             <label style="font-size:13.5px; font-weight:bold; color:#1e293b; display:block; margin-bottom:4px;">性別：</label>
-            <select id="editMemberGender" onchange="autoCalcEditHandicap()" style="width:100%; padding:8px 6px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:15px; background:#fff; font-weight:bold;">
+            <select id="editMemberGender" onchange="autoCalcEditHandicap()" style="width:100%; padding:7px 8px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:15px; background:#fff; font-weight:bold;">
               <option value="男生">男生</option>
               <option value="女生">女生</option>
             </select>
           </div>
           <div>
             <label style="font-size:13.5px; font-weight:bold; color:#1e293b; display:block; margin-bottom:4px;">年次：</label>
-            <input type="number" id="editMemberBirthYear" oninput="autoCalcEditHandicap()" placeholder="如 58" style="width:100%; padding:8px 8px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:15px; text-align:center; background:#fff;">
+            <input type="number" id="editMemberBirthYear" oninput="autoCalcEditHandicap()" placeholder="如 58" style="width:100%; padding:7px 8px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:15px; text-align:center; background:#fff;">
           </div>
+        </div>
+
+        <!-- 第 3 列：加分 (自動) ｜ PIN 碼 (4碼) -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
           <div>
             <label style="font-size:13.5px; font-weight:bold; color:#1e293b; display:block; margin-bottom:4px;">加分 (自動)：</label>
-            <input type="number" id="editMemberHandicap" placeholder="0" style="width:100%; padding:8px 8px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:15px; text-align:center; font-weight:900; color:#047857; background:#fff;">
+            <input type="number" id="editMemberHandicap" placeholder="0" style="width:100%; padding:7px 8px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:15px; text-align:center; font-weight:900; color:#047857; background:#fff;">
           </div>
-        </div>
-        <div style="display:grid; grid-template-columns: 1fr 1.5fr; gap:10px; margin-bottom:12px;">
           <div>
             <label style="font-size:13.5px; font-weight:bold; color:#1e293b; display:block; margin-bottom:4px;">PIN 碼 (4碼)：</label>
-            <input type="text" id="editMemberPin" maxlength="4" placeholder="未設留空" style="width:100%; padding:8px 10px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:15px; text-align:center; font-family:monospace; background:#fff;">
-          </div>
-          <div id="editMemberLineBox" style="display:flex; flex-direction:column; justify-content:flex-end;">
-            <span id="editMemberLineStatus" style="font-size:13px; color:#475569; margin-bottom:6px; font-weight:bold;">LINE：未綁定</span>
-            <button type="button" id="btnUnbindLine" onclick="unbindMemberLine()" style="display:none; padding:6px 10px; border:1px solid #ef4444; background:#fef2f2; color:#b91c1c; border-radius:5px; font-size:12.5px; cursor:pointer; font-weight:bold;">🔓 解除 LINE 綁定</button>
+            <input type="text" id="editMemberPin" maxlength="4" placeholder="未設留空" style="width:100%; padding:7px 8px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:15px; text-align:center; font-family:monospace; background:#fff;">
           </div>
         </div>
+
+        <!-- 第 4 列：LINE 綁定狀態 ＋ 解除按鈕 -->
+        <div id="editMemberLineBox" style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:8px 10px; display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span style="font-size:13.5px; font-weight:bold; color:#1e293b;">LINE 狀態：</span>
+            <span id="editMemberLineStatus" style="font-size:13.5px; font-weight:bold; color:#475569;">⚪ 未綁定 LINE ID</span>
+          </div>
+          <button type="button" id="btnUnbindLine" onclick="unbindMemberLine()" style="display:none; padding:4px 8px; border:1px solid #ef4444; background:#fef2f2; color:#b91c1c; border-radius:4px; font-size:12px; cursor:pointer; font-weight:bold;">🔓 解除綁定</button>
+        </div>
+
+        <!-- 儲存操作列 -->
         <div style="display:flex; gap:8px;">
-          <button type="button" id="btnDeleteMember" onclick="deleteMemberData()" style="display:none; padding:8px 10px; border:1.5px solid #ef4444; background:#fef2f2; color:#dc2626; border-radius:6px; font-size:13.5px; font-weight:900; cursor:pointer; white-space:nowrap;">🗑️ 刪除</button>
           <button type="button" onclick="closeMemberEditCard()" class="quick-btn" style="flex:1; padding:8px; font-size:14px;">取消</button>
           <button type="button" id="btnSaveMember" onclick="saveMemberData()" class="quick-btn" style="flex:2; background:#16a34a; color:#fff; border-color:#15803d; font-weight:900; padding:8px; font-size:14.5px;">💾 儲存隊員</button>
         </div>
       </div>
 
-      <!-- 隊員卡片清單列表 (可滾動區，外層包裹水平捲軸防止手機破版) -->
-      <div style="flex:1; border:1px solid #e2e8f0; border-radius:6px; background:#ffffff; overflow-x:auto; overflow-y:hidden; display:flex; flex-direction:column; min-height:260px; max-height:56vh;">
-        <!-- 固定標題列 (滾動時不隨之移動) -->
-        <div style="display:grid; grid-template-columns: 46px 84px 44px 56px 46px 78px 60px 48px; background:#f1f5f9; border-bottom:1.5px solid #cbd5e1; padding:8px 8px; font-size:12px; font-weight:900; color:#475569; text-align:center; flex-shrink:0; white-space:nowrap; min-width:462px;">
+      <!-- 隊員清單列表 (100% 滿版無橫向滾動，各欄位精準佈局不重疊) -->
+      <div style="flex:1; border:1px solid #e2e8f0; border-radius:6px; background:#ffffff; overflow:hidden; display:flex; flex-direction:column; min-height:260px; max-height:56vh;">
+        <!-- 固定標題列 (100% 寬度適應，不左右移動) -->
+        <div style="display:grid; grid-template-columns: 36px 1fr 28px 34px 34px 58px 42px 42px; background:#f1f5f9; border-bottom:1.5px solid #cbd5e1; padding:8px 4px; font-size:12px; font-weight:900; color:#475569; text-align:center; flex-shrink:0; white-space:nowrap; width:100%; box-sizing:border-box;">
           <div>編號</div>
-          <div style="text-align:left; padding-left:4px;">姓名</div>
+          <div style="text-align:left; padding-left:2px;">姓名</div>
           <div>性別</div>
           <div>年次</div>
           <div>加分</div>
-          <div>LINE狀態</div>
-          <div>PIN碼</div>
+          <div>LINE</div>
+          <div>PIN</div>
           <div>操作</div>
         </div>
 
         <!-- 滾動內容清單 -->
-        <div id="memberListScrollArea" style="flex:1; overflow-y:auto; overflow-x:hidden; min-width:462px;">
+        <div id="memberListScrollArea" style="flex:1; overflow-y:auto; overflow-x:hidden; width:100%; box-sizing:border-box;">
           <!-- 動態渲染隊員卡片 -->
         </div>
       </div>
 
       <!-- 底部統計與關閉按鈕 -->
       <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; padding-top:8px; border-top:1px solid #e2e8f0;">
-        <span style="font-size:11.5px; color:#64748b;">提示：點擊任一隊友右側「✏️ 編輯」可修改資料</span>
+        <span style="font-size:11.5px; color:#64748b;">提示：點擊任一隊友「✏️」或姓名可修改</span>
         <button type="button" onclick="closeMemberMgmtModal()" class="quick-btn" style="padding:6px 14px; font-size:12px;">關閉</button>
       </div>
     </div>
@@ -2958,20 +2974,20 @@
         return;
       }
 
-      let html = '<div style="display:flex; flex-direction:column;">';
+      let html = '<div style="display:flex; flex-direction:column; width:100%; box-sizing:border-box;">';
       filtered.forEach((m, idx) => {
         const isFem = (m.gender === '女生' || m.gender === 'F');
         // 與報名球道表一致的大字體 (16px, 900)
         const nameClass = isFem ? 'female-text' : 'male-text';
-        const genderBadge = isFem ? '<span style="color:#db2777; background:#fce7f3; font-size:11px; padding:1px 5px; border-radius:3px; font-weight:bold;">女</span>' : '<span style="color:#2563eb; background:#eff6ff; font-size:11px; padding:1px 5px; border-radius:3px; font-weight:bold;">男</span>';
+        const genderBadge = isFem ? '<span style="color:#db2777; background:#fce7f3; font-size:10.5px; padding:1px 3px; border-radius:3px; font-weight:bold;">女</span>' : '<span style="color:#2563eb; background:#eff6ff; font-size:10.5px; padding:1px 3px; border-radius:3px; font-weight:bold;">男</span>';
         
         // 編號去掉 #，純數字 monospace 居中
         const codeDisp = m.code ? `<span style="font-family:monospace; font-weight:bold; color:#334155; font-size:12px;">${m.code}</span>` : '<span style="color:#cbd5e1; font-size:11px;">--</span>';
         
-        // LINE 狀態 (保留原本圖示，已綁定/未綁定)
-        const lineBadge = m.lineId ? '<span style="color:#15803d; font-size:11px; font-weight:bold; white-space:nowrap;" title="LINE已綁定">🟢 已綁定</span>' : '<span style="color:#94a3b8; font-size:11px; white-space:nowrap;" title="未綁定LINE">⚪ 未綁定</span>';
+        // LINE 狀態 (緊湊型：🟢 已綁 / ⚪ 未綁，保留原 ICON)
+        const lineBadge = m.lineId ? '<span style="color:#15803d; font-size:11px; font-weight:bold; white-space:nowrap;" title="LINE已綁定">🟢 已綁</span>' : '<span style="color:#94a3b8; font-size:11px; white-space:nowrap;" title="未綁定LINE">⚪ 未綁</span>';
         
-        // 取消 PIN 碼 ICON，純顯示數字或未設
+        // PIN 碼 (純顯示數字或未設)
         const pinDisp = m.pin ? `<span style="font-family:monospace; font-weight:bold; color:#0369a1; font-size:11.5px;">${m.pin}</span>` : '<span style="color:#cbd5e1; font-size:11px;">未設</span>';
         
         // 加分顯示
@@ -2981,9 +2997,9 @@
         const rowBg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
 
         html += `
-          <div style="display:grid; grid-template-columns: 46px 84px 44px 56px 46px 78px 60px 48px; align-items:center; background:${rowBg}; border-bottom:1px solid #f1f5f9; padding:7px 8px; text-align:center; white-space:nowrap;">
+          <div style="display:grid; grid-template-columns: 36px 1fr 28px 34px 34px 58px 42px 42px; align-items:center; background:${rowBg}; border-bottom:1px solid #f1f5f9; padding:7px 4px; text-align:center; white-space:nowrap; width:100%; box-sizing:border-box;">
             <div>${codeDisp}</div>
-            <div style="text-align:left; padding-left:4px; overflow:hidden; text-overflow:ellipsis;">
+            <div style="text-align:left; padding-left:2px; overflow:hidden; text-overflow:ellipsis;">
               <span class="${nameClass}" style="font-size:16px !important; font-weight:900 !important; cursor:pointer;" onclick="openEditMemberForm('${m.name}')">${m.name}</span>
             </div>
             <div>${genderBadge}</div>
@@ -2992,7 +3008,7 @@
             <div>${lineBadge}</div>
             <div>${pinDisp}</div>
             <div>
-              <button type="button" onclick="openEditMemberForm('${m.name}')" style="background:#f1f5f9; border:1px solid #cbd5e1; color:#334155; padding:3px 6px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;">✏️ 編輯</button>
+              <button type="button" onclick="openEditMemberForm('${m.name}')" style="background:#f1f5f9; border:1px solid #cbd5e1; color:#334155; padding:2px 5px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;">✏️</button>
             </div>
           </div>
         `;
@@ -3065,6 +3081,7 @@
       const pinInput = document.getElementById('editMemberPin');
       const lineStatus = document.getElementById('editMemberLineStatus');
       const unbindBtn = document.getElementById('btnUnbindLine');
+      const deleteBtn = document.getElementById('btnDeleteMember');
       const origName = document.getElementById('editOriginalName');
 
       const { missingCodes, nextCode } = populateCodeHelper();
@@ -3079,10 +3096,9 @@
       byInput.value = '';
       handicapInput.value = '0';
       pinInput.value = '';
-      lineStatus.innerText = 'LINE：未綁定 (新隊員)';
+      lineStatus.innerHTML = `<span style="color:#64748b; font-weight:bold;">⚪ 未綁定 LINE ID (新隊員)</span>`;
       unbindBtn.style.display = 'none';
 
-      const deleteBtn = document.getElementById('btnDeleteMember');
       if (deleteBtn) deleteBtn.style.display = 'none';
 
       card.style.display = 'block';
@@ -3109,7 +3125,7 @@
 
       populateCodeHelper(m.code);
 
-      title.innerText = `✏️ 編輯隊員【${m.name}】`;
+      title.innerText = `✏️ 編輯隊員：${m.name}`;
       origName.value = m.name;
       codeInput.value = m.code || '';
       nameInput.value = m.name || '';
@@ -3122,11 +3138,11 @@
         lineStatus.innerHTML = `<span style="color:#15803d; font-weight:bold;">🟢 已綁定 LINE ID</span>`;
         unbindBtn.style.display = 'block';
       } else {
-        lineStatus.innerText = 'LINE：未綁定';
+        lineStatus.innerHTML = `<span style="color:#64748b; font-weight:bold;">⚪ 未綁定 LINE ID</span>`;
         unbindBtn.style.display = 'none';
       }
 
-      if (deleteBtn) deleteBtn.style.display = 'block';
+      if (deleteBtn) deleteBtn.style.display = 'inline-block';
 
       card.style.display = 'block';
     }

@@ -1363,6 +1363,21 @@
   </div>
 
   <script>
+    // ★ 官方隊員出生年次母檔對照表 (0秒極速離線補底，即使雲端資料庫尚未載入也100%保證瞬間顯示)
+    const MEMBER_BIRTH_YEARS = {"許春德":40,"范良春":27,"盧富子":32,"高啟元":58,"張筠媗":64,"高義芳":38,"陳蓁蓁":41,"溫聰和":42,"王金英":46,"謝正楠":42,"江俞瑩":46,"許恆綻":63,"許瑜芳":64,"林新傳":45,"陳惠卿":52,"蘇其麟":47,"王雪梅":47,"沈參鵬":50,"徐學琳":51,"張烽雄":54,"張秀萍":53,"謝月華":32,"林佳樺":42,"周月雲":44,"謝宜廷":46,"黃麗芬":48,"李慧蓮":48,"連茉莉":49,"張 珩":49,"賴阿年":64,"范玲玲":63,"陳慧娟":52,"李葉青":54,"梁順貴":49,"陳書達":46,"王曉蓓":54,"賴建新":25,"張鎵䜢":54,"陳大中":29,"柯英彰":30,"彭世和":31,"林政毅":58,"吳丁友":37,"曹聖恩":73,"薛文智":60,"徐朝相":40,"林天仁":40,"李錫堯":42,"李揚順":42,"陳萱紅":49,"謝福明":43,"李英文":43,"崔永茂":43,"許昭濤":43,"李錦進":44,"伍財明":44,"黃應深":44,"陳輝強":44,"涂尉文":45,"游炎山":45,"何水勝":46,"何慶仁":46,"洪光蓮":46,"蘇慶松":46,"張建隆":47,"何進發":48,"陳松林":48,"楊文昌":49,"劉明圓":49,"張傳文":50,"王清順":50,"蔡鴻清":51,"陳英男":51,"莊佳璋":52,"黃專毅":65,"陳嘉慧":67,"張志忠":55,"劉麗美":45,"王金良":55,"曾賜美":49,"許國雄":57,"盧建瑋":60,"王振昌":61,"陳明冏":35,"周志堅":56,"李家橙":56,"高秉生":70,"郭冠宏":90,"曾侯嘉":80,"郭坤源":60,"陳健興":37,"吳崇儀":67,"張佳玲":47,"李家華":86,"林重君":63,"林禹譯":95,"陳安德":72,"黃啟聰":59,"林俊宇":73,"戴國榮":42,"李寶珠":47,"梅海龍":49,"楊文德":59,"張舉振":60,"賴秋旭":61,"周霈宜":84,"蘇俊瑋":89,"廖明松":52,"廖益豐":51,"伍玉娥":52,"馬婉婷":56,"楊金山":45,"李上源":47,"王益群":78,"詹建文":52,"林志強":59,"陳重男":54,"林明雄":63,"陳建華":63,"梁國增":73,"成益":70,"劉昱祥":66,"游志強":56,"依建新":50,"廖偉信":72,"高誠賢":50,"練建烈":46,"廖馨慧":47,"陳宏澤":60,"錢寶存":68,"高孟達":51,"孟憲強":86,"林政一":66,"陳美蓉":43,"涂義芳":57,"胡淑虹":59,"李文凱":80,"陳嘉庭":54,"鍾明德":61,"謝金釵":54,"楊惠雯":70,"李宛庭":46,"張靜楷":57,"蘇震一":53,"胡凱傑":84,"林長升":83,"戴國華":42};
+
+    function calculateHandicap(gender, birthYearStr) {
+      const by = parseInt(birthYearStr, 10);
+      if (isNaN(by)) return 0;
+      const currentYear = new Date().getFullYear();
+      const currentMinguoYear = currentYear - 1911; // 2026 -> 115
+      const age = currentMinguoYear - by;
+      const base = Math.max(0, age - 49);
+      const maleHandicap = base * 4;
+      const isFem = (gender === '女生' || gender === 'F');
+      return isFem ? (maleHandicap + 40) : maleHandicap;
+    }
+
     // ★★★ 請確認填入您的 Apps Script Web App URL ★★★
     const API_BASE = 'https://script.google.com/macros/s/AKfycbxsgDcINyj9LfuAEipn8J1YKPrTtBr0Bm1MPj29RRCeKuRb60ITretQ0PK2o4CL4XJV/exec';
     const LIFF_ID = '2011581133-do1d9yl8';
@@ -1457,13 +1472,18 @@
           });
           rawResponse.members = incomingList.map(m => {
             if (!m) return m;
-            const ex = existingMap[m.name];
+            const by = m.birthYear || (ex ? ex.birthYear : '') || (MEMBER_BIRTH_YEARS[m.name] ? String(MEMBER_BIRTH_YEARS[m.name]) : '');
+            let hc = (m.handicap !== undefined && m.handicap !== '' && String(m.handicap) !== '0') ? String(m.handicap) : (ex && ex.handicap ? String(ex.handicap) : '');
+            if ((!hc || hc === '0') && by) {
+              const autoVal = calculateHandicap(m.gender || (ex ? ex.gender : '男生'), by);
+              if (autoVal > 0) hc = String(autoVal);
+            }
             return {
               code: m.code || (ex ? ex.code : ''),
               name: m.name,
               gender: m.gender || (ex ? ex.gender : '男生'),
-              birthYear: m.birthYear || (ex ? ex.birthYear : ''),
-              handicap: (m.handicap !== undefined && m.handicap !== '') ? m.handicap : (ex ? ex.handicap : '0'),
+              birthYear: by,
+              handicap: hc || '0',
               lineId: m.lineId || (ex ? ex.lineId : ''),
               pin: m.pin || (ex ? ex.pin : '')
             };
@@ -1491,7 +1511,23 @@
         if (res && res.status === 'success' && rtdb) {
           if (res.data) rtdb.ref('data').set(res.data);
           if (res.config) rtdb.ref('config').set(res.config);
-          if (res.members) rtdb.ref('members').set(res.members);
+          if (res.members) {
+            const enrichedMembers = res.members.map(m => {
+              if (!m) return m;
+              const by = m.birthYear || (MEMBER_BIRTH_YEARS[m.name] ? String(MEMBER_BIRTH_YEARS[m.name]) : '');
+              const hc = (m.handicap !== undefined && m.handicap !== '' && String(m.handicap) !== '0') ? String(m.handicap) : (by ? String(calculateHandicap(m.gender, by)) : '0');
+              return {
+                code: m.code || '',
+                name: m.name,
+                gender: m.gender || '男生',
+                birthYear: by,
+                handicap: hc,
+                lineId: m.lineId || '',
+                pin: m.pin || ''
+              };
+            });
+            rtdb.ref('members').set(enrichedMembers);
+          }
           console.log('✅ Firebase 初始化成功！');
         }
       } catch (e) {
@@ -1792,8 +1828,17 @@
           } catch (ce) {}
         }
 
-        // ★ 0.05 秒極速秒查：若本地快取已有隊員名單，第一時間同步核對身分並秒彈 PIN 碼視窗！
+        // ★ 0.05 秒極速秒查：若本地快取已有隊員名單，第一時間補齊年次與加分，並同步核對身分
         if (rawResponse && rawResponse.members && rawResponse.members.length > 0) {
+          rawResponse.members.forEach(m => {
+            if (m && m.name) {
+              if (!m.birthYear && MEMBER_BIRTH_YEARS[m.name]) m.birthYear = String(MEMBER_BIRTH_YEARS[m.name]);
+              if ((!m.handicap || m.handicap === '0') && m.birthYear) {
+                const autoVal = calculateHandicap(m.gender || '男生', m.birthYear);
+                if (autoVal > 0) m.handicap = String(autoVal);
+              }
+            }
+          });
           checkAndPromptUserIdentity(rawResponse.members);
         }
 
@@ -1845,12 +1890,18 @@
               rawResponse.members = res.members.map(m => {
                 if (!m) return m;
                 const ex = curMap[m.name];
+                const by = m.birthYear || (ex ? ex.birthYear : '') || (MEMBER_BIRTH_YEARS[m.name] ? String(MEMBER_BIRTH_YEARS[m.name]) : '');
+                let hc = (m.handicap !== undefined && m.handicap !== '' && String(m.handicap) !== '0') ? String(m.handicap) : (ex && ex.handicap ? String(ex.handicap) : '');
+                if ((!hc || hc === '0') && by) {
+                  const autoVal = calculateHandicap(m.gender || (ex ? ex.gender : '男生'), by);
+                  if (autoVal > 0) hc = String(autoVal);
+                }
                 return {
                   code: m.code || (ex ? ex.code : ''),
                   name: m.name,
                   gender: m.gender || (ex ? ex.gender : '男生'),
-                  birthYear: m.birthYear || (ex ? ex.birthYear : ''),
-                  handicap: (m.handicap !== undefined && m.handicap !== '') ? m.handicap : (ex ? ex.handicap : '0'),
+                  birthYear: by,
+                  handicap: hc || '0',
                   lineId: m.lineId || (ex ? ex.lineId : ''),
                   pin: m.pin || (ex ? ex.pin : '')
                 };
@@ -1858,18 +1909,26 @@
             }
             if (res.config) rawResponse.config = Object.assign(rawResponse.config || {}, res.config);
           } else {
-            if (res.members && rawResponse && rawResponse.members) {
+            if (res.members) {
               const curMap = {};
-              rawResponse.members.forEach(m => { if (m && m.name) curMap[m.name] = m; });
+              if (rawResponse && rawResponse.members) {
+                rawResponse.members.forEach(m => { if (m && m.name) curMap[m.name] = m; });
+              }
               res.members = res.members.map(m => {
                 if (!m) return m;
                 const ex = curMap[m.name];
+                const by = m.birthYear || (ex ? ex.birthYear : '') || (MEMBER_BIRTH_YEARS[m.name] ? String(MEMBER_BIRTH_YEARS[m.name]) : '');
+                let hc = (m.handicap !== undefined && m.handicap !== '' && String(m.handicap) !== '0') ? String(m.handicap) : (ex && ex.handicap ? String(ex.handicap) : '');
+                if ((!hc || hc === '0') && by) {
+                  const autoVal = calculateHandicap(m.gender || (ex ? ex.gender : '男生'), by);
+                  if (autoVal > 0) hc = String(autoVal);
+                }
                 return {
                   code: m.code || (ex ? ex.code : ''),
                   name: m.name,
                   gender: m.gender || (ex ? ex.gender : '男生'),
-                  birthYear: m.birthYear || (ex ? ex.birthYear : ''),
-                  handicap: (m.handicap !== undefined && m.handicap !== '') ? m.handicap : (ex ? ex.handicap : '0'),
+                  birthYear: by,
+                  handicap: hc || '0',
                   lineId: m.lineId || (ex ? ex.lineId : ''),
                   pin: m.pin || (ex ? ex.pin : '')
                 };
@@ -3036,18 +3095,6 @@
     }
 
     // ===== 隊員母檔管理邏輯 (幹部專用) =====
-    function calculateHandicap(gender, birthYearStr) {
-      const by = parseInt(birthYearStr, 10);
-      if (isNaN(by)) return 0;
-      const currentYear = new Date().getFullYear();
-      const currentMinguoYear = currentYear - 1911; // 2026 -> 115
-      const age = currentMinguoYear - by;
-      const base = Math.max(0, age - 49);
-      const maleHandicap = base * 4;
-      const isFem = (gender === '女生' || gender === 'F');
-      return isFem ? (maleHandicap + 40) : maleHandicap;
-    }
-
     function autoCalcEditHandicap() {
       const gender = document.getElementById('editMemberGender').value;
       const byStr = document.getElementById('editMemberBirthYear').value.trim();
@@ -3142,14 +3189,15 @@
         // PIN 碼 (純顯示數字或未設，字體放大至 14px)
         const pinDisp = m.pin ? `<span style="font-family:monospace; font-weight:900; color:#0369a1; font-size:14px;">${m.pin}</span>` : '<span style="color:#94a3b8; font-size:12px;">未設</span>';
         
-        // 年次與加分顯示 (若 handicap 未設或為0，但有年次時，自動即時計算加分保障精準顯示)
+        // 年次與加分顯示 (具備母檔對照表雙保險，0秒瞬間百分之百顯示)
+        const finalBirthYear = (m.birthYear !== undefined && m.birthYear !== '') ? String(m.birthYear) : (MEMBER_BIRTH_YEARS[m.name] ? String(MEMBER_BIRTH_YEARS[m.name]) : '');
         let calcHandicap = (m.handicap !== undefined && m.handicap !== '' && String(m.handicap) !== '0') ? String(m.handicap) : '';
-        if ((!calcHandicap || calcHandicap === '0') && m.birthYear) {
-          const autoVal = calculateHandicap(m.gender, m.birthYear);
+        if ((!calcHandicap || calcHandicap === '0') && finalBirthYear) {
+          const autoVal = calculateHandicap(m.gender, finalBirthYear);
           if (autoVal > 0) calcHandicap = String(autoVal);
         }
         const handicapDisp = (calcHandicap && calcHandicap !== '0') ? `<span style="color:#b45309; font-weight:900; font-size:14px;">+${calcHandicap}</span>` : '<span style="color:#94a3b8; font-size:14px;">+0</span>';
-        const byDisp = m.birthYear ? `<span style="font-size:14px; font-weight:bold; color:#1e293b;">${m.birthYear}</span>` : '<span style="color:#cbd5e1; font-size:12px;">--</span>';
+        const byDisp = finalBirthYear ? `<span style="font-size:14px; font-weight:bold; color:#1e293b;">${finalBirthYear}</span>` : '<span style="color:#cbd5e1; font-size:12px;">--</span>';
 
         const rowBg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
 
@@ -3287,8 +3335,9 @@
       codeInput.value = m.code || '';
       nameInput.value = m.name || '';
       genderSel.value = (m.gender === '女生' || m.gender === 'F') ? '女生' : '男生';
-      byInput.value = m.birthYear || '';
-      handicapInput.value = m.handicap !== undefined ? m.handicap : calculateHandicap(genderSel.value, m.birthYear);
+      const formBirthYear = (m.birthYear !== undefined && m.birthYear !== '') ? String(m.birthYear) : (MEMBER_BIRTH_YEARS[m.name] ? String(MEMBER_BIRTH_YEARS[m.name]) : '');
+      byInput.value = formBirthYear;
+      handicapInput.value = (m.handicap !== undefined && m.handicap !== '' && String(m.handicap) !== '0') ? m.handicap : calculateHandicap(genderSel.value, formBirthYear);
       pinInput.value = m.pin || '';
 
       if (m.lineId) {

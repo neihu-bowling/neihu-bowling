@@ -1085,18 +1085,6 @@
             </div>
           </div>
         </div>
-
-        <!-- Google 試算表同步備份卡片 (對接現場計分 Excel) -->
-        <div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; padding:10px 12px;">
-          <label style="font-weight:900; font-size:13px; display:block; margin-bottom:4px; color:#047857;">📊 Google 試算表同步備份 (供現場計分 Excel 讀取)：</label>
-          <p style="font-size:11px; color:#64748b; margin-bottom:6px; line-height:1.4;">
-            隊友報名使用 Firebase 毫秒即時同步。點擊下方按鈕可隨時將最新球道名單整批寫入 Google 試算表，確保現場計分 Excel 讀取無誤。
-          </p>
-          <div style="display:flex; align-items:center; gap:8px;">
-            <button type="button" onclick="syncFirebaseToGoogleSheets()" class="quick-btn" style="background:#059669; color:#fff; border-color:#047857; padding:8px 12px; font-size:12px; font-weight:900;">📥 立即同步至 Google 試算表</button>
-            <span id="syncStatusDisplay" style="font-size:11px; color:#64748b;">狀態：尚未同步</span>
-          </div>
-        </div>
       </div>
 
       <div style="display:flex; gap:6px; margin-top:16px;">
@@ -4028,77 +4016,6 @@
       });
     }
 
-    // ★ 管理者：手動整批將最新 Firebase 球道名單同步備份至 Google 試算表 (供現場計分 Excel 讀取)
-    async function syncFirebaseToGoogleSheets() {
-      const statusEl = document.getElementById('syncStatusDisplay');
-      if (statusEl) statusEl.innerHTML = '<span style="color:#2563eb;">⏳ 正在同步至 Google 試算表...</span>';
-      showToast('⏳ 正在將球道名單整批同步至 Google 試算表...', 0, true);
-
-      try {
-        let monData = [];
-        let thuData = [];
-        let membersData = [];
-
-        // 優先從 Firebase 讀取最新球道與隊員母檔
-        if (rtdb) {
-          const snapshot = await rtdb.ref('data').once('value');
-          const val = snapshot.val();
-          if (val) {
-            monData = val.mon || [];
-            thuData = val.thu || [];
-          }
-          const memSnap = await rtdb.ref('members').once('value');
-          const memVal = memSnap.val();
-          if (memVal) {
-            membersData = Array.isArray(memVal) ? memVal : Object.values(memVal);
-          }
-        }
-
-        // 備援從本地 rawResponse 讀取
-        if ((!monData || monData.length === 0) && rawResponse && rawResponse.data) {
-          monData = rawResponse.data.mon || [];
-          thuData = rawResponse.data.thu || [];
-        }
-        if ((!membersData || membersData.length === 0) && rawResponse && rawResponse.members) {
-          membersData = rawResponse.members || [];
-        }
-
-        if (!Array.isArray(monData)) monData = Object.values(monData);
-        if (!Array.isArray(thuData)) thuData = Object.values(thuData);
-        if (!Array.isArray(membersData)) membersData = Object.values(membersData);
-
-        const payload = {
-          action: 'batchSyncAll',
-          mon: monData,
-          thu: thuData,
-          members: membersData
-        };
-
-        const response = await fetch(API_BASE, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify(payload)
-        });
-
-        const result = await response.json();
-
-        if (result && result.status === 'success') {
-          const nowStr = new Date().toLocaleTimeString('zh-TW', { hour12: false });
-          if (statusEl) {
-            statusEl.innerHTML = `<span style="color:#059669; font-weight:bold;">✅ 已於 ${nowStr} 完成同步</span>`;
-          }
-          showToast('✅ 成功同步至 Google 試算表！現場計分 Excel 可立即開啟新檔讀取。', 3000, false);
-        } else {
-          throw new Error((result && result.message) || '試算表同步回傳異常');
-        }
-      } catch (err) {
-        console.error('同步試算表失敗:', err);
-        if (statusEl) {
-          statusEl.innerHTML = '<span style="color:#dc2626;">❌ 同步失敗，請重試</span>';
-        }
-        showToast('❌ 同步至試算表失敗，請檢查網路連線。', 3000, false);
-      }
-    }
 
     // ★ 操作指引字體大小切換 (方案 A：局部獨立縮放 + 本地記憶)
     function setUserGuideFontSize(size) {

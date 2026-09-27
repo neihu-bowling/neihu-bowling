@@ -271,7 +271,7 @@
       vertical-align: middle;
       background-color: #ffffff;
       color: #000000;
-      width: 26%;
+      width: 24%;
     }
     .male-text {
       color: #0000FF !important;
@@ -2372,24 +2372,44 @@
           <table class="table-bordered ${disabledClass} ${staffTableClass}">
             <thead>
               <tr class="${currentHeaderClass}">
-                <th style="width:26%">球道</th>
-                <th style="width:14%">序</th>
+                <th style="width:24%">球道</th>
+                <th style="width:16%">代</th>
                 <th style="width:60%">姓　名</th>
               </tr>
             </thead>
             <tbody>
         `;
 
-        // ★ 固定 8 列，序號 1~8
+        // ★ 固定 8 列，席位 1~8
         for (let slotIndex = 1; slotIndex <= 8; slotIndex++) {
           const r = slotIndex - 1;
           html += `<tr>`;
           if (slotIndex === 1) {
-            html += `<td rowspan="8" class="lane-number-cell">${laneKey}</td>`;
+            html += `<td rowspan="8" class="lane-number-cell" style="width:24%">${laneKey}</td>`;
           }
 
-          // 序號欄位 (固定 1~8，寬度14%)
-          html += `<td style="font-weight:900; color:#475569; width:14%;">${slotIndex}</td>`;
+          // 檢查該號位是否有人 (若姓名為 [開放入座]，視為開放空位處理)
+          const p = (players && players[r] && players[r].name) ? players[r] : null;
+          const isSlotOpenPlaceholder = (p && p.name === '[開放入座]');
+
+          // 代號欄位 (選項 B：有人入座讀取並顯示隊友代號，空位顯示 --)
+          let playerCode = '--';
+          if (p && !isSlotOpenPlaceholder) {
+            if (p.code !== undefined && p.code !== null && String(p.code).trim() !== '') {
+              playerCode = String(p.code).trim();
+            }
+            if (rawResponse && rawResponse.members) {
+              const mem = rawResponse.members.find(m => m.name === p.name);
+              if (mem && mem.code !== undefined && mem.code !== null && String(mem.code).trim() !== '') {
+                playerCode = String(mem.code).trim();
+              }
+            }
+          }
+          const isOccupiedCode = (playerCode && playerCode !== '--');
+          const codeStyle = isOccupiedCode
+            ? 'font-weight:900; color:#0f172a; width:16%; font-size:12.5px; font-family:monospace;'
+            : 'color:#94a3b8; width:16%; font-size:12px; font-weight:bold;';
+          html += `<td style="${codeStyle}">${playerCode}</td>`;
 
           // 尋找該席位在 lateChanges 的最後一筆紀錄
           let lastSlotChange = null;
@@ -2401,10 +2421,6 @@
               }
             }
           }
-
-          // 檢查該號位是否有人 (若姓名為 [開放入座]，視為開放空位處理)
-          const p = (players && players[r] && players[r].name) ? players[r] : null;
-          const isSlotOpenPlaceholder = (p && p.name === '[開放入座]');
 
           if (p && !isSlotOpenPlaceholder) {
             let pGender = p.gender;

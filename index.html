@@ -2053,7 +2053,8 @@
     // 週一賽事：週日 17:00 ~ 週一 09:20
     // 週四賽事：週三 17:00 ~ 週四 09:20
     function isPreLockActive(dayStr) {
-      if (localStorage.getItem('bowling_simulate_prelock') === 'true') {
+      const cfg = (rawResponse && rawResponse.config) ? rawResponse.config : {};
+      if (cfg.simulatePreLock === true || cfg.simulatePreLock === 'true' || localStorage.getItem('bowling_simulate_prelock') === 'true') {
         return true;
       }
       const now = new Date();
@@ -2073,13 +2074,15 @@
       return false;
     }
 
-    // ★ 幹部測試專用：一鍵切換預排結束模擬模式
-    function setSimulatePreLock(enable) {
+    // ★ 幹部測試專用：一鍵切換預排結束模擬模式 (同步寫入 Firebase 雲端，跨裝置全部生效)
+    async function setSimulatePreLock(enable) {
       if (enable) {
         localStorage.setItem('bowling_simulate_prelock', 'true');
+        if (rtdb) await rtdb.ref('config/simulatePreLock').set(true);
         showToast('🟠 已開啟「預排結束」模擬模式！首頁將呈現預排結束狀態。', 3000, false);
       } else {
         localStorage.removeItem('bowling_simulate_prelock');
+        if (rtdb) await rtdb.ref('config/simulatePreLock').set(false);
         showToast('⚪ 已關閉模擬，恢復當前真實時間狀態！', 3000, false);
       }
       closeSettingsModal();
@@ -2168,7 +2171,8 @@
         const pauseBanner = document.getElementById('holidayPauseNoticeBanner');
         const preLockBanner = document.getElementById('preLockNoticeBanner');
         const lateChangesCard = document.getElementById('lateChangesCard');
-        const isPreLock = !isPaused && isPreLockActive(currentDay);
+        const lateList = getLateChangesList(currentDay);
+        const isPreLock = !isPaused && (isPreLockActive(currentDay) || lateList.length > 0);
 
         if (isPaused) {
           // 1. 標題旁膠囊顏色維持不變 (週一綠/週四藍)，日期直接跳隔週預排
@@ -2314,8 +2318,8 @@
       const defaultHeaderClass = isMon ? 'lane-box-header-mon' : 'lane-box-header-thu';
       const deadPassed = isDeadlinePassed(currentDay, isMon ? cfg.monDate : cfg.thuDate, isMon ? cfg.monDeadline : cfg.thuDeadline);
       const isPaused = isDayHolidayPaused(currentDay);
-      const isPreLock = !isPaused && isPreLockActive(currentDay);
-      const lateList = isPreLock ? getLateChangesList(currentDay) : [];
+      const lateList = getLateChangesList(currentDay);
+      const isPreLock = !isPaused && (isPreLockActive(currentDay) || lateList.length > 0);
 
       let html = '';
       lanesArray.forEach(laneKey => {

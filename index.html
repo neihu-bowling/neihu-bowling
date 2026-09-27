@@ -718,7 +718,7 @@
     <!-- 🛑 連假停練一次：醒目全列紅色膠囊公告 (停練時顯示) -->
     <div id="holidayPauseNoticeBanner" style="display:none; background:#dc2626; color:#ffffff; font-weight:900; font-size:13.5px; padding:7px 12px; border-radius:20px; text-align:center; box-shadow:0 2px 4px rgba(220,38,38,0.25); margin:6px 0 4px 0; letter-spacing:0.5px;"></div>
     <!-- ⚠️ 預排結束通知膠囊 (暖橙色) -->
-    <div id="preLockNoticeBanner" style="display:none; background:#d97706; color:#ffffff; font-weight:900; font-size:13.5px; padding:7px 12px; border-radius:20px; text-align:center; box-shadow:0 2px 4px rgba(217,119,6,0.25); margin:6px 0 4px 0; letter-spacing:0.5px;"></div>
+    <div id="preLockNoticeBanner" style="display:none; background:#d97706; color:#ffffff; font-weight:900; font-size:13.5px; padding:6px 8px; border-radius:16px; text-align:center; box-shadow:0 2px 4px rgba(217,119,6,0.25); margin:6px 0 4px 0; letter-spacing:0.3px; line-height:1.35;"></div>
     <!-- 📝 頂部【預排結束後名單異動即時看板】 -->
     <div id="lateChangesCard" style="display:none; background:#fffbeb; border:1.5px solid #f59e0b; border-radius:12px; padding:9px 12px; margin:6px 0 6px 0; box-shadow:0 1px 3px rgba(245,158,11,0.15);">
       <div id="lateChangesHeader" onclick="toggleLateChangesCard()" style="display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; color:#b45309; font-size:13px;">
@@ -1515,6 +1515,9 @@
         const val = snapshot.val();
         if (!rawResponse) rawResponse = { status: 'success', data: {}, config: {}, members: [] };
         rawResponse.lateChanges = val || {};
+        try {
+          localStorage.setItem('bowling_cache_raw', JSON.stringify(rawResponse));
+        } catch (ce) {}
         renderAll();
       });
     }
@@ -1898,6 +1901,9 @@
               res.config.thuPauseDate = savedThuPause;
             }
           }
+          // ★ 關鍵防護：保留記憶體或快取中的 lateChanges (晚鳥異動)，避免被 GAS 試算表回傳覆蓋抹平
+          const existingLateChanges = (rawResponse && rawResponse.lateChanges) ? rawResponse.lateChanges : null;
+
           // 若 Firebase 已連線且已有球道資料，保留 Firebase 的最新即時球道資料，僅更新隊員名單與設定
           if (isFirebaseReady && rawResponse && rawResponse.data && (rawResponse.data.mon || rawResponse.data.thu) && !force) {
             if (res.members) {
@@ -1951,6 +1957,16 @@
               });
             }
             rawResponse = res;
+          }
+          if (existingLateChanges) {
+            rawResponse.lateChanges = existingLateChanges;
+          } else {
+            try {
+              const cached = JSON.parse(localStorage.getItem('bowling_cache_raw') || '{}');
+              if (cached && cached.lateChanges) {
+                rawResponse.lateChanges = cached.lateChanges;
+              }
+            } catch (ce) {}
           }
           try {
             localStorage.setItem('bowling_cache_raw', JSON.stringify(rawResponse));
@@ -2206,7 +2222,10 @@
               preLockBanner.style.display = 'block';
               const cleanDateStr = dateStr.replace(/^0/, '');
               const dayShort = isMon ? '一' : '四';
-              preLockBanner.innerText = `${cleanDateStr}(${dayShort})預排結束，感謝大家的配合！`;
+              preLockBanner.innerHTML = `
+                <div>${cleanDateStr}(${dayShort})預排結束已印製名單，感謝配合！</div>
+                <div style="font-size:12px; font-weight:normal; margin-top:2px; opacity:0.95;">(目前仍可補位或請假取消)</div>
+              `;
             }
             renderLateChangesUI();
           } else {

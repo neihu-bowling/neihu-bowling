@@ -1418,6 +1418,23 @@
       console.warn('Firebase 初始化警訊 (將使用 GAS 備援):', e);
     }
 
+    // ★ 關鍵防護：嚴格維持 8 席固定席位映射，防止 Firebase 稀疏物件造成隊員往前補位 (Object.values 壓縮陷阱)
+    function normalize8Players(raw) {
+      const arr = Array(8).fill(null);
+      if (!raw) return arr;
+      if (Array.isArray(raw)) {
+        for (let i = 0; i < 8; i++) {
+          arr[i] = (raw[i] && raw[i].name) ? raw[i] : null;
+        }
+      } else if (typeof raw === 'object') {
+        for (let i = 0; i < 8; i++) {
+          const p = raw[i] || raw[String(i)] || null;
+          arr[i] = (p && p.name) ? p : null;
+        }
+      }
+      return arr;
+    }
+
     // ★ 監聽 Firebase 即時異動 (毫秒廣播同步，徹底淘汰輪詢)
     function setupFirebaseListeners() {
       if (!rtdb) return;
@@ -1433,10 +1450,7 @@
             const arr = Array.isArray(rawList) ? rawList : Object.values(rawList);
             return arr.map(l => {
               if (!l) return null;
-              let pl = l.players || [];
-              if (!Array.isArray(pl)) pl = Object.values(pl);
-              while (pl.length < 8) pl.push(null);
-              return { lane: l.lane, players: pl };
+              return { lane: l.lane, players: normalize8Players(l.players) };
             }).filter(Boolean);
           };
 
@@ -2680,7 +2694,7 @@
             if (name !== '[開放入座]') {
               list.forEach(l => {
                 if (l && l.players) {
-                  let pl = Array.isArray(l.players) ? l.players : Object.values(l.players);
+                  let pl = normalize8Players(l.players);
                   pl.forEach((p, idx) => {
                     if (p && p.name === name) {
                       const isStaff = isLaneStaff(l.lane, currentStaffLane);
@@ -2698,9 +2712,7 @@
               targetLane = { lane: lane, players: Array(8).fill(null) };
               list.push(targetLane);
             }
-            if (!targetLane.players) targetLane.players = Array(8).fill(null);
-            if (!Array.isArray(targetLane.players)) targetLane.players = Object.values(targetLane.players);
-            while (targetLane.players.length < 8) targetLane.players.push(null);
+            targetLane.players = normalize8Players(targetLane.players);
 
             const existing = targetLane.players[slotIndex - 1];
             if (existing && existing.name && existing.name !== name && existing.name !== '[開放入座]') {
@@ -2771,8 +2783,7 @@
           targetLaneObj = { lane: lane, players: [null, null, null, null, null, null, null, null] };
           dayList.push(targetLaneObj);
         }
-        if (!targetLaneObj.players) targetLaneObj.players = [null, null, null, null, null, null, null, null];
-        while (targetLaneObj.players.length < 8) targetLaneObj.players.push(null);
+        targetLaneObj.players = normalize8Players(targetLaneObj.players);
 
         targetLaneObj.players[slotIndex - 1] = {
           name: name,
@@ -2872,12 +2883,7 @@
         }
         let targetLaneObj = dayList.find(l => l && l.lane === laneKey);
         if (targetLaneObj) {
-          if (!targetLaneObj.players) {
-            targetLaneObj.players = Array(8).fill(null);
-          } else if (!Array.isArray(targetLaneObj.players)) {
-            targetLaneObj.players = Object.values(targetLaneObj.players);
-          }
-          while (targetLaneObj.players.length < 8) targetLaneObj.players.push(null);
+          targetLaneObj.players = normalize8Players(targetLaneObj.players);
 
           const isStaff = isLaneStaff(laneKey, currentStaffLane);
           const shouldRestoreOpen = isStaff && (playerName !== '[開放入座]');
@@ -2905,9 +2911,7 @@
               targetLane = { lane: laneKey, players: Array(8).fill(null) };
               list.push(targetLane);
             }
-            if (!targetLane.players) targetLane.players = Array(8).fill(null);
-            if (!Array.isArray(targetLane.players)) targetLane.players = Object.values(targetLane.players);
-            while (targetLane.players.length < 8) targetLane.players.push(null);
+            targetLane.players = normalize8Players(targetLane.players);
 
             const isStaff = isLaneStaff(laneKey, currentStaffLane);
             const shouldRestoreOpen = isStaff && (playerName !== '[開放入座]');
@@ -2953,6 +2957,7 @@
         const dayList = rawResponse.data[targetDayKey] || [];
         dayList.forEach(l => {
           if (l.lane === laneKey && l.players) {
+            l.players = normalize8Players(l.players);
             if (slotIndex && l.players[slotIndex - 1] && l.players[slotIndex - 1].name === playerName) {
               l.players[slotIndex - 1] = null;
             } else {
@@ -3922,7 +3927,7 @@
       closedLanes.forEach(lk => {
         const laneObj = currentDayData.find(l => l && l.lane === lk);
         if (laneObj && laneObj.players) {
-          const playersArr = Array.isArray(laneObj.players) ? laneObj.players : Object.values(laneObj.players);
+          const playersArr = normalize8Players(laneObj.players);
           playersArr.forEach((p, idx) => {
             if (p && p.name && p.name !== '[開放入座]') {
               affectedPlayers.push({
@@ -4050,8 +4055,7 @@
               targetLaneObj = { lane: lk, players: [] };
               dayDataCopy.push(targetLaneObj);
             }
-            if (!targetLaneObj.players) targetLaneObj.players = [];
-            while (targetLaneObj.players.length < 8) targetLaneObj.players.push(null);
+            targetLaneObj.players = normalize8Players(targetLaneObj.players);
 
             const curP = targetLaneObj.players[slot - 1];
             if (!curP || !curP.name || curP.name === '[開放入座]') {

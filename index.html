@@ -717,6 +717,17 @@
     </div>
     <!-- 🛑 連假停練一次：醒目全列紅色膠囊公告 (停練時顯示) -->
     <div id="holidayPauseNoticeBanner" style="display:none; background:#dc2626; color:#ffffff; font-weight:900; font-size:13.5px; padding:7px 12px; border-radius:20px; text-align:center; box-shadow:0 2px 4px rgba(220,38,38,0.25); margin:6px 0 4px 0; letter-spacing:0.5px;"></div>
+    <!-- ⚠️ 預排結束通知膠囊 (暖橙色) -->
+    <div id="preLockNoticeBanner" style="display:none; background:#d97706; color:#ffffff; font-weight:900; font-size:13.5px; padding:7px 12px; border-radius:20px; text-align:center; box-shadow:0 2px 4px rgba(217,119,6,0.25); margin:6px 0 4px 0; letter-spacing:0.5px;"></div>
+    <!-- 📝 頂部【預排結束後名單異動即時看板】 -->
+    <div id="lateChangesCard" style="display:none; background:#fffbeb; border:1.5px solid #f59e0b; border-radius:12px; padding:9px 12px; margin:6px 0 6px 0; box-shadow:0 1px 3px rgba(245,158,11,0.15);">
+      <div id="lateChangesHeader" onclick="toggleLateChangesCard()" style="display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; color:#b45309; font-size:13px;">
+        <span id="lateChangesTitle">📝 預排結束後名單異動（共 0 筆）：</span>
+        <span id="lateChangesToggleIcon" style="font-size:12px; color:#d97706; font-weight:normal;">▼ 點此收合</span>
+      </div>
+      <div id="lateChangesList" style="margin-top:6px; font-size:12.5px; color:#78350f; line-height:1.6;">
+      </div>
+    </div>
     <div class="info-bar">
       <div class="btn-group">
         <button id="btnMon" onclick="switchDay('週一')" class="btn-day btn-day-mon">週一</button>
@@ -1476,6 +1487,14 @@
           }
         }
       });
+
+      // 4. 監聽預排結束後晚鳥異動 (lateChanges)
+      rtdb.ref('lateChanges').on('value', snapshot => {
+        const val = snapshot.val();
+        if (!rawResponse) rawResponse = { status: 'success', data: {}, config: {}, members: [] };
+        rawResponse.lateChanges = val || {};
+        renderAll();
+      });
     }
 
     // ★ 若 Firebase 初次建立為空，自動從試算表抽取資料初始化至 Firebase
@@ -2008,6 +2027,73 @@
       showToast('⚠️ 本場賽事因逢國定連假停練一次，暫停入座報名！', 3500, false);
     }
 
+    // ★ 判定目前賽事是否處於「前一日 17:00 預排結束時段」
+    // 週一賽事：週日 17:00 ~ 週一 09:20
+    // 週四賽事：週三 17:00 ~ 週四 09:20
+    function isPreLockActive(dayStr) {
+      const now = new Date();
+      const d = now.getDay(); // 0(日) ~ 6(六)
+      const h = now.getHours();
+      const m = now.getMinutes();
+
+      if (dayStr === '週一') {
+        const isSunAfter17 = (d === 0 && h >= 17);
+        const isMonBefore0920 = (d === 1 && (h < 9 || (h === 9 && m < 20)));
+        return isSunAfter17 || isMonBefore0920;
+      } else if (dayStr === '週四') {
+        const isWedAfter17 = (d === 3 && h >= 17);
+        const isThuBefore0920 = (d === 4 && (h < 9 || (h === 9 && m < 20)));
+        return isWedAfter17 || isThuBefore0920;
+      }
+      return false;
+    }
+
+    let isLateChangesCollapsed = false;
+    function toggleLateChangesCard() {
+      const listEl = document.getElementById('lateChangesList');
+      const iconEl = document.getElementById('lateChangesToggleIcon');
+      if (!listEl) return;
+      isLateChangesCollapsed = !isLateChangesCollapsed;
+      listEl.style.display = isLateChangesCollapsed ? 'none' : 'block';
+      if (iconEl) iconEl.innerText = isLateChangesCollapsed ? '▶ 點此展開' : '▼ 點此收合';
+    }
+
+    function getLateChangesList(dayStr) {
+      const dayKey = dayStr === '週一' ? 'mon' : 'thu';
+      if (!rawResponse || !rawResponse.lateChanges || !rawResponse.lateChanges[dayKey]) return [];
+      const raw = rawResponse.lateChanges[dayKey];
+      const list = Array.isArray(raw) ? raw : Object.values(raw);
+      return list.filter(item => item && item.name);
+    }
+
+    function renderLateChangesUI() {
+      const card = document.getElementById('lateChangesCard');
+      const titleEl = document.getElementById('lateChangesTitle');
+      const listEl = document.getElementById('lateChangesList');
+      if (!card || !listEl) return;
+
+      const list = getLateChangesList(currentDay);
+      if (list.length === 0) {
+        card.style.display = 'none';
+        return;
+      }
+
+      card.style.display = 'block';
+      if (titleEl) {
+        titleEl.innerText = `📝 預排結束後名單異動（共 ${list.length} 筆）：`;
+      }
+
+      let html = '';
+      list.forEach(item => {
+        const isJoin = item.action === 'join';
+        const actBadge = isJoin 
+          ? '<span style="color:#d97706; font-weight:bold;">＋ 補位入座</span>' 
+          : '<span style="color:#dc2626; font-weight:bold;">❌ 請假退出</span>';
+        html += `<div style="padding:2px 0;">• [${item.time || ''}] <b>${item.name}</b>：${actBadge} ${item.lane} 道 第 ${item.slot} 位</div>`;
+      });
+      listEl.innerHTML = html;
+    }
+
     function renderAll() {
       try {
         const cfg = (rawResponse && rawResponse.config) ? rawResponse.config : { openLanes: '3-24', staffLanes: '7/8', monDate: '', thuDate: '' };
@@ -2025,6 +2111,9 @@
         const isPaused = isDayHolidayPaused(currentDay);
         const eventBadge = document.getElementById('eventBadge');
         const pauseBanner = document.getElementById('holidayPauseNoticeBanner');
+        const preLockBanner = document.getElementById('preLockNoticeBanner');
+        const lateChangesCard = document.getElementById('lateChangesCard');
+        const isPreLock = !isPaused && isPreLockActive(currentDay);
 
         if (isPaused) {
           // 1. 標題旁膠囊顏色維持不變 (週一綠/週四藍)，日期直接跳隔週預排
@@ -2040,6 +2129,8 @@
             pauseBanner.style.display = 'block';
             pauseBanner.innerHTML = `🛑 ${dateStr} (停練一次)！目前為 ${nextDateStr} 預排名單（可正常入座報名）`;
           }
+          if (preLockBanner) preLockBanner.style.display = 'none';
+          if (lateChangesCard) lateChangesCard.style.display = 'none';
         } else {
           if (eventBadge) {
             eventBadge.className = isMon ? 'event-badge event-badge-mon' : 'event-badge event-badge-thu';
@@ -2050,6 +2141,18 @@
           if (pauseBanner) {
             pauseBanner.style.display = 'none';
             pauseBanner.innerHTML = '';
+          }
+          if (isPreLock) {
+            if (preLockBanner) {
+              preLockBanner.style.display = 'block';
+              const cleanDateStr = dateStr.replace(/^0/, '');
+              const dayShort = isMon ? '一' : '四';
+              preLockBanner.innerText = `${cleanDateStr}(${dayShort})預排結束，感謝大家的配合！`;
+            }
+            renderLateChangesUI();
+          } else {
+            if (preLockBanner) preLockBanner.style.display = 'none';
+            if (lateChangesCard) lateChangesCard.style.display = 'none';
           }
         }
 
@@ -2156,6 +2259,8 @@
       const defaultHeaderClass = isMon ? 'lane-box-header-mon' : 'lane-box-header-thu';
       const deadPassed = isDeadlinePassed(currentDay, isMon ? cfg.monDate : cfg.thuDate, isMon ? cfg.monDeadline : cfg.thuDeadline);
       const isPaused = isDayHolidayPaused(currentDay);
+      const isPreLock = !isPaused && isPreLockActive(currentDay);
+      const lateList = isPreLock ? getLateChangesList(currentDay) : [];
 
       let html = '';
       lanesArray.forEach(laneKey => {
@@ -2194,6 +2299,17 @@
           // 序號欄位 (固定 1~8，寬度14%)
           html += `<td style="font-weight:900; color:#475569; width:14%;">${slotIndex}</td>`;
 
+          // 尋找該席位在 lateChanges 的最後一筆紀錄
+          let lastSlotChange = null;
+          if (isPreLock && lateList.length > 0) {
+            for (let ci = lateList.length - 1; ci >= 0; ci--) {
+              if (lateList[ci].lane === laneKey && parseInt(lateList[ci].slot, 10) === slotIndex) {
+                lastSlotChange = lateList[ci];
+                break;
+              }
+            }
+          }
+
           // 檢查該號位是否有人 (若姓名為 [開放入座]，視為開放空位處理)
           const p = (players && players[r] && players[r].name) ? players[r] : null;
           const isSlotOpenPlaceholder = (p && p.name === '[開放入座]');
@@ -2207,11 +2323,20 @@
             const pGenStr = String(pGender || 'M').trim();
             const isFem = (pGenStr.includes('女') || pGenStr.toUpperCase().startsWith('F') || pGenStr.toUpperCase() === 'W');
             const colorClass = isFem ? 'female-text' : 'male-text';
-            html += `
-              <td onclick="handlePlayerClick('${p.name}', '${laneKey}', ${slotIndex})" style="cursor:pointer; width:60%;" class="${colorClass}">
-                ${p.name}
-              </td>
-            `;
+
+            if (lastSlotChange && lastSlotChange.action === 'join') {
+              html += `
+                <td onclick="handlePlayerClick('${p.name}', '${laneKey}', ${slotIndex})" style="cursor:pointer; width:60%; background:#fef3c7; border:2px solid #f59e0b; font-weight:900;" class="${colorClass}">
+                  ${p.name} <span style="font-size:11.5px; color:#d97706; font-weight:bold; margin-left:2px;">(已變更)</span>
+                </td>
+              `;
+            } else {
+              html += `
+                <td onclick="handlePlayerClick('${p.name}', '${laneKey}', ${slotIndex})" style="cursor:pointer; width:60%;" class="${colorClass}">
+                  ${p.name}
+                </td>
+              `;
+            }
           } else {
             if (!isOpen) {
               const closedLabel = isAdmin ? '🚫 不開放 (已關閉)' : '🚫 不開放';
@@ -2224,6 +2349,14 @@
             } else if (isStaff && !isAdmin && !isSlotOpenPlaceholder) {
               // 專用道幹部私有空位：一般隊友顯示「🔒 未開放」
               html += `<td class="slot-locked" style="width:60%;">🔒 未開放</td>`;
+            } else if (lastSlotChange && lastSlotChange.action === 'leave') {
+              // ★ 請假退出者：席位空出，背景改為暖金黃 #fef3c7，搭配深橘色邊框
+              const btnLabel = (isStaff && isAdmin && isSlotOpenPlaceholder) ? '＋ 入座 (已開放)' : '＋ 入座';
+              html += `
+                <td onclick="openSlotAction('${laneKey}', ${slotIndex})" class="slot-cell-empty" style="background:#fef3c7; border:2px solid #f59e0b;">
+                  <span class="slot-pill-btn" style="background:#fde68a; color:#b45309; border:1px solid #f59e0b; font-weight:bold;">${btnLabel} (已變更)</span>
+                </td>
+              `;
             } else {
               const btnLabel = (isStaff && isAdmin && isSlotOpenPlaceholder) ? '＋ 入座 (已開放)' : '＋ 入座';
               html += `
@@ -2251,6 +2384,20 @@
         showToast('⚠️ 首次使用請先綁定隊員姓名！', 3500);
         openRegisterModal();
         return;
+      }
+
+      // ★ 17:00 預排結束控管：已入座隊友點選空位欲換道時，直接提示阻擋
+      if (!isAdmin && isPreLockActive(currentDay)) {
+        const dayData = currentDay === '週一' ? (rawResponse ? rawResponse.data.mon : []) : (rawResponse ? rawResponse.data.thu : []);
+        let isAlreadySeated = false;
+        (dayData || []).forEach(l => {
+          (l.players || []).forEach(p => {
+            if (p && p.name === currentUserName) isAlreadySeated = true;
+          });
+        });
+        if (isAlreadySeated) {
+          return showToast('🚫 預排已結束，無法自行更換球道！若需調整請洽幹部。', 3500, false);
+        }
       }
 
       const cfg = rawResponse ? rawResponse.config : {};
@@ -2504,6 +2651,20 @@
             if (!silentMode) {
               showToast(`🎉 成功入座【${currentDay}】${lane} 道 第 ${slotIndex} 位！`, 3000, false);
             }
+            // ★ 若在預排結束時段，記錄至 Firebase lateChanges
+            if (isPreLockActive(currentDay) && name !== '[開放入座]') {
+              const now = new Date();
+              const hh = String(now.getHours()).padStart(2, '0');
+              const mm = String(now.getMinutes()).padStart(2, '0');
+              rtdb.ref(`lateChanges/${targetDayKey}`).push({
+                time: `${hh}:${mm}`,
+                name: name,
+                action: 'join',
+                lane: lane,
+                slot: slotIndex,
+                timestamp: Date.now()
+              });
+            }
             // 背景非同步發送 GAS 備援（fire-and-forget，不卡介面）
             try {
               const bgUrl = `${API_BASE}?action=joinLane&day=${encodeURIComponent(currentDay)}&lane=${encodeURIComponent(lane)}&slot=${slotIndex}&name=${encodeURIComponent(name)}&isGuest=${isGuest}&gender=${encodeURIComponent(memberGender)}&isAdmin=${isAdmin}&_t=${Date.now()}`;
@@ -2683,6 +2844,20 @@
           isActionInProgress = false;
           if (!silentMode) {
             showToast(`已取消【${playerName}】的報名`, 3000, false);
+          }
+          // ★ 若在預排結束時段，記錄至 Firebase lateChanges
+          if (isPreLockActive(currentDay) && playerName !== '[開放入座]' && rtdb) {
+            const now = new Date();
+            const hh = String(now.getHours()).padStart(2, '0');
+            const mm = String(now.getMinutes()).padStart(2, '0');
+            rtdb.ref(`lateChanges/${targetDayKey}`).push({
+              time: `${hh}:${mm}`,
+              name: playerName,
+              action: 'leave',
+              lane: laneKey,
+              slot: slotIndex,
+              timestamp: Date.now()
+            });
           }
           // 背景非同步發送 GAS 備援（fire-and-forget，不卡介面）
           try {

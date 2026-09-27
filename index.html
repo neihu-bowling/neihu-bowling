@@ -1056,6 +1056,28 @@
           </div>
         </div>
 
+        <!-- 🧪 幹部專用：預排結束測試與模擬控制卡片 -->
+        <div style="background:#fefce8; border:1.5px solid #facc15; border-radius:10px; padding:10px 12px; margin-bottom:12px;">
+          <div style="font-weight:900; font-size:13px; color:#854d0e; margin-bottom:6px; display:flex; align-items:center; justify-content:space-between;">
+            <span>🧪 【測試專用】預排結束時段模擬：</span>
+            <span id="simulatePreLockStatus" style="font-size:12px; font-weight:bold; color:#d97706;"></span>
+          </div>
+          <p style="font-size:11.5px; color:#a16207; margin:0 0 8px 0; line-height:1.5;">
+            此工具供幹部隨時測試「17:00 預排結束」後的效果（含暖橙橫幅、晚鳥看板、換道阻擋、席位黃底變色），不影響正式排程。
+          </p>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <button type="button" onclick="setSimulatePreLock(true)" class="quick-btn" style="background:#d97706; color:#ffffff; flex:1; min-width:110px; font-weight:bold; padding:7px 4px;">
+              🟠 開啟模擬 (進入預排結束)
+            </button>
+            <button type="button" onclick="setSimulatePreLock(false)" class="quick-btn" style="background:#64748b; color:#ffffff; flex:1; min-width:110px; font-weight:bold; padding:7px 4px;">
+              ⚪ 關閉模擬 (恢復真實時間)
+            </button>
+            <button type="button" onclick="clearFirebaseLateChanges()" class="quick-btn" style="background:#ef4444; color:#ffffff; flex:1; min-width:110px; font-weight:bold; padding:7px 4px;">
+              🧹 清空測試異動紀錄
+            </button>
+          </div>
+        </div>
+
         <!-- 幹部管理與賽事調度操作手冊 (摺疊抽屜) -->
         <div>
           <button type="button" onclick="toggleAdminGuide()" style="width:100%; display:flex; justify-content:space-between; align-items:center; background:#fef9c3; border:1.5px solid #fde047; padding:9px 12px; border-radius:8px; cursor:pointer; text-align:left;">
@@ -2031,6 +2053,9 @@
     // 週一賽事：週日 17:00 ~ 週一 09:20
     // 週四賽事：週三 17:00 ~ 週四 09:20
     function isPreLockActive(dayStr) {
+      if (localStorage.getItem('bowling_simulate_prelock') === 'true') {
+        return true;
+      }
       const now = new Date();
       const d = now.getDay(); // 0(日) ~ 6(六)
       const h = now.getHours();
@@ -2046,6 +2071,36 @@
         return isWedAfter17 || isThuBefore0920;
       }
       return false;
+    }
+
+    // ★ 幹部測試專用：一鍵切換預排結束模擬模式
+    function setSimulatePreLock(enable) {
+      if (enable) {
+        localStorage.setItem('bowling_simulate_prelock', 'true');
+        showToast('🟠 已開啟「預排結束」模擬模式！首頁將呈現預排結束狀態。', 3000, false);
+      } else {
+        localStorage.removeItem('bowling_simulate_prelock');
+        showToast('⚪ 已關閉模擬，恢復當前真實時間狀態！', 3000, false);
+      }
+      closeSettingsModal();
+      renderAll();
+    }
+
+    // ★ 幹部測試專用：一鍵清空 Firebase 預排異動紀錄 (lateChanges)
+    function clearFirebaseLateChanges() {
+      customConfirm(`確定要清空【${currentDay}】的所有預排異動紀錄（lateChanges）嗎？\n此動作將重置看板與變色格子。`, async (confirmed) => {
+        if (!confirmed) return;
+        const targetDayKey = currentDay === '週一' ? 'mon' : 'thu';
+        if (rtdb) {
+          await rtdb.ref(`lateChanges/${targetDayKey}`).set(null);
+        }
+        if (rawResponse && rawResponse.lateChanges) {
+          rawResponse.lateChanges[targetDayKey] = null;
+        }
+        showToast(`🧹 已成功清空【${currentDay}】預排異動紀錄！`, 3000, false);
+        closeSettingsModal();
+        renderAll();
+      });
     }
 
     let isLateChangesCollapsed = false;
@@ -3691,6 +3746,9 @@
     function openSettingsModal() {
       currentSettingDay = currentDay || '週一';
       loadSettingDayData(currentSettingDay);
+      const isSim = localStorage.getItem('bowling_simulate_prelock') === 'true';
+      const statEl = document.getElementById('simulatePreLockStatus');
+      if (statEl) statEl.innerHTML = isSim ? '<span style="color:#b91c1c;">● 模擬進行中</span>' : '<span style="color:#15803d;">● 真實時間模式</span>';
       document.getElementById('settingsModal').style.display = 'flex';
     }
 

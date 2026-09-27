@@ -879,7 +879,7 @@
         <div class="guide-item">
           <div class="guide-item-title">🔑 變更或忘記 PIN 碼</div>
           <div class="guide-item-body">
-            點擊頂部右上角「🔑 改PIN」按鈕，輸入舊 PIN 即可設定新 4 碼密碼；若徹底忘記 PIN 碼，可請幹部於管理者面板協助一鍵重設。
+            點擊頂部右上角「🔑 改PIN」按鈕，輸入舊 PIN 即可設定新 4 碼密碼；若徹底忘記 PIN 碼，可請幹部於「隊員管理」協助一鍵重設或清空。
           </div>
         </div>
       </div>
@@ -1045,20 +1045,6 @@
           </div>
         </div>
 
-        <!-- 幹部協助重設隊員 PIN 碼卡片 -->
-        <div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; padding:10px 12px;">
-          <label style="font-weight:900; font-size:13px; display:block; margin-bottom:6px; color:#1e40af;">🔑 幹部協助重設隊員 PIN 碼：</label>
-          <div style="display:flex; flex-direction:column; gap:6px;">
-            <select id="adminResetMemberSelect" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; background:#ffffff;">
-              <option value="">-- 請選擇欲重設 PIN 碼的隊友 --</option>
-            </select>
-            <div style="display:flex; gap:6px;">
-              <input type="text" id="adminResetNewPin" maxlength="4" placeholder="輸入新 4 碼 PIN" style="flex:1; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; background:#ffffff;">
-              <button type="button" onclick="submitAdminResetPin()" class="quick-btn" style="background:#2563eb; color:#fff; border-color:#1d4ed8; padding:8px 12px; font-size:12px;">確認重設</button>
-            </div>
-          </div>
-        </div>
-
         <!-- 幹部管理與賽事調度操作手冊 (摺疊抽屜) -->
         <div>
           <button type="button" onclick="toggleAdminGuide()" style="width:100%; display:flex; justify-content:space-between; align-items:center; background:#fef9c3; border:1.5px solid #fde047; padding:9px 12px; border-radius:8px; cursor:pointer; text-align:left;">
@@ -1094,8 +1080,8 @@
               逢連續假期可一鍵設定停練。設定後：首頁頂部自動公告停練並顯示隔週預排賽事；球道表維持全面開放，供隊友正常預排報名與取消；開打當日 AM 09:20 暫停輪調一次，開打時間過後自動解除停練恢復正常顯示。
             </div>
             <div>
-              <strong>🔑 幹部協助重設隊員 PIN 碼：</strong><br>
-              隊友若遺失或忘記 PIN 碼，在第 4 區下拉挑選該隊友並輸入新 4 碼 PIN，點選「確認重設」即可一鍵更新。
+              <strong>🔑 隊友忘記或重設 PIN 碼：</strong><br>
+              隊友若遺失或忘記 PIN 碼，幹部可至首頁「👥 隊員管理」搜尋該隊友，點擊編輯卡片即可直接設定新 PIN 碼或一鍵清空。
             </div>
           </div>
         </div>
@@ -1472,6 +1458,7 @@
           });
           rawResponse.members = incomingList.map(m => {
             if (!m) return m;
+            const ex = existingMap[m.name];
             const by = m.birthYear || (ex ? ex.birthYear : '') || (MEMBER_BIRTH_YEARS[m.name] ? String(MEMBER_BIRTH_YEARS[m.name]) : '');
             let hc = (m.handicap !== undefined && m.handicap !== '' && String(m.handicap) !== '0') ? String(m.handicap) : (ex && ex.handicap ? String(ex.handicap) : '');
             if ((!hc || hc === '0') && by) {
@@ -1484,8 +1471,8 @@
               gender: m.gender || (ex ? ex.gender : '男生'),
               birthYear: by,
               handicap: hc || '0',
-              lineId: m.lineId || (ex ? ex.lineId : ''),
-              pin: m.pin || (ex ? ex.pin : '')
+              lineId: (m.lineId !== undefined && m.lineId !== null) ? String(m.lineId) : (ex ? ex.lineId : ''),
+              pin: (m.pin !== undefined && m.pin !== null) ? String(m.pin) : ''
             };
           });
           try {
@@ -1703,8 +1690,8 @@
       // 2. 若未比對到 LINE ID，則比對本地存儲姓名
       if (!matchedMember && currentUserName) {
         matchedMember = members.find(m => m.name === currentUserName);
-        // 若在手機 LINE App 中 (有 currentUserLineId)，該隊員在試算表中 LINE_ID 與 PIN 碼皆空才視同未綁定
-        if (currentUserLineId && matchedMember && !matchedMember.lineId && !matchedMember.pin) {
+        // 若在手機 LINE App 中，該隊員在雲端已綁定其他人的 LINE ID，則本機不能冒用
+        if (currentUserLineId && matchedMember && matchedMember.lineId && String(matchedMember.lineId).trim().toLowerCase() !== String(currentUserLineId).trim().toLowerCase()) {
           matchedMember = null;
         }
       }
@@ -1732,14 +1719,14 @@
       if (isAdmin) return;
 
       // ★ 情況 A：隊員已綁定且已有 PIN 碼 ➔ 絕對關閉任何彈窗，暢通操作！
-      if (matchedMember && matchedMember.pin) {
+      if (matchedMember && matchedMember.pin && String(matchedMember.pin).trim() !== '') {
         closeRegisterModal();
         closeSetupPinModal();
         return;
       }
 
       // ★ 情況 B：隊員已綁定姓名但尚未設定 PIN 碼 ➔ 關閉綁定窗，立即彈出專屬設定 PIN 碼視窗！
-      if (matchedMember && !matchedMember.pin) {
+      if (matchedMember && (!matchedMember.pin || String(matchedMember.pin).trim() === '')) {
         closeRegisterModal();
         openSetupPinModal(matchedMember.name);
         return;
@@ -1902,8 +1889,8 @@
                   gender: m.gender || (ex ? ex.gender : '男生'),
                   birthYear: by,
                   handicap: hc || '0',
-                  lineId: m.lineId || (ex ? ex.lineId : ''),
-                  pin: m.pin || (ex ? ex.pin : '')
+                  lineId: (m.lineId !== undefined && m.lineId !== null) ? String(m.lineId) : (ex ? ex.lineId : ''),
+                  pin: (m.pin !== undefined && m.pin !== null) ? String(m.pin) : ''
                 };
               });
             }
@@ -1929,8 +1916,8 @@
                   gender: m.gender || (ex ? ex.gender : '男生'),
                   birthYear: by,
                   handicap: hc || '0',
-                  lineId: m.lineId || (ex ? ex.lineId : ''),
-                  pin: m.pin || (ex ? ex.pin : '')
+                  lineId: (m.lineId !== undefined && m.lineId !== null) ? String(m.lineId) : (ex ? ex.lineId : ''),
+                  pin: (m.pin !== undefined && m.pin !== null) ? String(m.pin) : ''
                 };
               });
             }
@@ -2996,34 +2983,6 @@
       } catch (e) {}
     }
 
-    // ===== 彈窗邏輯：4. 幹部協助重設 PIN 碼 =====
-    async function submitAdminResetPin() {
-      const name = document.getElementById('adminResetMemberSelect').value;
-      const newPin = document.getElementById('adminResetNewPin').value.trim();
-
-      if (!name) return showToast('⚠️ 請先選擇欲重設 PIN 碼的隊友！', 3000);
-      if (!newPin || newPin.length !== 4) return showToast('⚠️ 請輸入 4 位數新 PIN 碼！', 3000);
-
-      // 1. 0.05 秒立即生效：更新本地記憶體、清空輸入框、提示成功
-      if (rawResponse && rawResponse.members) {
-        const m = rawResponse.members.find(x => x.name === name);
-        if (m) m.pin = newPin;
-      }
-      document.getElementById('adminResetNewPin').value = '';
-      showToast(`🎉 已成功將【${name}】的 PIN 碼重設為【${newPin}】！`, 3500, false);
-
-      // 2. 同步 Firebase 即時資料庫
-      if (rtdb && rawResponse && rawResponse.members) {
-        rtdb.ref('members').set(rawResponse.members).catch(() => {});
-      }
-
-      // 3. 背景非同步同步至 Google 試算表
-      try {
-        const url = `${API_BASE}?action=updatePin&name=${encodeURIComponent(name)}&newPin=${encodeURIComponent(newPin)}&isAdmin=true`;
-        fetch(url).catch(e => console.warn('Background adminResetPin error:', e));
-      } catch (e) {}
-    }
-
     function openAdminModal() {
       if (isAdmin) {
         openSettingsModal();
@@ -3569,20 +3528,6 @@
     function openSettingsModal() {
       currentSettingDay = currentDay || '週一';
       loadSettingDayData(currentSettingDay);
-
-      // 填入幹部重設 PIN 碼的選單
-      const adminSel = document.getElementById('adminResetMemberSelect');
-      if (adminSel) {
-        adminSel.innerHTML = '<option value="">-- 請選擇欲重設 PIN 碼的隊友 --</option>';
-        const members = (rawResponse && rawResponse.members) ? rawResponse.members : [];
-        members.forEach(m => {
-          const opt = document.createElement('option');
-          opt.value = m.name;
-          opt.innerText = m.code ? `${m.code} - ${m.name} (目前PIN: ${m.pin || '未設'})` : `${m.name} (目前PIN: ${m.pin || '未設'})`;
-          adminSel.appendChild(opt);
-        });
-      }
-
       document.getElementById('settingsModal').style.display = 'flex';
     }
 

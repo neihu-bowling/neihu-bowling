@@ -1310,11 +1310,11 @@
         </div>
         <div>
           <label style="font-weight:900; font-size:12px; display:block; margin-bottom:4px;">2️⃣ 自訂專屬 4 碼 PIN 碼：</label>
-          <input type="password" id="regPinInput" maxlength="4" placeholder="例如 1234 (限 4 位英數字)" style="width:100%; padding:9px; border-radius:6px; border:1px solid #cbd5e1; font-size:13px;">
+          <input type="password" id="regPinInput" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="例如 1234 (限 4 位純數字)" style="width:100%; padding:9px; border-radius:6px; border:1px solid #cbd5e1; font-size:13px;">
         </div>
         <div>
           <label style="font-weight:900; font-size:12px; display:block; margin-bottom:4px;">3️⃣ 再次確認 PIN 碼：</label>
-          <input type="password" id="regPinConfirmInput" maxlength="4" placeholder="請再次輸入 4 碼 PIN" style="width:100%; padding:9px; border-radius:6px; border:1px solid #cbd5e1; font-size:13px;">
+          <input type="password" id="regPinConfirmInput" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="請再次輸入 4 碼純數字 PIN" style="width:100%; padding:9px; border-radius:6px; border:1px solid #cbd5e1; font-size:13px;">
         </div>
       </div>
 
@@ -1335,11 +1335,11 @@
       <div style="display:flex; flex-direction:column; gap:10px;">
         <div>
           <label style="font-weight:900; font-size:12px; display:block; margin-bottom:4px;">1️⃣ 請自訂專屬 4 碼 PIN 碼：</label>
-          <input type="password" id="setupPinInput" maxlength="4" placeholder="例如 1234 (限 4 位英數字)" style="width:100%; padding:9px; border-radius:6px; border:1.5px solid #3b82f6; font-size:14px; text-align:center; letter-spacing:4px;">
+          <input type="password" id="setupPinInput" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="例如 1234 (限 4 位純數字)" style="width:100%; padding:9px; border-radius:6px; border:1.5px solid #3b82f6; font-size:14px; text-align:center; letter-spacing:4px;">
         </div>
         <div>
           <label style="font-weight:900; font-size:12px; display:block; margin-bottom:4px;">2️⃣ 再次確認 PIN 碼：</label>
-          <input type="password" id="setupPinConfirmInput" maxlength="4" placeholder="請再次輸入 4 碼 PIN" style="width:100%; padding:9px; border-radius:6px; border:1.5px solid #3b82f6; font-size:14px; text-align:center; letter-spacing:4px;">
+          <input type="password" id="setupPinConfirmInput" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="請再次輸入 4 碼純數字 PIN" style="width:100%; padding:9px; border-radius:6px; border:1.5px solid #3b82f6; font-size:14px; text-align:center; letter-spacing:4px;">
         </div>
       </div>
 
@@ -1380,11 +1380,11 @@
         </div>
         <div>
           <label style="font-weight:900; font-size:12px; display:block; margin-bottom:4px;">新 4 碼 PIN 碼：</label>
-          <input type="password" id="newPinInput" maxlength="4" placeholder="請輸入新 4 碼" style="width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1; font-size:13px;">
+          <input type="password" id="newPinInput" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="請輸入新 4 碼純數字" style="width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1; font-size:13px;">
         </div>
         <div>
           <label style="font-weight:900; font-size:12px; display:block; margin-bottom:4px;">再次確認新 PIN 碼：</label>
-          <input type="password" id="newPinConfirmInput" maxlength="4" placeholder="再次輸入新 4 碼" style="width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1; font-size:13px;">
+          <input type="password" id="newPinConfirmInput" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="再次輸入新 4 碼純數字" style="width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1; font-size:13px;">
         </div>
       </div>
 
@@ -1817,6 +1817,15 @@
         }
       }
 
+      // 2.1 若仍未比對到，但 LINE 顯示名稱與隊員本名相符，且該隊員尚未綁定 LINE ID，自動配對
+      if (!matchedMember && currentUserDisplayName) {
+        const cleanDisplay = currentUserDisplayName.trim();
+        const cand = members.find(m => m.name === cleanDisplay && (!m.lineId || String(m.lineId).trim() === ''));
+        if (cand) {
+          matchedMember = cand;
+        }
+      }
+
       // 3. 若已找到隊員但試算表尚未記錄 LINE ID，且目前已取得 LINE ID，自動靜默更新到試算表
       if (matchedMember && currentUserLineId && (!matchedMember.lineId || matchedMember.lineId !== currentUserLineId)) {
         matchedMember.lineId = currentUserLineId;
@@ -2159,26 +2168,30 @@
     }
 
     // ★ 判定目前賽事是否處於「前一日 17:00 預排結束時段」
-    // 週一賽事：週日 17:00 ~ 週一 09:20
-    // 週四賽事：週三 17:00 ~ 週四 09:20
+    // 週一賽事：週日 17:00 ~ 週一 10:00
+    // 週四賽事：週三 17:00 ~ 週四 10:00
     function isPreLockActive(dayStr) {
       const cfg = (rawResponse && rawResponse.config) ? rawResponse.config : {};
-      if (cfg.simulatePreLock === true || cfg.simulatePreLock === 'true' || localStorage.getItem('bowling_simulate_prelock') === 'true') {
+      const isSim = (cfg.simulatePreLock === true || cfg.simulatePreLock === 'true' || cfg.simulatePreLock === '開啟');
+      if (isSim) {
         return true;
+      }
+      // 自動清理本機 localStorage 舊殘留，避免本機瀏覽器卡死
+      if (localStorage.getItem('bowling_simulate_prelock') === 'true') {
+        localStorage.removeItem('bowling_simulate_prelock');
       }
       const now = new Date();
       const d = now.getDay(); // 0(日) ~ 6(六)
       const h = now.getHours();
-      const m = now.getMinutes();
 
       if (dayStr === '週一') {
         const isSunAfter17 = (d === 0 && h >= 17);
-        const isMonBefore0920 = (d === 1 && (h < 9 || (h === 9 && m < 20)));
-        return isSunAfter17 || isMonBefore0920;
+        const isMonBefore10 = (d === 1 && h < 10);
+        return isSunAfter17 || isMonBefore10;
       } else if (dayStr === '週四') {
         const isWedAfter17 = (d === 3 && h >= 17);
-        const isThuBefore0920 = (d === 4 && (h < 9 || (h === 9 && m < 20)));
-        return isWedAfter17 || isThuBefore0920;
+        const isThuBefore10 = (d === 4 && h < 10);
+        return isWedAfter17 || isThuBefore10;
       }
       return false;
     }
@@ -2281,7 +2294,7 @@
         const preLockBanner = document.getElementById('preLockNoticeBanner');
         const lateChangesCard = document.getElementById('lateChangesCard');
         const lateList = getLateChangesList(currentDay);
-        const isPreLock = !isPaused && (isPreLockActive(currentDay) || lateList.length > 0);
+        const isPreLock = !isPaused && isPreLockActive(currentDay);
 
         if (isPaused) {
           // 1. 標題旁膠囊顏色維持不變 (週一綠/週四藍)，日期直接跳隔週預排
@@ -2431,7 +2444,7 @@
       const deadPassed = isDeadlinePassed(currentDay, isMon ? cfg.monDate : cfg.thuDate, isMon ? cfg.monDeadline : cfg.thuDeadline);
       const isPaused = isDayHolidayPaused(currentDay);
       const lateList = getLateChangesList(currentDay);
-      const isPreLock = !isPaused && (isPreLockActive(currentDay) || lateList.length > 0);
+      const isPreLock = !isPaused && isPreLockActive(currentDay);
 
       let html = '';
       lanesArray.forEach(laneKey => {
@@ -3166,8 +3179,20 @@
       const pinConfirm = document.getElementById('regPinConfirmInput').value.trim();
 
       if (!name) return showToast('⚠️ 請先選擇您的姓名！', 3000);
-      if (!pin || pin.length !== 4) return showToast('⚠️ PIN 碼需為 4 碼純數字！', 3000);
+      if (!pin || !/^\d{4}$/.test(pin)) return showToast('⚠️ PIN 碼需為 4 碼純數字！', 3000);
       if (pin !== pinConfirm) return showToast('⚠️ 兩次輸入的 PIN 碼不一致！', 3000);
+
+      // 若身處 LINE 內但 currentUserLineId 尚未抓取完成，緊急補抓防遺漏
+      if (!currentUserLineId && window.liff && liff.isLoggedIn && liff.isLoggedIn()) {
+        try {
+          const profile = await liff.getProfile();
+          if (profile && profile.userId) {
+            currentUserLineId = profile.userId;
+            currentUserDisplayName = profile.displayName || '';
+            localStorage.setItem('bowling_line_id', currentUserLineId);
+          }
+        } catch (e) {}
+      }
 
       // 1. 0.05 秒立即生效：設定身分、更新本地儲存與徽章、關閉彈窗
       currentUserName = name;
@@ -3220,13 +3245,28 @@
       const pinConfirm = document.getElementById('setupPinConfirmInput').value.trim();
 
       if (!name) return showToast('⚠️ 查無隊員身分，請先綁定姓名！', 3000);
-      if (!pin || pin.length !== 4) return showToast('⚠️ PIN 碼需為 4 碼純數字！', 3000);
+      if (!pin || !/^\d{4}$/.test(pin)) return showToast('⚠️ PIN 碼需為 4 碼純數字！', 3000);
       if (pin !== pinConfirm) return showToast('⚠️ 兩次輸入的 PIN 碼不一致！', 3000);
+
+      // 若身處 LINE 內但 currentUserLineId 尚未抓取完成，緊急補抓防遺漏
+      if (!currentUserLineId && window.liff && liff.isLoggedIn && liff.isLoggedIn()) {
+        try {
+          const profile = await liff.getProfile();
+          if (profile && profile.userId) {
+            currentUserLineId = profile.userId;
+            currentUserDisplayName = profile.displayName || '';
+            localStorage.setItem('bowling_line_id', currentUserLineId);
+          }
+        } catch (e) {}
+      }
 
       // 1. 0.05 秒立即生效：更新本地記憶體與徽章、秒關彈窗
       if (rawResponse && rawResponse.members) {
         const m = rawResponse.members.find(x => x.name === name);
-        if (m) m.pin = pin;
+        if (m) {
+          m.pin = pin;
+          if (currentUserLineId) m.lineId = currentUserLineId;
+        }
       }
       closeSetupPinModal();
       updateOperatorDisplay();
@@ -3297,7 +3337,7 @@
       const newPinConfirm = document.getElementById('newPinConfirmInput').value.trim();
 
       if (!oldPin) return showToast('⚠️ 請輸入原 4 碼 PIN 碼！', 3000);
-      if (!newPin || newPin.length !== 4) return showToast('⚠️ 新 PIN 碼必須剛好為 4 碼純數字！', 3000);
+      if (!newPin || !/^\d{4}$/.test(newPin)) return showToast('⚠️ 新 PIN 碼必須剛好為 4 碼純數字！', 3000);
       if (newPin !== newPinConfirm) return showToast('⚠️ 兩次輸入的新 PIN 碼不一致！', 3000);
 
       // 本地即時驗證舊 PIN 碼 (打錯 0 秒立即攔截，打對 0 秒放行)

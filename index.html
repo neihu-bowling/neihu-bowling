@@ -843,31 +843,57 @@
       </button>
 
       <div id="userGuideDetailContent" style="display:none; padding-top:12px;">
-        <!-- 項目 1: 更換球道 -->
-        <div class="guide-item">
-          <div class="guide-item-title">🔄 更換球道</div>
-          <div class="guide-item-body">
-            若已報名想換到其他球道，直接點擊目標空位的 <span class="slot-pill-mini">＋ 入座</span> 按鈕，彈出選單點選「🔄 將我自己更換至新球道」，系統將立即為您移位，原席位自動釋出給他人。
-          </div>
-        </div>
-
-        <!-- 項目 2: 取消報名 -->
+        <!-- 項目 1: 取消報名 -->
         <div class="guide-item">
           <div class="guide-item-title">❌ 取消報名</div>
           <div class="guide-item-body">
-            若因事臨時不克出席，直接點擊您自己的名字，在彈出選單點選「❌ 取消報名」，席位將立刻釋出給其他隊友遞補。
+            <div style="margin-bottom:6px;">
+              • <strong>幫自己：</strong>若因事臨時不克出席，直接點擊您自己的名字，在彈出選單點選「❌ 取消報名」，0 秒免輸 PIN 碼，席位將立刻釋出給其他隊友遞補。
+            </div>
+            <div>
+              • <strong>幫隊友：</strong>若欲協助隊友取消，點擊該隊友姓名，為維護席位安全防止誤刪，請輸入該隊友的 4 碼 PIN 碼即可完成代取消（幹部操作則免輸 PIN 碼）。
+            </div>
           </div>
         </div>
 
-        <!-- 項目 3: 幫其他隊友代報名 -->
+        <!-- 項目 2: 幫其他隊友代報名 -->
         <div class="guide-item">
           <div class="guide-item-title">👥 幫其他隊友代報名</div>
           <div class="guide-item-body">
-            若隊友不便使用手機，點擊任一空位 <span class="slot-pill-mini">＋ 入座</span> ➔ 點開「👥 幫其他隊友代報名」，從下拉名單直接挑選未報名的隊友，免輸 PIN 碼直接協助入座。
+            若隊友不便使用手機，點擊任一空位 <span class="slot-pill-mini">＋ 入座</span> ➔ 點開「👥 幫其他隊友代報名」，從下拉名單直接挑選未報名的隊友，<strong>無須隊友 PIN 碼</strong>即可直接協助入座。
           </div>
         </div>
 
-        <!-- 項目 4: 席位顯示「未開放」或「不開放」的條件說明 -->
+        <!-- 項目 3: 更換球道 -->
+        <div class="guide-item">
+          <div class="guide-item-title">🔄 更換球道</div>
+          <div class="guide-item-body">
+            <div style="margin-bottom:6px;">
+              • <strong>幫自己：</strong>若已報名想換到其他球道，直接點擊目標新球道空位的 <span class="slot-pill-mini">＋ 入座</span> 按鈕，彈出選單點選「🔄 將我自己更換至新球道」，系統將立即為您移位，原席位自動釋出給他人。
+            </div>
+            <div>
+              • <strong>幫隊友：</strong>若欲協助隊友更換球道，先至隊友原席位輸入其 PIN 碼取消釋出席位，再至目標新球道點擊空位 <span class="slot-pill-mini">＋ 入座</span> ➔ 展開「幫其他隊友代報名」選擇該隊友入座即可。
+            </div>
+          </div>
+        </div>
+
+        <!-- 項目 4: 幹部協助 -->
+        <div class="guide-item" style="border-left-color:#8b5cf6; background:#f5f3ff;">
+          <div class="guide-item-title" style="color:#6d28d9;">👑 幹部協助（特殊調度與權限）</div>
+          <div class="guide-item-body" style="color:#4c1d95;">
+            <div style="margin-bottom:6px;">
+              • <strong>忘記 PIN 碼或不便操作：</strong>若徹底忘記 4 碼 PIN 碼或手機故障，可隨時聯繫現場幹部，由幹部登入管理後台免輸 PIN 碼直接協助您入座、換道或取消席位，亦可為您一鍵重設 PIN 碼。
+            </div>
+            <div style="margin-bottom:6px;">
+              • <strong>預排截止後：</strong>每週一、四前一天 17:00 預排截止，若需臨時請假或加打，線上皆可直接操作；但此時無法自行換道，如需換位請由幹部協助手動調整席位與記分表。
+            </div>
+            <div>
+              • <strong>幹部專用道：</strong>全場一般球道席位額滿時，幹部可視現場情況釋出工作人員保留專用道席位供隊友入座。
+            </div>
+          </div>
+        </div>
+
+        <!-- 項目 5: 席位顯示「未開放」或「不開放」的條件說明 -->
         <div class="guide-item" style="border-left-color:#eab308; background:#fefce8;">
           <div class="guide-item-title" style="color:#854d0e;">🔒 席位顯示「未開放」或「不開放」的條件說明</div>
           <div class="guide-item-body" style="color:#713f12;">

@@ -1502,6 +1502,7 @@
         if (val) {
           if (!rawResponse) rawResponse = { status: 'success', data: {}, config: {}, members: [] };
           rawResponse.config = Object.assign(rawResponse.config || {}, val);
+          validateAdminSession(rawResponse.config);
           renderAll();
         }
       });
@@ -1619,7 +1620,7 @@
     const ALL_LANES = [...LEFT_LANES, ...RIGHT_LANES];
     let rawResponse = null;
     let currentDay = getAutoDefaultDay();
-    let isAdmin = localStorage.getItem('bowling_admin') === 'true';
+    let isAdmin = false; // ★ 預設不開放，由 validateAdminSession 嚴格比對 Token 與最新密碼
     let currentUserLineId = localStorage.getItem('bowling_line_id') || '';
     let currentUserDisplayName = '';
     let currentUserName = localStorage.getItem('bowling_player_name') || '';
@@ -1629,6 +1630,54 @@
     let selectedLane = '';
     let toastTimer = null;
     let confirmCallback = null;
+
+    // ★ 管理者授權安全校驗：舊版僅存 'true' 者一律作廢，必須持有與最新密碼相符的 Token
+    function validateAdminSession(cfg) {
+      const savedToken = localStorage.getItem('bowling_admin_token');
+      const legacyAdmin = localStorage.getItem('bowling_admin');
+      const configObj = cfg || (rawResponse && rawResponse.config);
+      const actualPwd = (configObj && configObj.adminPwd) ? String(configObj.adminPwd).trim() : null;
+
+      // 1. 若無 token（含舊版只存 bowling_admin: 'true' 者），立即作廢踢出
+      if (!savedToken) {
+        if (isAdmin || legacyAdmin === 'true') {
+          isAdmin = false;
+          localStorage.removeItem('bowling_admin');
+          localStorage.removeItem('bowling_admin_token');
+          console.log('🔒 舊版管理暫存已失效，請重新以新密碼登入管理者模式。');
+          renderAll();
+        }
+        return false;
+      }
+
+      // 2. 若已取得最新雲端設定，進行嚴格比對
+      if (actualPwd) {
+        if (savedToken === actualPwd) {
+          if (!isAdmin) {
+            isAdmin = true;
+            renderAll();
+          }
+          return true;
+        } else {
+          // 密碼已變更！立即強制清除權限並踢出管理者模式！
+          isAdmin = false;
+          localStorage.removeItem('bowling_admin');
+          localStorage.removeItem('bowling_admin_token');
+          console.log('🔒 管理密碼已變更，舊登入已自動失效！');
+          showToast('🔒 管理密碼已變更，系統已自動將您登出，請以新密碼重新登入。', 4000, false);
+          renderAll();
+          return false;
+        }
+      }
+
+      // 3. 若尚未取得 config，若有 savedToken 先暫定 isAdmin，待 config 到達後立即校驗
+      if (savedToken && legacyAdmin === 'true') {
+        isAdmin = true;
+      }
+      return isAdmin;
+    }
+    // 立即執行一次初始檢查（掃除舊版殘留無 token 的登入）
+    validateAdminSession();
 
     // ★ 抗網路波動安全 Fetch (帶超時與自動重試)
     async function safeFetchJson(url, maxAttempts = 2) {
@@ -1969,7 +2018,10 @@
                 };
               });
             }
-            if (res.config) rawResponse.config = Object.assign(rawResponse.config || {}, res.config);
+            if (res.config) {
+              rawResponse.config = Object.assign(rawResponse.config || {}, res.config);
+              validateAdminSession(rawResponse.config);
+            }
           } else {
             if (res.members) {
               const curMap = {};
@@ -1997,6 +2049,7 @@
               });
             }
             rawResponse = res;
+            if (rawResponse && rawResponse.config) validateAdminSession(rawResponse.config);
           }
           if (existingLateChanges) {
             rawResponse.lateChanges = existingLateChanges;
@@ -3272,9 +3325,12 @@
     }
 
     function openAdminModal() {
+      validateAdminSession();
       if (isAdmin) {
         openSettingsModal();
       } else {
+        const inp = document.getElementById('adminPwdInput');
+        if (inp) inp.value = '';
         document.getElementById('loginModal').style.display = 'flex';
       }
     }
@@ -3283,10 +3339,12 @@
     }
     function submitAdminLogin() {
       const input = document.getElementById('adminPwdInput').value;
-      const actual = (rawResponse && rawResponse.config) ? rawResponse.config.adminPwd : '8888';
-      if (input === actual) {
+      const actual = (rawResponse && rawResponse.config && rawResponse.config.adminPwd) ? String(rawResponse.config.adminPwd).trim() : '8888';
+      const cleanInput = String(input || '').trim();
+      if (cleanInput && cleanInput === actual) {
         isAdmin = true;
         localStorage.setItem('bowling_admin', 'true');
+        localStorage.setItem('bowling_admin_token', cleanInput);
         closeAdminModal();
         showToast('👑 歡迎管理者！所有權限已解鎖。', 3000, false);
         renderAll();
@@ -3297,6 +3355,7 @@
     function logoutAdmin() {
       isAdmin = false;
       localStorage.removeItem('bowling_admin');
+      localStorage.removeItem('bowling_admin_token');
       showToast('已登出管理者模式。', 3000, false);
       renderAll();
     }
@@ -4399,6 +4458,7 @@
           // 確保第一項「不解鎖幹部權限」，維持一般隊友視角
           isAdmin = false;
           localStorage.removeItem('bowling_admin');
+          localStorage.removeItem('bowling_admin_token');
         }
       } catch (ue) {}
 

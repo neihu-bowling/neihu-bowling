@@ -2319,9 +2319,9 @@
 
       let html = '';
       list.forEach(item => {
-        const isJoin = item.action === 'join';
+        const isJoin = item.action === 'join' || item.action === 'late_join';
         const actBadge = isJoin 
-          ? '<span style="color:#d97706; font-weight:bold;">＋ 補位入座</span>' 
+          ? '<span style="color:#d97706; font-weight:bold;">＋ 晚鳥補位</span>' 
           : '<span style="color:#dc2626; font-weight:bold;">❌ 請假退出</span>';
         html += `<div style="padding:2px 0;">• [${item.time || ''}] <b>${item.name}</b>：${actBadge} ${item.lane} 道 第 ${item.slot} 位</div>`;
       });
@@ -2412,13 +2412,29 @@
       let html = '';
       const borderDashed = isMon ? '#bbf7d0' : '#bfdbfe';
       list.forEach(item => {
-        const isJoin = item.action === 'join';
-        const actBadge = isJoin 
-          ? '<span style="color:#16a34a; font-weight:bold;">＋ 補位入座</span>' 
-          : '<span style="color:#dc2626; font-weight:bold;">❌ 請假退出</span>';
-        const opInfo = item.operator ? `<span style="color:#64748b; font-size:11px; margin-left:4px;">[${item.operator}]</span>` : '';
+        let actBadge = '';
+        let seatText = `${item.lane} 道 第 ${item.slot} 位`;
+
+        if (item.action === 'move') {
+          actBadge = '<span style="color:#2563eb; font-weight:bold;">🔄 換道移位</span>';
+          if (item.fromLane) {
+            seatText = `(從 ${item.fromLane}道第${item.fromSlot || ''}位 ➔ 移至 ${item.lane}道第${item.slot}位)`;
+          } else {
+            seatText = `至 ${item.lane} 道 第 ${item.slot} 位`;
+          }
+        } else if (item.action === 'late_join') {
+          actBadge = '<span style="color:#d97706; font-weight:bold;">＋ 晚鳥補位</span>';
+        } else if (item.action === 'leave') {
+          actBadge = '<span style="color:#dc2626; font-weight:bold;">❌ 請假退出</span>';
+        } else {
+          actBadge = '<span style="color:#16a34a; font-weight:bold;">＋ 報名入座</span>';
+        }
+
+        const opInfo = (item.operator && String(item.operator).trim() !== '') 
+          ? `<span style="color:#64748b; font-size:11px; margin-left:4px;">[${item.operator}]</span>` 
+          : '';
         const datePart = item.date ? `${item.date} ` : '';
-        html += `<div style="padding:3px 0; border-bottom:1px dashed ${borderDashed};">• [${datePart}${item.time || ''}] <b>${item.name}</b>：${actBadge} ${item.lane} 道 第 ${item.slot} 位 ${opInfo}</div>`;
+        html += `<div style="padding:3.5px 0; border-bottom:1px dashed ${borderDashed};">• [${datePart}${item.time || ''}] <b>${item.name}</b>：${actBadge} ${seatText} ${opInfo}</div>`;
       });
       listEl.innerHTML = html;
     }
@@ -2945,6 +2961,23 @@
       const currentStaffLane = isMonDay ? (cfg.monStaffLanes || cfg.staffLanes || '7/8') : (cfg.thuStaffLanes || cfg.staffLanes || '7/8');
       const targetDayKey = isMonDay ? 'mon' : 'thu';
 
+      // 檢查該隊友目前是否已在場上某個席位 (移位判斷)
+      let oldSeatInfo = null;
+      if (name !== '[開放入座]') {
+        const curDayData = (rawResponse && rawResponse.data && rawResponse.data[targetDayKey]) ? rawResponse.data[targetDayKey] : [];
+        const laneArr = Array.isArray(curDayData) ? curDayData : Object.values(curDayData);
+        laneArr.forEach(l => {
+          if (l && l.players) {
+            const pl = normalize8Players(l.players);
+            pl.forEach((p, idx) => {
+              if (p && p.name === name) {
+                oldSeatInfo = { lane: l.lane, slot: idx + 1 };
+              }
+            });
+          }
+        });
+      }
+
       // ★ 1. 優先使用 Firebase Realtime Database Transaction (0.1秒極速完成、斷線不漏單)
       if (rtdb && isFirebaseReady) {
         try {
@@ -3012,7 +3045,7 @@
               rtdb.ref(`lateChanges/${targetDayKey}`).push({
                 time: `${hh}:${mm}`,
                 name: name,
-                action: 'join',
+                action: 'late_join',
                 lane: lane,
                 slot: slotIndex,
                 timestamp: Date.now()
@@ -3025,17 +3058,44 @@
               const dd = String(now.getDate()).padStart(2, '0');
               const hh = String(now.getHours()).padStart(2, '0');
               const mi = String(now.getMinutes()).padStart(2, '0');
-              const op = isAdmin ? `幹部(${currentUserName || '管理員'})` : (currentUserName ? currentUserName : name);
-              rtdb.ref(`adminChanges/${targetDayKey}`).push({
+
+              // 判斷動作類型：換道移位(move) / 晚鳥補位(late_join) / 報名入座(join)
+              let actType = 'join';
+              let fromL = null;
+              let fromS = null;
+              if (oldSeatInfo && (oldSeatInfo.lane !== lane || oldSeatInfo.slot !== slotIndex)) {
+                actType = 'move';
+                fromL = oldSeatInfo.lane;
+                fromS = oldSeatInfo.slot;
+              } else if (isPreLockActive(currentDay)) {
+                actType = 'late_join';
+              }
+
+              // 來源標記：
+              // 幹部操作 ➔ [幹部(姓名)]
+              // 他人代報 ➔ [由 姓名 代報]
+              // 網頁本人操作 ➔ '' (不顯示任何後綴，保持清爽)
+              let op = '';
+              if (isAdmin) {
+                op = `幹部(${currentUserName || '管理員'})`;
+              } else if (currentUserName && currentUserName !== name) {
+                op = `由 ${currentUserName} 代報`;
+              }
+
+              const changeItem = {
                 date: `${mm}/${dd}`,
                 time: `${hh}:${mi}`,
                 name: name,
-                action: 'join',
+                action: actType,
                 lane: lane,
                 slot: slotIndex,
                 operator: op,
                 timestamp: Date.now()
-              });
+              };
+              if (fromL) changeItem.fromLane = fromL;
+              if (fromS) changeItem.fromSlot = fromS;
+
+              rtdb.ref(`adminChanges/${targetDayKey}`).push(changeItem);
             }
             // 背景非同步發送 GAS 備援（fire-and-forget，不卡介面）
             try {
@@ -3230,7 +3290,12 @@
             const dd = String(now.getDate()).padStart(2, '0');
             const hh = String(now.getHours()).padStart(2, '0');
             const mi = String(now.getMinutes()).padStart(2, '0');
-            const op = isAdmin ? `幹部(${currentUserName || '管理員'})` : (currentUserName ? currentUserName : playerName);
+            let op = '';
+            if (isAdmin) {
+              op = `幹部(${currentUserName || '管理員'})`;
+            } else if (currentUserName && currentUserName !== playerName) {
+              op = `由 ${currentUserName} 代辦`;
+            }
             rtdb.ref(`adminChanges/${targetDayKey}`).push({
               date: `${mm}/${dd}`,
               time: `${hh}:${mi}`,

@@ -789,13 +789,13 @@
     </div>
   </div>
 
-  <!-- 📋 本週席位全程異動明細看板 (登入管理者專屬可見，預設收合) -->
-  <div id="adminChangesCard" style="display:none; background:#f8fafc; border:1.5px solid #6366f1; border-radius:12px; padding:9px 12px; margin:6px 0 6px 0; box-shadow:0 1px 3px rgba(99,102,241,0.15);">
-    <div id="adminChangesHeader" onclick="toggleAdminChangesCard()" style="display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; color:#4338ca; font-size:13px;">
-      <span id="adminChangesTitle">📋 本週席位全程異動明細 (點擊展開)</span>
-      <span id="adminChangesToggleIcon" style="font-size:12px; color:#6366f1; font-weight:normal;">▶ 點此展開</span>
+  <!-- 📋 席位全程異動明細看板 (登入管理者專屬可見，預設收合) -->
+  <div id="adminChangesCard" style="display:none; border-radius:12px; padding:9px 12px; margin:6px 0 6px 0; border-width:1.5px; border-style:solid;">
+    <div id="adminChangesHeader" onclick="toggleAdminChangesCard()" style="display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:13px;">
+      <span id="adminChangesTitle">📋 席位全程異動明細 (點擊展開)</span>
+      <span id="adminChangesToggleIcon" style="font-size:12px; font-weight:normal;">▶ 點此展開</span>
     </div>
-    <div id="adminChangesList" style="display:none; margin-top:8px; font-size:12.5px; color:#1e1b4b; line-height:1.6; border-top:1px dashed #cbd5e1; padding-top:6px; max-height:280px; overflow-y:auto;">
+    <div id="adminChangesList" style="display:none; margin-top:8px; font-size:12.5px; line-height:1.6; border-top:1px dashed #cbd5e1; padding-top:6px; max-height:280px; overflow-y:auto;">
     </div>
   </div>
 
@@ -2201,19 +2201,22 @@
       showToast('⚠️ 本場賽事因逢國定連假停練一次，暫停入座報名！', 3500, false);
     }
 
+    // ★ 檢查管理者專屬的預排結束模擬模式是否開啟
+    function isAdminSimulatePreLockActive() {
+      if (!isAdmin) return false;
+      return localStorage.getItem('bowling_admin_simulate_prelock') === 'true';
+    }
+
     // ★ 判定目前賽事是否處於「前一日 17:00 預排結束時段」
     // 週一賽事：週日 17:00 ~ 週一 10:00
     // 週四賽事：週三 17:00 ~ 週四 10:00
     function isPreLockActive(dayStr) {
-      const cfg = (rawResponse && rawResponse.config) ? rawResponse.config : {};
-      const isSim = (cfg.simulatePreLock === true || cfg.simulatePreLock === 'true' || cfg.simulatePreLock === '開啟');
-      if (isSim) {
+      // 1. 若為管理員開啟之模擬模式：嚴格限制【僅登入管理者可見】，絕不干擾一般隊友！
+      if (isAdmin && isAdminSimulatePreLockActive()) {
         return true;
       }
-      // 自動清理本機 localStorage 舊殘留，避免本機瀏覽器卡死
-      if (localStorage.getItem('bowling_simulate_prelock') === 'true') {
-        localStorage.removeItem('bowling_simulate_prelock');
-      }
+
+      // 2. 一般隊員（或未開模擬時）：100% 依據當前真實時鐘時間
       const now = new Date();
       const d = now.getDay(); // 0(日) ~ 6(六)
       const h = now.getHours();
@@ -2230,15 +2233,14 @@
       return false;
     }
 
-    // ★ 幹部測試專用：一鍵切換預排結束模擬模式 (同步寫入 Firebase 雲端，跨裝置全部生效)
+    // ★ 幹部測試專用：一鍵切換預排結束模擬模式 (僅管理者本機生效，一般隊員不受任何影響)
     async function setSimulatePreLock(enable) {
+      if (!isAdmin) return;
       if (enable) {
-        localStorage.setItem('bowling_simulate_prelock', 'true');
-        if (rtdb) await rtdb.ref('config/simulatePreLock').set(true);
-        showToast('🟠 已開啟「預排結束」模擬模式！首頁將呈現預排結束狀態。', 3000, false);
+        localStorage.setItem('bowling_admin_simulate_prelock', 'true');
+        showToast('🟠 已開啟「預排結束模擬」（僅管理者可見，不影響一般隊友）', 3000, false);
       } else {
-        localStorage.removeItem('bowling_simulate_prelock');
-        if (rtdb) await rtdb.ref('config/simulatePreLock').set(false);
+        localStorage.removeItem('bowling_admin_simulate_prelock');
         showToast('⚪ 已關閉模擬，恢復當前真實時間狀態！', 3000, false);
       }
       closeSettingsModal();
@@ -2290,7 +2292,20 @@
       if (!card || !listEl) return;
 
       const list = getLateChangesList(currentDay);
+      const isSim = isAdmin && isAdminSimulatePreLockActive();
+
       if (list.length === 0) {
+        if (isSim) {
+          // 模擬模式下即使為 0 筆，也展示看板供幹部檢視效果與測試展開收合
+          card.style.display = 'block';
+          listEl.style.display = isLateChangesCollapsed ? 'none' : 'block';
+          if (iconEl) iconEl.innerText = isLateChangesCollapsed ? '▶ 點此展開' : '▼ 點此收合';
+          if (titleEl) {
+            titleEl.innerText = `📝 預排結束後名單異動（模擬中：共 0 筆）：`;
+          }
+          listEl.innerHTML = `<div style="color:#b45309; font-size:12px; padding:4px 0;">（模擬中：目前尚無晚鳥異動紀錄，若此時有隊友補位或請假將即時顯示於此）</div>`;
+          return;
+        }
         card.style.display = 'none';
         return;
       }
@@ -2325,10 +2340,10 @@
       const list = getAdminChangesList(currentDay);
       if (titleEl) {
         if (list.length === 0) {
-          titleEl.innerText = `📋 本週席位全程異動明細 (尚無異動紀錄)`;
+          titleEl.innerText = `📋 ${currentDay}席位全程異動明細 (尚無異動紀錄)`;
         } else {
           const actionHint = isAdminChangesCollapsed ? '(點擊展開)' : '(點擊收合)';
-          titleEl.innerText = `📋 本週席位全程異動明細（共 ${list.length} 筆）${actionHint}`;
+          titleEl.innerText = `📋 ${currentDay}席位全程異動明細（共 ${list.length} 筆）${actionHint}`;
         }
       }
     }
@@ -2357,21 +2372,45 @@
       listEl.style.display = isAdminChangesCollapsed ? 'none' : 'block';
       if (iconEl) iconEl.innerText = isAdminChangesCollapsed ? '▶ 點此展開' : '▼ 點此收合';
 
+      const isMon = currentDay === '週一';
+      if (isMon) {
+        card.style.background = '#f0fdf4';
+        card.style.borderColor = '#22c55e';
+        card.style.boxShadow = '0 1px 3px rgba(34,197,94,0.18)';
+        if (titleEl) titleEl.style.color = '#15803d';
+        if (iconEl) iconEl.style.color = '#16a34a';
+        if (listEl) {
+          listEl.style.color = '#14532d';
+          listEl.style.borderTopColor = '#bbf7d0';
+        }
+      } else {
+        card.style.background = '#eff6ff';
+        card.style.borderColor = '#3b82f6';
+        card.style.boxShadow = '0 1px 3px rgba(59,130,246,0.18)';
+        if (titleEl) titleEl.style.color = '#1d4ed8';
+        if (iconEl) iconEl.style.color = '#2563eb';
+        if (listEl) {
+          listEl.style.color = '#1e3a8a';
+          listEl.style.borderTopColor = '#bfdbfe';
+        }
+      }
+
       const list = getAdminChangesList(currentDay);
       if (list.length === 0) {
         if (titleEl) {
-          titleEl.innerText = `📋 本週席位全程異動明細 (尚無異動紀錄)`;
+          titleEl.innerText = `📋 ${currentDay}席位全程異動明細 (尚無異動紀錄)`;
         }
-        listEl.innerHTML = `<div style="color:#64748b; font-size:12px; padding:6px 0; text-align:center;">（本週尚無任何席位異動紀錄）</div>`;
+        listEl.innerHTML = `<div style="color:#64748b; font-size:12px; padding:6px 0; text-align:center;">（${currentDay}尚無任何席位異動紀錄）</div>`;
         return;
       }
 
       const actionHint = isAdminChangesCollapsed ? '(點擊展開)' : '(點擊收合)';
       if (titleEl) {
-        titleEl.innerText = `📋 本週席位全程異動明細（共 ${list.length} 筆）${actionHint}`;
+        titleEl.innerText = `📋 ${currentDay}席位全程異動明細（共 ${list.length} 筆）${actionHint}`;
       }
 
       let html = '';
+      const borderDashed = isMon ? '#bbf7d0' : '#bfdbfe';
       list.forEach(item => {
         const isJoin = item.action === 'join';
         const actBadge = isJoin 
@@ -2379,7 +2418,7 @@
           : '<span style="color:#dc2626; font-weight:bold;">❌ 請假退出</span>';
         const opInfo = item.operator ? `<span style="color:#64748b; font-size:11px; margin-left:4px;">[${item.operator}]</span>` : '';
         const datePart = item.date ? `${item.date} ` : '';
-        html += `<div style="padding:3px 0; border-bottom:1px dashed #e2e8f0;">• [${datePart}${item.time || ''}] <b>${item.name}</b>：${actBadge} ${item.lane} 道 第 ${item.slot} 位 ${opInfo}</div>`;
+        html += `<div style="padding:3px 0; border-bottom:1px dashed ${borderDashed};">• [${datePart}${item.time || ''}] <b>${item.name}</b>：${actBadge} ${item.lane} 道 第 ${item.slot} 位 ${opInfo}</div>`;
       });
       listEl.innerHTML = html;
     }
@@ -3550,6 +3589,7 @@
       isAdmin = false;
       localStorage.removeItem('bowling_admin');
       localStorage.removeItem('bowling_admin_token');
+      localStorage.removeItem('bowling_admin_simulate_prelock');
       showToast('已登出管理者模式。', 3000, false);
       renderAll();
     }
@@ -4069,9 +4109,9 @@
     function openSettingsModal() {
       currentSettingDay = currentDay || '週一';
       loadSettingDayData(currentSettingDay);
-      const isSim = localStorage.getItem('bowling_simulate_prelock') === 'true';
+      const isSim = isAdminSimulatePreLockActive();
       const statEl = document.getElementById('simulatePreLockStatus');
-      if (statEl) statEl.innerHTML = isSim ? '<span style="color:#b91c1c;">● 模擬進行中</span>' : '<span style="color:#15803d;">● 真實時間模式</span>';
+      if (statEl) statEl.innerHTML = isSim ? '<span style="color:#b91c1c;">● 模擬進行中 (僅管理者可見)</span>' : '<span style="color:#15803d;">● 真實時間模式</span>';
       document.getElementById('settingsModal').style.display = 'flex';
     }
 

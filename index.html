@@ -723,9 +723,9 @@
     <div id="lateChangesCard" style="display:none; background:#fffbeb; border:1.5px solid #f59e0b; border-radius:12px; padding:9px 12px; margin:6px 0 6px 0; box-shadow:0 1px 3px rgba(245,158,11,0.15);">
       <div id="lateChangesHeader" onclick="toggleLateChangesCard()" style="display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; color:#b45309; font-size:13px;">
         <span id="lateChangesTitle">📝 預排結束後名單異動（共 0 筆）：</span>
-        <span id="lateChangesToggleIcon" style="font-size:12px; color:#d97706; font-weight:normal;">▼ 點此收合</span>
+        <span id="lateChangesToggleIcon" style="font-size:12px; color:#d97706; font-weight:normal;">▶ 點此展開</span>
       </div>
-      <div id="lateChangesList" style="margin-top:6px; font-size:12.5px; color:#78350f; line-height:1.6;">
+      <div id="lateChangesList" style="display:none; margin-top:6px; font-size:12.5px; color:#78350f; line-height:1.6;">
       </div>
     </div>
     <div class="info-bar">
@@ -786,6 +786,16 @@
       <button onclick="openMemberMgmtModal()" style="background:#1d4ed8; color:#ffffff; border:1px solid #1e40af; padding:5px 11px; border-radius:6px; font-weight:900; cursor:pointer; font-size:12.5px; display:inline-flex; align-items:center; gap:5px; box-shadow:0 1px 2px rgba(0,0,0,0.15); white-space:nowrap;"><span style="filter:drop-shadow(0 0 1px #fff);">👥</span> 隊員管理</button>
       <button onclick="openSettingsModal()" style="background:#d97706; color:#ffffff; border:1px solid #b45309; padding:5px 11px; border-radius:6px; font-weight:900; cursor:pointer; font-size:12.5px; display:inline-flex; align-items:center; gap:5px; box-shadow:0 1px 2px rgba(0,0,0,0.15); white-space:nowrap;"><span>⚙️</span> 賽事設定</button>
       <button onclick="logoutAdmin()" style="background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; padding:5px 10px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:12px; white-space:nowrap;">登出</button>
+    </div>
+  </div>
+
+  <!-- 📋 本週席位全程異動明細看板 (登入管理者專屬可見，預設收合) -->
+  <div id="adminChangesCard" style="display:none; background:#f8fafc; border:1.5px solid #6366f1; border-radius:12px; padding:9px 12px; margin:6px 0 6px 0; box-shadow:0 1px 3px rgba(99,102,241,0.15);">
+    <div id="adminChangesHeader" onclick="toggleAdminChangesCard()" style="display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; color:#4338ca; font-size:13px;">
+      <span id="adminChangesTitle">📋 本週席位全程異動明細 (點擊展開)</span>
+      <span id="adminChangesToggleIcon" style="font-size:12px; color:#6366f1; font-weight:normal;">▶ 點此展開</span>
+    </div>
+    <div id="adminChangesList" style="display:none; margin-top:8px; font-size:12.5px; color:#1e1b4b; line-height:1.6; border-top:1px dashed #cbd5e1; padding-top:6px; max-height:280px; overflow-y:auto;">
     </div>
   </div>
 
@@ -1561,6 +1571,19 @@
         } catch (ce) {}
         renderAll();
       });
+
+      // 5. 監聽本週全程席位異動 (adminChanges)
+      rtdb.ref('adminChanges').on('value', snapshot => {
+        const val = snapshot.val();
+        if (!rawResponse) rawResponse = { status: 'success', data: {}, config: {}, members: [] };
+        rawResponse.adminChanges = val || {};
+        try {
+          localStorage.setItem('bowling_cache_raw', JSON.stringify(rawResponse));
+        } catch (ce) {}
+        if (isAdmin) {
+          renderAdminChangesUI();
+        }
+      });
     }
 
     // ★ 若 Firebase 初次建立為空，自動從試算表抽取資料初始化至 Firebase
@@ -1999,8 +2022,9 @@
               res.config.thuPauseDate = savedThuPause;
             }
           }
-          // ★ 關鍵防護：保留記憶體或快取中的 lateChanges (晚鳥異動)，避免被 GAS 試算表回傳覆蓋抹平
+          // ★ 關鍵防護：保留記憶體或快取中的 lateChanges (晚鳥異動) 與 adminChanges (全程席位異動)，避免被 GAS 試算表回傳覆蓋抹平
           const existingLateChanges = (rawResponse && rawResponse.lateChanges) ? rawResponse.lateChanges : null;
+          const existingAdminChanges = (rawResponse && rawResponse.adminChanges) ? rawResponse.adminChanges : null;
 
           // 若 Firebase 已連線且已有球道資料，保留 Firebase 的最新即時球道資料，僅更新隊員名單與設定
           if (isFirebaseReady && rawResponse && rawResponse.data && (rawResponse.data.mon || rawResponse.data.thu) && !force) {
@@ -2067,6 +2091,16 @@
               const cached = JSON.parse(localStorage.getItem('bowling_cache_raw') || '{}');
               if (cached && cached.lateChanges) {
                 rawResponse.lateChanges = cached.lateChanges;
+              }
+            } catch (ce) {}
+          }
+          if (existingAdminChanges) {
+            rawResponse.adminChanges = existingAdminChanges;
+          } else {
+            try {
+              const cached = JSON.parse(localStorage.getItem('bowling_cache_raw') || '{}');
+              if (cached && cached.adminChanges) {
+                rawResponse.adminChanges = cached.adminChanges;
               }
             } catch (ce) {}
           }
@@ -2211,24 +2245,26 @@
       renderAll();
     }
 
-    // ★ 幹部測試專用：一鍵清空 Firebase 預排異動紀錄 (lateChanges)
+    // ★ 幹部測試專用：一鍵清空 Firebase 預排異動紀錄 (lateChanges) 與全程席位異動 (adminChanges)
     function clearFirebaseLateChanges() {
-      customConfirm(`確定要清空【${currentDay}】的所有預排異動紀錄（lateChanges）嗎？\n此動作將重置看板與變色格子。`, async (confirmed) => {
+      customConfirm(`確定要清空【${currentDay}】的所有預排與席位異動紀錄嗎？\n此動作將重置晚鳥看板、全程異動看板與變色格子。`, async (confirmed) => {
         if (!confirmed) return;
         const targetDayKey = currentDay === '週一' ? 'mon' : 'thu';
         if (rtdb) {
           await rtdb.ref(`lateChanges/${targetDayKey}`).set(null);
+          await rtdb.ref(`adminChanges/${targetDayKey}`).set(null);
         }
-        if (rawResponse && rawResponse.lateChanges) {
-          rawResponse.lateChanges[targetDayKey] = null;
+        if (rawResponse) {
+          if (rawResponse.lateChanges) rawResponse.lateChanges[targetDayKey] = null;
+          if (rawResponse.adminChanges) rawResponse.adminChanges[targetDayKey] = null;
         }
-        showToast(`🧹 已成功清空【${currentDay}】預排異動紀錄！`, 3000, false);
+        showToast(`🧹 已成功清空【${currentDay}】預排與席位異動紀錄！`, 3000, false);
         closeSettingsModal();
         renderAll();
       });
     }
 
-    let isLateChangesCollapsed = false;
+    let isLateChangesCollapsed = true;
     function toggleLateChangesCard() {
       const listEl = document.getElementById('lateChangesList');
       const iconEl = document.getElementById('lateChangesToggleIcon');
@@ -2250,6 +2286,7 @@
       const card = document.getElementById('lateChangesCard');
       const titleEl = document.getElementById('lateChangesTitle');
       const listEl = document.getElementById('lateChangesList');
+      const iconEl = document.getElementById('lateChangesToggleIcon');
       if (!card || !listEl) return;
 
       const list = getLateChangesList(currentDay);
@@ -2259,6 +2296,8 @@
       }
 
       card.style.display = 'block';
+      listEl.style.display = isLateChangesCollapsed ? 'none' : 'block';
+      if (iconEl) iconEl.innerText = isLateChangesCollapsed ? '▶ 點此展開' : '▼ 點此收合';
       if (titleEl) {
         titleEl.innerText = `📝 預排結束後名單異動（共 ${list.length} 筆）：`;
       }
@@ -2270,6 +2309,77 @@
           ? '<span style="color:#d97706; font-weight:bold;">＋ 補位入座</span>' 
           : '<span style="color:#dc2626; font-weight:bold;">❌ 請假退出</span>';
         html += `<div style="padding:2px 0;">• [${item.time || ''}] <b>${item.name}</b>：${actBadge} ${item.lane} 道 第 ${item.slot} 位</div>`;
+      });
+      listEl.innerHTML = html;
+    }
+
+    let isAdminChangesCollapsed = true;
+    function toggleAdminChangesCard() {
+      const listEl = document.getElementById('adminChangesList');
+      const iconEl = document.getElementById('adminChangesToggleIcon');
+      const titleEl = document.getElementById('adminChangesTitle');
+      if (!listEl) return;
+      isAdminChangesCollapsed = !isAdminChangesCollapsed;
+      listEl.style.display = isAdminChangesCollapsed ? 'none' : 'block';
+      if (iconEl) iconEl.innerText = isAdminChangesCollapsed ? '▶ 點此展開' : '▼ 點此收合';
+      const list = getAdminChangesList(currentDay);
+      if (titleEl) {
+        if (list.length === 0) {
+          titleEl.innerText = `📋 本週席位全程異動明細 (尚無異動紀錄)`;
+        } else {
+          const actionHint = isAdminChangesCollapsed ? '(點擊展開)' : '(點擊收合)';
+          titleEl.innerText = `📋 本週席位全程異動明細（共 ${list.length} 筆）${actionHint}`;
+        }
+      }
+    }
+
+    function getAdminChangesList(dayStr) {
+      const dayKey = dayStr === '週一' ? 'mon' : 'thu';
+      if (!rawResponse || !rawResponse.adminChanges || !rawResponse.adminChanges[dayKey]) return [];
+      const raw = rawResponse.adminChanges[dayKey];
+      const list = Array.isArray(raw) ? raw : Object.values(raw);
+      return list.filter(item => item && item.name);
+    }
+
+    function renderAdminChangesUI() {
+      const card = document.getElementById('adminChangesCard');
+      const titleEl = document.getElementById('adminChangesTitle');
+      const listEl = document.getElementById('adminChangesList');
+      const iconEl = document.getElementById('adminChangesToggleIcon');
+      if (!card || !listEl) return;
+
+      if (!isAdmin) {
+        card.style.display = 'none';
+        return;
+      }
+
+      card.style.display = 'block';
+      listEl.style.display = isAdminChangesCollapsed ? 'none' : 'block';
+      if (iconEl) iconEl.innerText = isAdminChangesCollapsed ? '▶ 點此展開' : '▼ 點此收合';
+
+      const list = getAdminChangesList(currentDay);
+      if (list.length === 0) {
+        if (titleEl) {
+          titleEl.innerText = `📋 本週席位全程異動明細 (尚無異動紀錄)`;
+        }
+        listEl.innerHTML = `<div style="color:#64748b; font-size:12px; padding:6px 0; text-align:center;">（本週尚無任何席位異動紀錄）</div>`;
+        return;
+      }
+
+      const actionHint = isAdminChangesCollapsed ? '(點擊展開)' : '(點擊收合)';
+      if (titleEl) {
+        titleEl.innerText = `📋 本週席位全程異動明細（共 ${list.length} 筆）${actionHint}`;
+      }
+
+      let html = '';
+      list.forEach(item => {
+        const isJoin = item.action === 'join';
+        const actBadge = isJoin 
+          ? '<span style="color:#16a34a; font-weight:bold;">＋ 補位入座</span>' 
+          : '<span style="color:#dc2626; font-weight:bold;">❌ 請假退出</span>';
+        const opInfo = item.operator ? `<span style="color:#64748b; font-size:11px; margin-left:4px;">[${item.operator}]</span>` : '';
+        const datePart = item.date ? `${item.date} ` : '';
+        html += `<div style="padding:3px 0; border-bottom:1px dashed #e2e8f0;">• [${datePart}${item.time || ''}] <b>${item.name}</b>：${actBadge} ${item.lane} 道 第 ${item.slot} 位 ${opInfo}</div>`;
       });
       listEl.innerHTML = html;
     }
@@ -2344,6 +2454,12 @@
         const adminBtn = document.getElementById('adminBtn');
         if (adminBar) adminBar.style.display = isAdmin ? 'flex' : 'none';
         if (adminBtn) adminBtn.innerText = isAdmin ? '👑 已解鎖' : '🔐 管理';
+        if (isAdmin) {
+          renderAdminChangesUI();
+        } else {
+          const adminCard = document.getElementById('adminChangesCard');
+          if (adminCard) adminCard.style.display = 'none';
+        }
 
         const dayData = (rawResponse && rawResponse.data) ? (isMon ? (rawResponse.data.mon || []) : (rawResponse.data.thu || [])) : [];
         const currentStaffLanes = isMon ? (cfg.monStaffLanes || cfg.staffLanes || '7/8') : (cfg.thuStaffLanes || cfg.staffLanes || '7/8');
@@ -2863,6 +2979,25 @@
                 timestamp: Date.now()
               });
             }
+            // ★ 記錄至 Firebase adminChanges (全程席位異動看板：10:00~下週10:00)
+            if (name !== '[開放入座]' && rtdb) {
+              const now = new Date();
+              const mm = String(now.getMonth() + 1).padStart(2, '0');
+              const dd = String(now.getDate()).padStart(2, '0');
+              const hh = String(now.getHours()).padStart(2, '0');
+              const mi = String(now.getMinutes()).padStart(2, '0');
+              const op = isAdmin ? `幹部(${currentUserName || '管理員'})` : (currentUserName ? currentUserName : name);
+              rtdb.ref(`adminChanges/${targetDayKey}`).push({
+                date: `${mm}/${dd}`,
+                time: `${hh}:${mi}`,
+                name: name,
+                action: 'join',
+                lane: lane,
+                slot: slotIndex,
+                operator: op,
+                timestamp: Date.now()
+              });
+            }
             // 背景非同步發送 GAS 備援（fire-and-forget，不卡介面）
             try {
               const bgUrl = `${API_BASE}?action=joinLane&day=${encodeURIComponent(currentDay)}&lane=${encodeURIComponent(lane)}&slot=${slotIndex}&name=${encodeURIComponent(name)}&isGuest=${isGuest}&gender=${encodeURIComponent(memberGender)}&isAdmin=${isAdmin}&_t=${Date.now()}`;
@@ -3046,6 +3181,25 @@
               action: 'leave',
               lane: laneKey,
               slot: slotIndex,
+              timestamp: Date.now()
+            });
+          }
+          // ★ 記錄至 Firebase adminChanges (全程席位異動看板：10:00~下週10:00)
+          if (playerName !== '[開放入座]' && rtdb) {
+            const now = new Date();
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            const hh = String(now.getHours()).padStart(2, '0');
+            const mi = String(now.getMinutes()).padStart(2, '0');
+            const op = isAdmin ? `幹部(${currentUserName || '管理員'})` : (currentUserName ? currentUserName : playerName);
+            rtdb.ref(`adminChanges/${targetDayKey}`).push({
+              date: `${mm}/${dd}`,
+              time: `${hh}:${mi}`,
+              name: playerName,
+              action: 'leave',
+              lane: laneKey,
+              slot: slotIndex,
+              operator: op,
               timestamp: Date.now()
             });
           }

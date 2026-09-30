@@ -1773,6 +1773,73 @@
       return false;
     }
 
+    // ★ 動態推算當前有效人數水位上限 (達 4N 開第 5 位，達 5N 開第 6 位，達 6N 開第 7 位，達 7N 開第 8 位)
+    function computeAllowedSlots(dayLanes, cfg, targetDay) {
+      const isMon = targetDay === '週一';
+      const openStr = isMon ? (cfg.monOpenLanes || cfg.openLanes || '3-24') : (cfg.thuOpenLanes || cfg.openLanes || '3-24');
+      const staffStr = normalizeLane((isMon ? cfg.monStaffLanes : cfg.thuStaffLanes) || cfg.staffLanes || '7/8');
+      
+      let generalOpen = 0;
+      let generalPlayers = 0;
+      const lanes = Array.isArray(dayLanes) ? dayLanes : Object.values(dayLanes || {});
+      lanes.forEach(l => {
+        if (!l || !l.lane) return;
+        if (!isLaneOpen(l.lane, openStr)) return;
+        if (l.lane === staffStr) return;
+        generalOpen++;
+        (l.players || []).forEach(p => {
+          if (p && p.name && String(p.name).trim() !== '' && String(p.name).trim() !== '[開放入座]') {
+            generalPlayers++;
+          }
+        });
+      });
+      generalOpen = Math.max(1, generalOpen);
+      if (generalPlayers >= 7 * generalOpen) return 8;
+      if (generalPlayers >= 6 * generalOpen) return 7;
+      if (generalPlayers >= 5 * generalOpen) return 6;
+      if (generalPlayers >= 4 * generalOpen) return 5;
+      return 4;
+    }
+
+    // ★ 檢查某球道是否有超出當前水位的溢位隊友 (席位索引 >= allowedSlots)
+    function checkHasOverflowPlayers(laneObj, allowedSlots) {
+      if (!laneObj || !laneObj.players) return false;
+      const pl = normalize8Players(laneObj.players);
+      for (let i = allowedSlots; i < 8; i++) {
+        if (pl[i] && pl[i].name && String(pl[i].name).trim() !== '' && String(pl[i].name).trim() !== '[開放入座]') {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    // ★ 單道席位向前排齊 (保留隊友相對順序，專用道 [開放入座] 置於後方)
+    function compactSingleLane(laneObj, isStaff) {
+      if (!laneObj || !laneObj.players) return false;
+      const orig = normalize8Players(laneObj.players);
+      const active = orig.filter(p => p && p.name && String(p.name).trim() !== '' && String(p.name).trim() !== '[開放入座]');
+      const openCount = isStaff ? orig.filter(p => p && String(p.name).trim() === '[開放入座]').length : 0;
+
+      const newPlayers = [];
+      active.forEach(p => newPlayers.push({ name: String(p.name).trim(), gender: p.gender || 'M', code: p.code || '' }));
+      for (let o = 0; o < openCount; o++) {
+        if (newPlayers.length < 8) newPlayers.push({ name: '[開放入座]', gender: 'M', code: '' });
+      }
+      while (newPlayers.length < 8) newPlayers.push(null);
+
+      let changed = false;
+      for (let i = 0; i < 8; i++) {
+        const oldN = orig[i] && orig[i].name ? orig[i].name : '';
+        const newN = newPlayers[i] && newPlayers[i].name ? newPlayers[i].name : '';
+        if (oldN !== newN) { changed = true; break; }
+      }
+      if (changed) {
+        laneObj.players = newPlayers;
+        return true;
+      }
+      return false;
+    }
+
     // ★ 更新頂部操作者徽章 (週一綠色 / 週四藍色即時連動)
     function updateOperatorDisplay() {
       const badge = document.getElementById('operatorBadge');
@@ -2430,7 +2497,9 @@
 
         if (item.action === 'compact') {
           actBadge = '<span style="color:#7c3aed; font-weight:bold;">⚡ 自動排齊</span>';
-          seatText = `所有球道已無縫向前排齊補滿`;
+          seatText = (item.lane && item.lane !== '全體球道')
+            ? `${item.lane} 席位已向前遞補`
+            : `所有球道已無縫向前排齊補滿`;
         } else if (item.action === 'move') {
           actBadge = '<span style="color:#2563eb; font-weight:bold;">🔄 換道移位</span>';
           if (item.fromLane) {
@@ -3007,13 +3076,24 @@
               list.forEach(l => {
                 if (l && l.players) {
                   let pl = normalize8Players(l.players);
+                  let hadPlayer = false;
                   pl.forEach((p, idx) => {
                     if (p && p.name === name) {
+                      hadPlayer = true;
                       const isStaff = isLaneStaff(l.lane, currentStaffLane);
                       pl[idx] = isStaff ? { name: '[開放入座]', gender: 'M' } : null;
                     }
                   });
                   l.players = pl;
+                  // 若隊友換道移出舊道，且舊道有超出水位的溢位隊友，舊道立即向前排齊遞補！
+                  if (hadPlayer && l.lane !== lane) {
+                    const cfg = rawResponse ? rawResponse.config : {};
+                    const allowed = computeAllowedSlots(list, cfg, currentDay);
+                    const isOldStaff = isLaneStaff(l.lane, currentStaffLane);
+                    if (checkHasOverflowPlayers(l, allowed)) {
+                      compactSingleLane(l, isOldStaff);
+                    }
+                  }
                 }
               });
             }
@@ -3254,6 +3334,13 @@
               targetLaneObj.players[pi] = shouldRestoreOpen ? { name: '[開放入座]', gender: 'M' } : null;
             }
           }
+
+          // ★ 溢位隊友自動向前遞補：若該道有超出當前水位的隊友，立即自動向前遞補補滿！
+          const cfg = rawResponse ? rawResponse.config : {};
+          const currentLimit = computeAllowedSlots(dayList, cfg, currentDay);
+          if (checkHasOverflowPlayers(targetLaneObj, currentLimit)) {
+            compactSingleLane(targetLaneObj, isStaff);
+          }
         }
         renderAll();
       }
@@ -3261,6 +3348,7 @@
       // ★ 1. 優先使用 Firebase Realtime Database (0.1秒極速退座與還原)
       if (rtdb && isFirebaseReady) {
         try {
+          let didCompactOverflow = false;
           await rtdb.ref(`data/${targetDayKey}`).transaction(dayLanes => {
             if (!dayLanes) return dayLanes;
             let list = Array.isArray(dayLanes) ? dayLanes : Object.values(dayLanes);
@@ -3278,12 +3366,38 @@
             } else {
               targetLane.players = targetLane.players.map(p => (p && p.name === playerName ? (shouldRestoreOpen ? { name: '[開放入座]', gender: 'M' } : null) : p));
             }
+
+            // ★ 溢位隊友自動向前遞補
+            const cfg = rawResponse ? rawResponse.config : {};
+            const currentLimit = computeAllowedSlots(list, cfg, currentDay);
+            if (checkHasOverflowPlayers(targetLane, currentLimit)) {
+              if (compactSingleLane(targetLane, isStaff)) {
+                didCompactOverflow = true;
+              }
+            }
             return list;
           });
 
           isActionInProgress = false;
           if (!silentMode) {
             showToast(`已取消【${playerName}】的報名`, 3000, false);
+          }
+          if (didCompactOverflow && rtdb) {
+            const now = new Date();
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            const hh = String(now.getHours()).padStart(2, '0');
+            const mi = String(now.getMinutes()).padStart(2, '0');
+            rtdb.ref(`adminChanges/${targetDayKey}`).push({
+              date: `${mm}/${dd}`,
+              time: `${hh}:${mi}`,
+              name: '系統',
+              action: 'compact',
+              lane: `${laneKey}道`,
+              slot: 0,
+              operator: '前席隊友請假，溢位席位自動向前遞補',
+              timestamp: Date.now()
+            });
           }
           // ★ 若在預排結束時段，記錄至 Firebase lateChanges
           if (isPreLockActive(currentDay) && playerName !== '[開放入座]' && rtdb) {

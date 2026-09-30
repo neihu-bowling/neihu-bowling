@@ -1092,6 +1092,19 @@
           </div>
         </div>
 
+        <!-- ⚡ 預排整理：所有球道席位向前排齊 -->
+        <div style="background:#f5f3ff; border:1.5px solid #c4b5fd; border-radius:10px; padding:10px 12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <label id="compactLanesLabel" style="font-weight:900; font-size:13px; color:#6d28d9;">⚡ 【預排整理】所有球道向前排齊補滿：</label>
+          </div>
+          <p style="font-size:11.5px; color:#5b21b6; margin:0 0 8px 0; line-height:1.5;">
+            系統將於賽前一日 17:00 預排結束時自動執行一次向前排齊。幹部亦可在此手動點擊「立即向前排齊」，消除中途取消留下的空席並保持隊友原有順序。
+          </p>
+          <button type="button" onclick="adminCompactLanes()" class="quick-btn" style="background:#7c3aed; color:#ffffff; width:100%; font-weight:bold; padding:8px 6px; font-size:12px; box-shadow:0 1px 3px rgba(124,58,237,0.3);">
+            ⚡ 立即向前排齊 (消除中途空洞)
+          </button>
+        </div>
+
         <!-- 🧪 幹部專用：預排結束測試與模擬控制卡片 -->
         <div style="background:#fefce8; border:1.5px solid #facc15; border-radius:10px; padding:10px 12px; margin-bottom:12px;">
           <div style="font-weight:900; font-size:13px; color:#854d0e; margin-bottom:6px; display:flex; align-items:center; justify-content:space-between;">
@@ -2415,7 +2428,10 @@
         let actBadge = '';
         let seatText = `${item.lane} 道 第 ${item.slot} 位`;
 
-        if (item.action === 'move') {
+        if (item.action === 'compact') {
+          actBadge = '<span style="color:#7c3aed; font-weight:bold;">⚡ 自動排齊</span>';
+          seatText = `所有球道已無縫向前排齊補滿`;
+        } else if (item.action === 'move') {
           actBadge = '<span style="color:#2563eb; font-weight:bold;">🔄 換道移位</span>';
           if (item.fromLane) {
             seatText = `(從 ${item.fromLane}道第${item.fromSlot || ''}位 ➔ 移至 ${item.lane}道第${item.slot}位)`;
@@ -4218,6 +4234,9 @@
       const manualRotateLbl = document.getElementById('manualRotateLabel');
       if (manualRotateLbl) manualRotateLbl.innerText = `⚡ 【${day}】幹部即時輪調 (點擊立即生效)：`;
 
+      const compactLbl = document.getElementById('compactLanesLabel');
+      if (compactLbl) compactLbl.innerText = `⚡ 【${day}預排整理】所有球道向前排齊補滿：`;
+
       // 初始化已選開放球道與專用道集合
       selectedOpenLanes = parseLaneList(dayOpen);
       selectedStaffLanes = parseLaneList(dayStaff);
@@ -4676,6 +4695,23 @@
       });
     }
 
+    // ★ 幹部手動預排整理：所有球道席位向前排齊補滿
+    function adminCompactLanes() {
+      const targetDay = currentSettingDay || currentDay;
+      customConfirm(`確定要將【${targetDay}球道】所有席位向前排齊補滿嗎？\n\n此動作將自動消除中途取消留下的空缺、保留隊友原有報名順序，並同步更新至試算表與即時名單。`, async (confirmed) => {
+        if (!confirmed) return;
+        showToast(`⚡ 正在執行【${targetDay}】球道向前排齊...`, 0, true);
+        const url = `${API_BASE}?action=compactLanes&day=${encodeURIComponent(targetDay)}`;
+        try {
+          const res = await (await fetch(url)).json();
+          showToast(res.message || '✅ 球道向前排齊完成！', 3000, false);
+          closeSettingsModal();
+          await fetchData(true);
+        } catch (e) {
+          showToast('⚠️ 向前排齊執行失敗，請檢查網路後重試。', 3000, false);
+        }
+      });
+    }
 
     // ★ 操作指引字體大小切換 (方案 A：局部獨立縮放 + 本地記憶)
     function setUserGuideFontSize(size) {

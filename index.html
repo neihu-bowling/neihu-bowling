@@ -944,9 +944,25 @@
       <div id="modalButtons"></div>
 
       <div id="proxySection" style="display:none; margin-top:12px; padding-top:12px; border-top:1px solid #e2e8f0;">
-        <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px;">👥 選擇未報名隊友：</label>
-        <select id="proxySelect" style="width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1; font-size:12px; margin-bottom:8px;"></select>
-        <button onclick="confirmProxyJoin()" class="modal-btn btn-primary">確定為隊友入座</button>
+        <!-- 管理者專用：切換代報未報名隊友 VS 移位現有隊友 -->
+        <div id="proxyModeTabs" style="display:none; margin-bottom:10px; border-bottom:1px solid #cbd5e1; padding-bottom:8px;">
+          <div style="display:flex; gap:6px;">
+            <button type="button" id="tabProxyJoin" onclick="switchProxyTab('join')" class="quick-btn" style="flex:1; padding:6px 4px; font-weight:bold; background:#2563eb; color:#fff; border-radius:6px;">👥 幫未報名隊友入座</button>
+            <button type="button" id="tabProxyMove" onclick="switchProxyTab('move')" class="quick-btn" style="flex:1; padding:6px 4px; font-weight:bold; background:#f1f5f9; color:#475569; border-radius:6px;">🔄 移位現有隊友至此席</button>
+          </div>
+        </div>
+
+        <div id="proxyJoinArea">
+          <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px; color:#1e293b;">👥 選擇未報名隊友：</label>
+          <select id="proxySelect" style="width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1; font-size:12.5px; margin-bottom:8px;"></select>
+          <button onclick="confirmProxyJoin()" class="modal-btn btn-primary">確定為隊友入座</button>
+        </div>
+
+        <div id="proxyMoveArea" style="display:none;">
+          <label style="display:block; font-size:12px; font-weight:bold; color:#1e40af; margin-bottom:4px;">🔄 選擇欲移至此席的已入座隊友：</label>
+          <select id="proxyMoveSelect" style="width:100%; padding:8px; border-radius:6px; border:1px solid #93c5fd; font-size:12.5px; margin-bottom:8px; font-weight:bold; color:#1e293b; background:#fff;"></select>
+          <button onclick="confirmProxyMoveHere()" class="modal-btn btn-warn">確定將該隊友移位至此席</button>
+        </div>
 
         <div id="guestSection" style="display:none; margin-top:8px; padding-top:8px; border-top:1px dashed #cbd5e1;">
           <label style="display:block; font-size:12px; font-weight:bold; color:#d97706; margin-bottom:4px;">👑 手動輸入臨時來賓 (不建檔)</label>
@@ -962,6 +978,46 @@
       </div>
 
       <button onclick="closeActionModal()" class="modal-btn btn-secondary" style="margin-top:8px; margin-bottom:0;">✖ 取消 (關閉視窗)</button>
+    </div>
+  </div>
+
+  <!-- 1.1 幹部專用：席位調度彈窗 (管理者點選已入座隊友時觸發：請假 / 移位換道) -->
+  <div id="adminSeatActionModal" class="modal-overlay" style="z-index: 10004 !important;">
+    <div class="modal-card" style="text-align:left; background:#ffffff; border-radius:14px; max-width:360px; padding:18px 16px; box-shadow:0 12px 30px rgba(0,0,0,0.25);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1.5px solid #e2e8f0; padding-bottom:8px;">
+        <h3 style="font-size:16px; font-weight:900; margin:0; color:#1e293b;">👑 幹部席位調度</h3>
+        <button type="button" onclick="closeAdminSeatModal()" style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:50%; width:28px; height:28px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:13px; font-weight:900; color:#64748b; padding:0; flex-shrink:0; line-height:1;" title="關閉">✕</button>
+      </div>
+
+      <div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; padding:10px 12px; margin-bottom:12px;">
+        <div id="adminSeatModalPlayerInfo" style="font-size:15px; font-weight:900; color:#0f172a; margin-bottom:4px;"></div>
+        <div id="adminSeatModalLaneInfo" style="font-size:12.5px; color:#475569; font-weight:bold;"></div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <button type="button" onclick="adminSeatActionLeave()" class="modal-btn" style="background:#dc2626; color:#ffffff; font-weight:900; margin-bottom:0; box-shadow:0 1px 3px rgba(220,38,38,0.3); padding:10px;">
+          ❌ 幫隊友請假 (取消此席位)
+        </button>
+
+        <button type="button" onclick="toggleAdminMoveTargetSection()" class="modal-btn" style="background:#2563eb; color:#ffffff; font-weight:900; margin-bottom:0; box-shadow:0 1px 3px rgba(37,99,235,0.3); padding:10px;">
+          🔄 幫隊友移位換道 (選擇目標球道席位)
+        </button>
+      </div>
+
+      <!-- 移位目標球道選擇區塊 -->
+      <div id="adminMoveTargetSection" style="display:none; margin-top:10px; padding:10px; background:#eff6ff; border:1.5px solid #93c5fd; border-radius:8px;">
+        <label style="display:block; font-size:12px; font-weight:bold; color:#1e40af; margin-bottom:6px;">
+          🎯 請選擇目標空位（目前已開放球道）：
+        </label>
+        <select id="adminMoveTargetSelect" style="width:100%; padding:8px; border-radius:6px; border:1px solid #93c5fd; font-size:12.5px; margin-bottom:10px; font-weight:bold; color:#1e293b; background:#fff;"></select>
+        <button type="button" onclick="confirmAdminMoveTarget()" class="modal-btn btn-primary" style="margin-bottom:0; font-weight:900; padding:9px;">
+          確定移位至該席
+        </button>
+      </div>
+
+      <button type="button" onclick="closeAdminSeatModal()" class="modal-btn btn-secondary" style="margin-top:10px; margin-bottom:0; padding:8px;">
+        ✖ 取消關閉
+      </button>
     </div>
   </div>
 
@@ -1766,6 +1822,19 @@
       if (str === '無' || str === '') return false;
       const set = parseLaneList(str);
       return set.has(laneKey);
+    }
+
+    // 容錯正規化球道代碼 (防止 1/2, 7/8 等被轉成 Date 物件或時間字串)
+    function normalizeLane(val) {
+      if (!val) return '';
+      if (val instanceof Date) {
+        return (val.getMonth() + 1) + '/' + val.getDate();
+      }
+      let s = String(val).trim();
+      if (s.includes('GMT') || s.includes('00:00:00') || s.includes('Jul 08') || s.includes('7月8日')) {
+        return '7/8';
+      }
+      return s;
     }
 
     // ★ 賽事報名截止判定 (已取消前一日 17:00 提早截止限制，報名一路開放至開打當天 09:20 輪調為下週)
@@ -2832,7 +2901,7 @@
     }
 
     function openSlotAction(laneKey, slotIndex) {
-      if (isVerifyingIdentity) {
+      if (!isAdmin && isVerifyingIdentity) {
         showToast('⏳ 系統正在確認身分，請稍候片刻...', 2000, false);
         return;
       }
@@ -2901,7 +2970,7 @@
       const isMon = currentDay === '週一';
       const dayColor = isMon ? '#16a34a' : '#2563eb';
       title.innerHTML = `🎳 入座 <span style="color:${dayColor}; font-weight:900;">【${currentDay}賽事】</span> ${laneKey} 道 第 ${slotIndex} 位`;
-      sub.innerText = myCurrentInfo ? `提示：您目前已在【${myCurrentInfo.lane} 道 第 ${myCurrentInfo.slot} 位】` : `目前操作者：${currentUserName}`;
+      sub.innerText = myCurrentInfo ? `提示：您目前已在【${myCurrentInfo.lane} 道 第 ${myCurrentInfo.slot} 位】` : `目前操作者：${currentUserName || (isAdmin ? '幹部管理者' : '隊友')}`;
 
       // ★ 若是工作人員專用道且操作者為管理者，最上方新增「🟢 開放此位供隊友入座」/「🔒 鎖定此位僅限幹部」切換按鈕
       const isMonDay = currentDay === '週一';
@@ -2929,28 +2998,43 @@
       }
 
       let btnsHtml = staffToggleHtml;
-      if (!myCurrentInfo) {
-        btnsHtml += `
-          <button onclick="joinSelf('${laneKey}', ${slotIndex})" class="modal-btn" style="background:${dayColor}; color:#fff;">
-            🙋‍♂️ 安排我自己 (${currentUserName}) 入座【${laneKey} 道 第 ${slotIndex} 位】
-          </button>
-        `;
-      } else {
-        btnsHtml += `
-          <button onclick="joinSelf('${laneKey}', ${slotIndex})" class="modal-btn btn-warn">
-            🔄 將我自己從【${myCurrentInfo.lane} 道 第 ${myCurrentInfo.slot} 位】更換至【${laneKey} 道 第 ${slotIndex} 位】
-          </button>
-        `;
+      if (currentUserName) {
+        if (!myCurrentInfo) {
+          btnsHtml += `
+            <button onclick="joinSelf('${laneKey}', ${slotIndex})" class="modal-btn" style="background:${dayColor}; color:#fff;">
+              🙋‍♂️ 安排我自己 (${currentUserName}) 入座【${laneKey} 道 第 ${slotIndex} 位】
+            </button>
+          `;
+        } else {
+          btnsHtml += `
+            <button onclick="joinSelf('${laneKey}', ${slotIndex})" class="modal-btn btn-warn">
+              🔄 將我自己從【${myCurrentInfo.lane} 道 第 ${myCurrentInfo.slot} 位】更換至【${laneKey} 道 第 ${slotIndex} 位】
+            </button>
+          `;
+        }
       }
 
+      const proxyBtnLabel = isAdmin ? '👥 幹部代辦入座／移位隊友至此席' : '👥 幫其他隊友代報名 (免輸PIN)';
       btnsHtml += `
         <button onclick="toggleProxySection()" class="modal-btn btn-secondary">
-          👥 幫其他隊友代報名 (免輸PIN)
+          ${proxyBtnLabel}
         </button>
       `;
 
       btnBox.innerHTML = btnsHtml;
       populateProxySelect(dayData || []);
+
+      if (isAdmin) {
+        const tabs = document.getElementById('proxyModeTabs');
+        if (tabs) tabs.style.display = 'block';
+        populateProxyMoveSelect(dayData || []);
+        switchProxyTab('join');
+      } else {
+        const tabs = document.getElementById('proxyModeTabs');
+        if (tabs) tabs.style.display = 'none';
+        switchProxyTab('join');
+      }
+
       modal.style.display = 'flex';
     }
 
@@ -2973,6 +3057,24 @@
       sec.style.display = (sec.style.display === 'none' || sec.style.display === '') ? 'block' : 'none';
     }
 
+    function switchProxyTab(tab) {
+      const areaJoin = document.getElementById('proxyJoinArea');
+      const areaMove = document.getElementById('proxyMoveArea');
+      const btnJoin = document.getElementById('tabProxyJoin');
+      const btnMove = document.getElementById('tabProxyMove');
+      if (tab === 'move') {
+        if (areaJoin) areaJoin.style.display = 'none';
+        if (areaMove) areaMove.style.display = 'block';
+        if (btnJoin) { btnJoin.style.background = '#f1f5f9'; btnJoin.style.color = '#475569'; }
+        if (btnMove) { btnMove.style.background = '#2563eb'; btnMove.style.color = '#fff'; }
+      } else {
+        if (areaJoin) areaJoin.style.display = 'block';
+        if (areaMove) areaMove.style.display = 'none';
+        if (btnJoin) { btnJoin.style.background = '#2563eb'; btnJoin.style.color = '#fff'; }
+        if (btnMove) { btnMove.style.background = '#f1f5f9'; btnMove.style.color = '#475569'; }
+      }
+    }
+
     function populateProxySelect(dayData) {
       const sel = document.getElementById('proxySelect');
       sel.innerHTML = '<option value="">-- 請選擇未報名隊友 --</option>';
@@ -2980,7 +3082,7 @@
       
       const enrolled = new Set();
       (dayData || []).forEach(l => (l.players || []).forEach(p => {
-        if (p && p.name) enrolled.add(p.name);
+        if (p && p.name && p.name !== '[開放入座]') enrolled.add(p.name);
       }));
 
       allMembers.forEach(m => {
@@ -2991,6 +3093,149 @@
           sel.appendChild(opt);
         }
       });
+    }
+
+    function populateProxyMoveSelect(dayData) {
+      const sel = document.getElementById('proxyMoveSelect');
+      if (!sel) return;
+      sel.innerHTML = '<option value="">-- 請選擇欲移位的已入座隊友 --</option>';
+      const list = [];
+      (dayData || []).forEach(l => {
+        if (l && l.players) {
+          const pl = normalize8Players(l.players);
+          pl.forEach((p, idx) => {
+            if (p && p.name && p.name !== '[開放入座]') {
+              list.push({
+                name: p.name,
+                lane: l.lane,
+                slot: idx + 1,
+                gender: p.gender || 'M',
+                code: p.code || ''
+              });
+            }
+          });
+        }
+      });
+
+      list.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = `${p.name}|${p.gender}`;
+        opt.innerText = `【${p.lane} 道 第 ${p.slot} 位】${p.name}${p.code ? ' (' + p.code + ')' : ''}`;
+        sel.appendChild(opt);
+      });
+    }
+
+    async function confirmProxyMoveHere() {
+      const sel = document.getElementById('proxyMoveSelect');
+      if (!sel || !sel.value) return showToast('⚠️ 請先選擇欲移位的隊友！', 3000);
+      const parts = sel.value.split('|');
+      const name = parts[0];
+      const gen = parts[1] || 'M';
+      closeActionModal();
+      await submitJoin(selectedLane, selectedSlotIndex, name, false, gen);
+    }
+
+    // ==================== 幹部專屬席位調度視窗邏輯 ====================
+    let currentAdminSeatTarget = null;
+
+    function openAdminSeatModal(playerName, laneKey, slotIndex) {
+      currentAdminSeatTarget = { playerName, laneKey, slotIndex };
+      
+      const pInfoEl = document.getElementById('adminSeatModalPlayerInfo');
+      const lInfoEl = document.getElementById('adminSeatModalLaneInfo');
+      const moveSec = document.getElementById('adminMoveTargetSection');
+      const sel = document.getElementById('adminMoveTargetSelect');
+
+      let gen = 'M';
+      let code = '';
+      if (rawResponse && rawResponse.members) {
+        const m = rawResponse.members.find(x => x.name === playerName);
+        if (m) {
+          if (m.gender) gen = m.gender;
+          if (m.code) code = m.code;
+        }
+      }
+      currentAdminSeatTarget.gender = gen;
+
+      const genBadge = (gen === 'F' || gen === '女') ? '<span style="color:#e11d48; font-weight:bold;">(女)</span>' : '<span style="color:#2563eb; font-weight:bold;">(男)</span>';
+      const codeStr = code ? ` <span style="font-size:12px; color:#64748b; font-family:monospace;">[${code}]</span>` : '';
+
+      if (pInfoEl) pInfoEl.innerHTML = `👤 選手：<b>${playerName}</b> ${genBadge}${codeStr}`;
+      if (lInfoEl) lInfoEl.innerText = `📍 目前席位：【${currentDay}賽事】${laneKey} 道 第 ${slotIndex} 位`;
+      if (moveSec) moveSec.style.display = 'none';
+
+      // 填充目標球道下拉選單 (列出目前所有已開放球道之空缺席位)
+      if (sel) {
+        sel.innerHTML = '<option value="">-- 請選擇目標空位 --</option>';
+        const isMon = currentDay === '週一';
+        const targetDayKey = isMon ? 'mon' : 'thu';
+        const cfg = rawResponse ? rawResponse.config : {};
+        const openStr = isMon ? (cfg.monOpenLanes || cfg.openLanes || '3-24') : (cfg.thuOpenLanes || cfg.openLanes || '3-24');
+        const dayData = (rawResponse && rawResponse.data && rawResponse.data[targetDayKey]) ? rawResponse.data[targetDayKey] : [];
+        const lanesList = Array.isArray(dayData) ? dayData : Object.values(dayData);
+
+        let foundEmptyCount = 0;
+
+        ALL_LANES.forEach(lk => {
+          if (!isLaneOpen(lk, openStr)) return;
+          const laneObj = lanesList.find(l => l && l.lane === lk);
+          const players = laneObj ? normalize8Players(laneObj.players) : Array(8).fill(null);
+          
+          for (let s = 1; s <= 8; s++) {
+            // 跳過原本席位
+            if (lk === laneKey && s === slotIndex) continue;
+            const p = players[s - 1];
+            if (!p || !p.name || p.name === '[開放入座]') {
+              const opt = document.createElement('option');
+              opt.value = `${lk}_${s}`;
+              opt.innerText = `🎳 【${lk} 道 第 ${s} 位】(空席)`;
+              sel.appendChild(opt);
+              foundEmptyCount++;
+            }
+          }
+        });
+
+        if (foundEmptyCount === 0) {
+          sel.innerHTML = '<option value="">-- 目前全場開放球道無剩餘空位 --</option>';
+        }
+      }
+
+      const modal = document.getElementById('adminSeatActionModal');
+      if (modal) modal.style.display = 'flex';
+    }
+
+    function closeAdminSeatModal() {
+      const modal = document.getElementById('adminSeatActionModal');
+      if (modal) modal.style.display = 'none';
+      currentAdminSeatTarget = null;
+    }
+
+    function adminSeatActionLeave() {
+      if (!currentAdminSeatTarget) return;
+      const { playerName, laneKey, slotIndex } = currentAdminSeatTarget;
+      closeAdminSeatModal();
+      customConfirm(`👑 管理者操作：確定要為【${playerName}】辦理請假並取消【${currentDay} ${laneKey} 道 第 ${slotIndex} 位】嗎？`, async (confirmed) => {
+        if (!confirmed) return;
+        await executeLeave(playerName, laneKey, slotIndex, '');
+      });
+    }
+
+    function toggleAdminMoveTargetSection() {
+      const sec = document.getElementById('adminMoveTargetSection');
+      if (!sec) return;
+      sec.style.display = (sec.style.display === 'none' || sec.style.display === '') ? 'block' : 'none';
+    }
+
+    async function confirmAdminMoveTarget() {
+      const sel = document.getElementById('adminMoveTargetSelect');
+      if (!sel || !sel.value) return showToast('⚠️ 請先選擇目標空位！', 3000);
+      if (!currentAdminSeatTarget) return;
+
+      const [targetLane, slotStr] = sel.value.split('_');
+      const targetSlot = parseInt(slotStr, 10);
+      const { playerName, gender } = currentAdminSeatTarget;
+      closeAdminSeatModal();
+      await submitJoin(targetLane, targetSlot, playerName, false, gender || 'M');
     }
 
     async function joinSelf(laneKey, slotIndex) {
@@ -3120,18 +3365,15 @@
             };
 
             return list;
-          }, (err, committed, snapshot) => {
-            txResult = { err, committed };
           });
 
           isActionInProgress = false;
-          if (txResult && txResult.err) {
-            showToast('❌ 入座失敗：' + txResult.err.message, 3000, false);
-          } else if (txResult && !txResult.committed) {
+          if (txResult && !txResult.committed) {
             showToast('⚠️ 慢了一步！該席位剛剛已被其他人入座，請選其他席位！', 3000, false);
           } else {
             if (!silentMode) {
-              showToast(`🎉 成功入座【${currentDay}】${lane} 道 第 ${slotIndex} 位！`, 3000, false);
+              const actWord = oldSeatInfo ? '移位換道至' : '入座';
+              showToast(`🎉 成功${actWord}【${currentDay}】${lane} 道 第 ${slotIndex} 位！`, 3000, false);
             }
             // ★ 若在預排結束時段，記錄至 Firebase lateChanges
             if (isPreLockActive(currentDay) && name !== '[開放入座]') {
@@ -3195,7 +3437,7 @@
             }
             // 背景非同步發送 GAS 備援（fire-and-forget，不卡介面）
             try {
-              const bgUrl = `${API_BASE}?action=joinLane&day=${encodeURIComponent(currentDay)}&lane=${encodeURIComponent(lane)}&slot=${slotIndex}&name=${encodeURIComponent(name)}&isGuest=${isGuest}&gender=${encodeURIComponent(memberGender)}&isAdmin=${isAdmin}&_t=${Date.now()}`;
+              const bgUrl = `${API_BASE}?action=joinLane&day=${encodeURIComponent(currentDay)}&lane=${encodeURIComponent(lane)}&slot=${slotIndex}&name=${encodeURIComponent(name)}&isGuest=${isGuest}&gender=${encodeURIComponent(memberGender)}&isAdmin=${isAdmin}&skipFirebaseSync=true&_t=${Date.now()}`;
               fetch(bgUrl, { mode: 'no-cors' }).catch(() => {});
             } catch (ignore) {}
           }
@@ -3259,7 +3501,7 @@
 
     // ★ 取消席位判斷 (幹部免PIN / 本人免PIN / 他人需輸PIN)
     function handlePlayerClick(playerName, laneKey, slotIndex) {
-      if (isVerifyingIdentity) {
+      if (!isAdmin && isVerifyingIdentity) {
         showToast('⏳ 系統正在確認身分，請稍候片刻...', 2000, false);
         return;
       }
@@ -3269,12 +3511,9 @@
         return showToast('⏰ 本次賽事報名已截止，名單已定案！若需異動請洽幹部。', 4500, false);
       }
 
-      // 1. 幹部操作 ➔ 二次確認直接取消，免 PIN 碼
+      // 1. 幹部操作 ➔ 開啟專屬幹部席位調度視窗 (請假／移位換道)
       if (isAdmin) {
-        customConfirm(`👑 管理者操作：確定要取消【${playerName}】在【${currentDay}】${laneKey} 道 第 ${slotIndex} 位的報名嗎？`, async (confirmed) => {
-          if (!confirmed) return;
-          executeLeave(playerName, laneKey, slotIndex, '');
-        });
+        openAdminSeatModal(playerName, laneKey, slotIndex);
         return;
       }
 
@@ -3439,7 +3678,7 @@
           }
           // 背景非同步發送 GAS 備援（fire-and-forget，不卡介面）
           try {
-            const bgUrl = `${API_BASE}?action=leaveLane&day=${encodeURIComponent(currentDay)}&lane=${encodeURIComponent(laneKey)}&slot=${slotIndex}&name=${encodeURIComponent(playerName)}&pin=${encodeURIComponent(pin || '')}&operatorName=${encodeURIComponent(currentUserName)}&isAdmin=${isAdmin}&_t=${Date.now()}`;
+            const bgUrl = `${API_BASE}?action=leaveLane&day=${encodeURIComponent(currentDay)}&lane=${encodeURIComponent(laneKey)}&slot=${slotIndex}&name=${encodeURIComponent(playerName)}&pin=${encodeURIComponent(pin || '')}&operatorName=${encodeURIComponent(currentUserName)}&isAdmin=${isAdmin}&skipFirebaseSync=true&_t=${Date.now()}`;
             fetch(bgUrl, { mode: 'no-cors' }).catch(() => {});
           } catch (ignore) {}
           return;
@@ -4900,14 +5139,14 @@
         const urlParams = new URLSearchParams(window.location.search);
         const adminParam = urlParams.get('admin');
         const userParam = urlParams.get('user');
-        if (adminParam === '8888' || adminParam === '1' || userParam) {
-          const targetName = userParam ? decodeURIComponent(userParam) : '許恆綻';
+        if (adminParam === '51688') {
+          isAdmin = true;
+          localStorage.setItem('bowling_admin', 'true');
+          localStorage.setItem('bowling_admin_token', '51688');
+        } else if (userParam) {
+          const targetName = decodeURIComponent(userParam);
           currentUserName = targetName;
           localStorage.setItem('bowling_player_name', currentUserName);
-          // 確保第一項「不解鎖幹部權限」，維持一般隊友視角
-          isAdmin = false;
-          localStorage.removeItem('bowling_admin');
-          localStorage.removeItem('bowling_admin_token');
         }
       } catch (ue) {}
 
@@ -4919,7 +5158,9 @@
       Promise.all([
         ensureLiffInit(),
         fetchData(true)
-      ]).then(() => {
+      ]).catch(err => {
+        console.warn('Init loading error:', err);
+      }).finally(() => {
         isVerifyingIdentity = false;
         if (rawResponse && rawResponse.members) {
           checkAndPromptUserIdentity(rawResponse.members);

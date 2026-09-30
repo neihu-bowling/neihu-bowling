@@ -2831,8 +2831,10 @@
           // 尋找該席位在 lateChanges 的最後一筆紀錄
           let lastSlotChange = null;
           if (isPreLock && lateList.length > 0) {
+            const targetLaneNorm = normalizeLane(laneKey);
             for (let ci = lateList.length - 1; ci >= 0; ci--) {
-              if (lateList[ci].lane === laneKey && parseInt(lateList[ci].slot, 10) === slotIndex) {
+              const itemLaneNorm = normalizeLane(lateList[ci].lane);
+              if (itemLaneNorm === targetLaneNorm && parseInt(lateList[ci].slot, 10) === slotIndex) {
                 lastSlotChange = lateList[ci];
                 break;
               }
@@ -2849,7 +2851,8 @@
             const isFem = (pGenStr.includes('女') || pGenStr.toUpperCase().startsWith('F') || pGenStr.toUpperCase() === 'W');
             const colorClass = isFem ? 'female-text' : 'male-text';
 
-            if (lastSlotChange && lastSlotChange.action === 'join') {
+            const isSlotChangedJoin = lastSlotChange && (lastSlotChange.action === 'join' || lastSlotChange.action === 'late_join');
+            if (isSlotChangedJoin) {
               html += `
                 <td onclick="handlePlayerClick('${p.name}', '${laneKey}', ${slotIndex})" style="cursor:pointer; width:60%; background:#fef3c7; border:2px solid #f59e0b; font-weight:900;" class="${colorClass}">
                   ${p.name} <span style="font-size:11.5px; color:#d97706; font-weight:bold; margin-left:2px;">(已變更)</span>
@@ -2862,18 +2865,9 @@
                 </td>
               `;
             }
-          } else {
             if (!isOpen) {
               const closedLabel = isAdmin ? '🚫 不開放 (已關閉)' : '🚫 不開放';
               html += `<td class="slot-locked" style="width:60%;">${closedLabel}</td>`;
-            } else if (deadPassed && !isAdmin) {
-              html += `<td class="slot-locked" style="width:60%;">⏰ 報名已截止</td>`;
-            } else if (slotIndex > allowedSlots && !isAdmin) {
-              // ★ 嚴格全場人數水位把關：不論一般道或專用道，只要未達該人數水位（例如每道滿4人才開第5位），一般隊友一律顯示「🔒 未開放」！
-              html += `<td class="slot-locked" style="width:60%;">🔒 未開放</td>`;
-            } else if (isStaff && !isAdmin && !isSlotOpenPlaceholder) {
-              // 專用道幹部私有空位：一般隊友顯示「🔒 未開放」
-              html += `<td class="slot-locked" style="width:60%;">🔒 未開放</td>`;
             } else if (lastSlotChange && lastSlotChange.action === 'leave') {
               // ★ 請假退出者：席位空出，背景改為暖金黃 #fef3c7，搭配深橘色邊框
               const btnLabel = (isStaff && isAdmin && isSlotOpenPlaceholder) ? '＋ 入座 (已開放)' : '＋ 入座';
@@ -2882,6 +2876,14 @@
                   <span class="slot-pill-btn" style="background:#fde68a; color:#b45309; border:1px solid #f59e0b; font-weight:bold;">${btnLabel} (已變更)</span>
                 </td>
               `;
+            } else if (deadPassed && !isAdmin) {
+              html += `<td class="slot-locked" style="width:60%;">⏰ 報名已截止</td>`;
+            } else if (slotIndex > allowedSlots && !isAdmin) {
+              // ★ 嚴格全場人數水位把關：不論一般道或專用道，只要未達該人數水位（例如每道滿4人才開第5位），一般隊友一律顯示「🔒 未開放」！
+              html += `<td class="slot-locked" style="width:60%;">🔒 未開放</td>`;
+            } else if (isStaff && !isAdmin && !isSlotOpenPlaceholder) {
+              // 專用道幹部私有空位：一般隊友顯示「🔒 未開放」
+              html += `<td class="slot-locked" style="width:60%;">🔒 未開放</td>`;
             } else {
               const btnLabel = (isStaff && isAdmin && isSlotOpenPlaceholder) ? '＋ 入座 (已開放)' : '＋ 入座';
               html += `
@@ -3380,13 +3382,23 @@
               const now = new Date();
               const hh = String(now.getHours()).padStart(2, '0');
               const mm = String(now.getMinutes()).padStart(2, '0');
+              if (oldSeatInfo && (oldSeatInfo.lane !== lane || oldSeatInfo.slot !== slotIndex)) {
+                rtdb.ref(`lateChanges/${targetDayKey}`).push({
+                  time: `${hh}:${mm}`,
+                  name: name,
+                  action: 'leave',
+                  lane: oldSeatInfo.lane,
+                  slot: oldSeatInfo.slot,
+                  timestamp: Date.now()
+                });
+              }
               rtdb.ref(`lateChanges/${targetDayKey}`).push({
                 time: `${hh}:${mm}`,
                 name: name,
                 action: 'late_join',
                 lane: lane,
                 slot: slotIndex,
-                timestamp: Date.now()
+                timestamp: Date.now() + 1
               });
             }
             // ★ 記錄至 Firebase adminChanges (全程席位異動看板：10:00~下週10:00)

@@ -259,9 +259,10 @@
       background-color: #fef9c3 !important;
     }
     .lane-table-staff .slot-pill-btn {
-      background-color: #fef08a !important;
-      border: 1px solid #d97706 !important;
-      color: #78350f !important;
+      background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%) !important;
+      border: 1px solid #b45309 !important;
+      color: #ffffff !important;
+      box-shadow: 0 1.5px 3px rgba(180, 83, 9, 0.3) !important;
     }
     .lane-number-cell {
       font-family: "Times New Roman", Georgia, serif;
@@ -298,29 +299,39 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 1px;
-      height: 18px;
-      line-height: 18px;
-      padding: 0 8px;
-      border-radius: 9px;
-      font-size: 11px;
-      font-weight: 900;
+      height: 20px;
+      line-height: 20px;
+      padding: 0 9px;
+      border-radius: 5px;
+      font-size: 11.5px;
+      font-weight: 500;
       white-space: nowrap;
-      transition: all 0.12s ease;
-      letter-spacing: 0.3px;
+      transition: all 0.1s ease;
+      letter-spacing: 0.8px;
       box-sizing: border-box;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
       vertical-align: middle;
+      text-shadow: none !important;
+      cursor: pointer;
     }
     .theme-thu .slot-pill-btn {
-      background-color: #eff6ff;
-      border: 1px solid #3b82f6;
-      color: #1d4ed8;
+      background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+      border: 1px solid #1d4ed8;
+      color: #ffffff;
+      box-shadow: 0 1.5px 3px rgba(37, 99, 235, 0.3);
+    }
+    .theme-thu .slot-pill-btn:active {
+      transform: translateY(1px);
+      box-shadow: 0 0.5px 1px rgba(37, 99, 235, 0.3);
     }
     .theme-mon .slot-pill-btn {
-      background-color: #f0fdf4;
-      border: 1px solid #16a34a;
-      color: #15803d;
+      background: linear-gradient(180deg, #16a34a 0%, #15803d 100%);
+      border: 1px solid #166534;
+      color: #ffffff;
+      box-shadow: 0 1.5px 3px rgba(22, 163, 74, 0.3);
+    }
+    .theme-mon .slot-pill-btn:active {
+      transform: translateY(1px);
+      box-shadow: 0 0.5px 1px rgba(22, 163, 74, 0.3);
     }
     .slot-locked {
       background-color: #f1f5f9;
@@ -648,14 +659,20 @@
     .badge-mini.mon { background: #16a34a; }
     .badge-mini.thu { background: #2563eb; }
     .slot-pill-mini {
-      display: inline-block;
-      background: #f1f5f9;
-      color: #475569;
-      border: 1px solid #cbd5e1;
-      border-radius: 10px;
-      padding: 1px 5px;
-      font-size: 9px;
-      font-weight: bold;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+      color: #ffffff;
+      border: 1px solid #1d4ed8;
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.6px;
+      box-shadow: 0 1px 2px rgba(37, 99, 235, 0.25);
+      vertical-align: middle;
+      text-shadow: none !important;
     }
     .accordion-toggle-btn {
       width: 100%;
@@ -2873,7 +2890,7 @@
               const btnLabel = (isStaff && isAdmin && isSlotOpenPlaceholder) ? '＋ 可選位 (已開放)' : '＋ 可選位';
               html += `
                 <td onclick="openSlotAction('${laneKey}', ${slotIndex})" class="slot-cell-empty" style="background:#fef3c7; border:2px solid #f59e0b;">
-                  <span class="slot-pill-btn" style="background:#fde68a; color:#b45309; border:1px solid #f59e0b; font-weight:bold;">${btnLabel} (已變更)</span>
+                  <span class="slot-pill-btn" style="background:linear-gradient(180deg, #f59e0b 0%, #d97706 100%); color:#ffffff; border:1px solid #b45309; box-shadow:0 1.5px 3px rgba(180,83,9,0.3); font-weight:500;">${btnLabel} (已變更)</span>
                 </td>
               `;
             } else if (deadPassed && !isAdmin) {

@@ -1991,50 +1991,36 @@
 
       let matchedMember = null;
 
-      // 1. 優先以 LINE ID 比對 (去除前後空白、統一小寫比對)
+      // 1. 若在手機 LINE App 中 (已有 currentUserLineId)，唯一依據為雲端 LINE ID
       if (currentUserLineId) {
         const cleanCurId = String(currentUserLineId).trim().toLowerCase();
         matchedMember = members.find(m => m.lineId && String(m.lineId).trim().toLowerCase() === cleanCurId);
-      }
 
-      // 2. 若未比對到 LINE ID，則比對本地存儲姓名
-      if (!matchedMember && currentUserName) {
-        matchedMember = members.find(m => m.name === currentUserName);
-        // 若在手機 LINE App 中，該隊員在雲端已綁定其他人的 LINE ID，則本機不能冒用
-        if (currentUserLineId && matchedMember && matchedMember.lineId && String(matchedMember.lineId).trim().toLowerCase() !== String(currentUserLineId).trim().toLowerCase()) {
-          matchedMember = null;
+        // ★ 關鍵防護：若該 LINE 帳號在雲端查無綁定，代表已被解除或尚未綁定！
+        // 絕對不可沿用本地 localStorage 舊姓名，立即清空，杜絕幽靈回魂與冒用！
+        if (!matchedMember) {
+          currentUserName = '';
+          localStorage.removeItem('bowling_player_name');
+        }
+      } else {
+        // 2. 僅在非 LINE 環境 (例如電腦網頁無 LINE ID) 時，才允許讀取本地存儲姓名作為預設檢視
+        if (currentUserName) {
+          matchedMember = members.find(m => m.name === currentUserName);
         }
       }
 
-      // 2.1 若仍未比對到，但 LINE 顯示名稱與隊員本名相符，且該隊員尚未綁定 LINE ID，自動配對
-      if (!matchedMember && currentUserDisplayName) {
-        const cleanDisplay = currentUserDisplayName.trim();
-        const cand = members.find(m => m.name === cleanDisplay && (!m.lineId || String(m.lineId).trim() === ''));
-        if (cand) {
-          matchedMember = cand;
-        }
-      }
-
-      // 3. 若已找到隊員但試算表尚未記錄 LINE ID，且目前已取得 LINE ID，自動靜默更新到試算表
-      if (matchedMember && currentUserLineId && (!matchedMember.lineId || matchedMember.lineId !== currentUserLineId)) {
-        matchedMember.lineId = currentUserLineId;
-        fetch(`${API_BASE}?action=bindUser&name=${encodeURIComponent(matchedMember.name)}&lineId=${encodeURIComponent(currentUserLineId)}&pin=${encodeURIComponent(matchedMember.pin || '')}`)
-          .catch(e => console.warn('Auto sync LINE ID err:', e));
-      }
-
-      // 4. 狀態更新
+      // 3. 狀態更新
       if (matchedMember) {
         currentUserName = matchedMember.name;
         localStorage.setItem('bowling_player_name', currentUserName);
-      } else if (!isVerifyingIdentity) {
-        // 只有在明確完成身分識別後確定查無此人，才清空暫存
+      } else {
         currentUserName = '';
         localStorage.removeItem('bowling_player_name');
       }
 
       updateOperatorDisplay();
 
-      // 5. 彈窗判斷 (管理者模式不彈窗)
+      // 4. 彈窗判斷 (管理者模式不彈窗)
       if (isAdmin) return;
 
       // ★ 情況 A：隊員已綁定且已有 PIN 碼 ➔ 絕對關閉任何彈窗，暢通操作！
@@ -2052,7 +2038,7 @@
       }
 
       // ★ 情況 C：未綁定身分 ➔ 嚴格限制：身分識別進行中絕對不主動彈窗！
-      if (!currentUserName && !isVerifyingIdentity) {
+      if (!matchedMember && !isVerifyingIdentity) {
         const regModal = document.getElementById('registerModal');
         const isRegOpen = regModal && (regModal.style.display === 'flex' || regModal.style.display === 'block');
         if (!isRegOpen) {
@@ -3803,9 +3789,18 @@
         sel.appendChild(opt);
       });
 
-      // ★ 若尚未手動選擇，嘗試以 LINE 暱稱自動比對預選
+      // ★ 若尚未手動選擇，嘗試以 LINE 暱稱比對預選 (嚴格比對：完全相同，或 LINE 暱稱內包含隊員全名至少2字，絕不單字模糊比對)
       if (!currentSelectedVal && currentUserDisplayName && members.length > 0) {
-        const matched = members.find(m => m.name && (m.name === currentUserDisplayName || currentUserDisplayName.includes(m.name) || m.name.includes(currentUserDisplayName)));
+        const cleanDisplay = currentUserDisplayName.trim();
+        const matched = members.find(m => {
+          if (!m.name) return false;
+          const cleanName = m.name.trim();
+          // 1. 完全相符
+          if (cleanName === cleanDisplay) return true;
+          // 2. LINE 暱稱包含隊友完整姓名 (例如 "內湖隊-高孟達" 包含 "高孟達"，隊員姓名需至少2字避免單字誤判)
+          if (cleanName.length >= 2 && cleanDisplay.includes(cleanName)) return true;
+          return false;
+        });
         if (matched) {
           currentSelectedVal = matched.name;
           if (searchInput) searchInput.value = matched.name;
@@ -4361,21 +4356,45 @@
       if (card) card.style.display = 'none';
     }
 
-    // ★ 解除 LINE 綁定：改用專屬自訂白底彈窗 (無原生網址列)
+    // ★ 解除 LINE 綁定：改用專屬自訂白底彈窗 (同時重置 LINE ID 與 PIN 碼，並雙向同步至 Firebase 與 Google 試算表)
     function unbindMemberLine() {
       const origName = document.getElementById('editOriginalName').value;
       if (!origName) return;
 
-      customConfirm(`確定要解除【${origName}】的 LINE 帳號綁定嗎？\n解除後該隊友需重新輸入「我是 本名」綁定。`, (confirmed) => {
+      customConfirm(`確定要解除【${origName}】的 LINE 帳號綁定嗎？\n解除後該隊友的 LINE 綁定與 PIN 碼將全部重置，隊友需重新綁定。`, (confirmed) => {
         if (!confirmed) return;
         const members = (rawResponse && rawResponse.members) ? rawResponse.members : [];
         const m = members.find(x => x.name === origName);
         if (m) {
           m.lineId = '';
+          m.pin = '';
+
+          // 1. Firebase 即時資料庫同步更新
           if (rtdb) {
             rtdb.ref('members').set(members).catch(err => console.warn('Unbind Firebase error:', err));
           }
-          showToast(`🔓 已解除【${origName}】的 LINE 綁定！`, 3000, false);
+
+          // 2. Google 試算表後端同步更新 (雙通道備援：批次同步 + 專屬 unbindUser，徹底杜絕幽靈回魂)
+          try {
+            fetch(`${API_BASE}?action=unbindUser&name=${encodeURIComponent(origName)}`).catch(() => {});
+            fetch(API_BASE, {
+              method: 'POST',
+              headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+              body: JSON.stringify({
+                action: 'batchSyncMembers',
+                members: members
+              })
+            }).catch(err => console.warn('GAS member unbind sync error:', err));
+          } catch (e) {}
+
+          // 3. 若解除綁定的剛好是本機當前操作者，立即清空本地暫存
+          if (currentUserName === origName) {
+            currentUserName = '';
+            localStorage.removeItem('bowling_player_name');
+            updateOperatorDisplay();
+          }
+
+          showToast(`🔓 已解除【${origName}】的 LINE 綁定與 PIN 碼！`, 3000, false);
           openEditMemberForm(origName);
           renderMemberListUI(document.getElementById('memberSearchInput').value.trim());
         }

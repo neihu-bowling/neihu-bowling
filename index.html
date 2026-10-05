@@ -1032,6 +1032,16 @@
         </button>
       </div>
 
+      <!-- 幹部席位管制專區 (防誤觸獨立卡片) -->
+      <div id="adminSeatLockSection" style="margin-top:12px; padding:10px 12px; background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:10px; text-align:left;">
+        <div style="font-weight:900; font-size:12.5px; color:#334155; margin-bottom:4px; display:flex; align-items:center; justify-content:space-between;">
+          <span>🛡️ 幹部席位管制專區</span>
+          <span id="adminSeatLockStatusBadge" style="font-size:11px; font-weight:bold;"></span>
+        </div>
+        <p id="adminSeatLockDesc" style="font-size:11px; color:#64748b; margin:0 0 8px 0; line-height:1.4;"></p>
+        <button type="button" id="adminSeatLockBtn" onclick="toggleAdminSeatLockFromModal()" class="modal-btn" style="padding:7px 10px; margin-bottom:0; font-weight:900;"></button>
+      </div>
+
       <button type="button" onclick="closeAdminSeatModal()" class="modal-btn btn-secondary" style="margin-top:10px; margin-bottom:0; padding:8px;">
         ✖ 取消關閉
       </button>
@@ -1887,37 +1897,95 @@
       return 4;
     }
 
-    // ★ 檢查某球道是否有超出當前水位的溢位隊友 (席位索引 >= allowedSlots)
+    // ★ 檢查某球道是否有空洞 (中途空位) 或超出當前水位的溢位隊友
     function checkHasOverflowPlayers(laneObj, allowedSlots) {
       if (!laneObj || !laneObj.players) return false;
       const pl = normalize8Players(laneObj.players);
-      for (let i = allowedSlots; i < 8; i++) {
-        if (pl[i] && pl[i].name && String(pl[i].name).trim() !== '' && String(pl[i].name).trim() !== '[開放入座]') {
+      let sawEmpty = false;
+      for (let i = 0; i < 8; i++) {
+        const isOccupied = pl[i] && pl[i].name && String(pl[i].name).trim() !== '' && !String(pl[i].name).trim().startsWith('[');
+        if (!isOccupied) {
+          sawEmpty = true;
+        } else if (sawEmpty) {
+          // 前方有空位但後方有人入座：需要自動向前排齊遞補！
+          return true;
+        }
+        if (i >= allowedSlots && isOccupied) {
           return true;
         }
       }
       return false;
     }
 
-    // ★ 單道席位向前排齊 (保留隊友相對順序，專用道 [開放入座] 置於後方)
+    // ★ 單道席位向前排齊 (隊友向前依序排齊，[開放入座] 與 [保留席] 自動置於道尾第4位或後方)
     function compactSingleLane(laneObj, isStaff) {
       if (!laneObj || !laneObj.players) return false;
       const orig = normalize8Players(laneObj.players);
-      const active = orig.filter(p => p && p.name && String(p.name).trim() !== '' && String(p.name).trim() !== '[開放入座]');
+      const active = orig.filter(p => p && p.name && String(p.name).trim() !== '' && !String(p.name).trim().startsWith('['));
       const openCount = isStaff ? orig.filter(p => p && String(p.name).trim() === '[開放入座]').length : 0;
+      const placeholderRes = orig.filter(p => p && (String(p.name).trim() === '[保留席]' || String(p.name).trim() === '[未開放]')).length;
+      const activeRes = active.filter(p => p && (p.isReserved === true || p.isReserved === 'true')).length;
+      const totalRes = placeholderRes + activeRes;
 
-      const newPlayers = [];
-      active.forEach(p => newPlayers.push({ name: String(p.name).trim(), gender: p.gender || 'M', code: p.code || '' }));
-      for (let o = 0; o < openCount; o++) {
-        if (newPlayers.length < 8) newPlayers.push({ name: '[開放入座]', gender: 'M', code: '' });
+      const standardLaneSize = 4;
+      const newPlayers = Array(8).fill(null);
+
+      // 1. 放真實球員
+      active.forEach((p, idx) => {
+        if (idx < 8) {
+          newPlayers[idx] = { 
+            name: String(p.name).trim(), 
+            gender: p.gender || 'M', 
+            code: p.code || '',
+            isReserved: !!p.isReserved
+          };
+        }
+      });
+
+      // 2. 工作人員專用道之 [開放入座]
+      if (isStaff && openCount > 0) {
+        let placed = 0;
+        for (let i = active.length; i < 8 && placed < openCount; i++) {
+          if (!newPlayers[i]) {
+            newPlayers[i] = { name: '[開放入座]', gender: 'M', code: '' };
+            placed++;
+          }
+        }
       }
-      while (newPlayers.length < 8) newPlayers.push(null);
+
+      // 3. 處理保留席 [保留席]：確保道尾維持 🔒未開放
+      // 計算道上尚需顯示之純保留席佔位符數量
+      const needPlaceholderCount = Math.max(placeholderRes, (active.length + totalRes <= standardLaneSize ? totalRes - activeRes : placeholderRes));
+      if (needPlaceholderCount > 0) {
+        if (active.length + needPlaceholderCount <= standardLaneSize) {
+          // 4 位以內對齊道尾（例如第 4 位或第 3、4 位）
+          for (let r = 0; r < needPlaceholderCount; r++) {
+            const targetSlotIdx = standardLaneSize - needPlaceholderCount + r;
+            if (!newPlayers[targetSlotIdx]) {
+              newPlayers[targetSlotIdx] = { name: '[保留席]', gender: 'M', code: '' };
+            }
+          }
+        } else {
+          // 超出 4 位時依序往後排
+          let placed = 0;
+          for (let i = active.length; i < 8 && placed < needPlaceholderCount; i++) {
+            if (!newPlayers[i]) {
+              newPlayers[i] = { name: '[保留席]', gender: 'M', code: '' };
+              placed++;
+            }
+          }
+        }
+      }
 
       let changed = false;
       for (let i = 0; i < 8; i++) {
-        const oldN = orig[i] && orig[i].name ? orig[i].name : '';
-        const newN = newPlayers[i] && newPlayers[i].name ? newPlayers[i].name : '';
-        if (oldN !== newN) { changed = true; break; }
+        const oldP = orig[i];
+        const newP = newPlayers[i];
+        const oldN = (oldP && oldP.name) ? String(oldP.name).trim() : '';
+        const newN = (newP && newP.name) ? String(newP.name).trim() : '';
+        const oldR = !!(oldP && (oldP.isReserved === true || oldP.isReserved === 'true'));
+        const newR = !!(newP && (newP.isReserved === true || newP.isReserved === 'true'));
+        if (oldN !== newN || oldR !== newR) { changed = true; break; }
       }
       if (changed) {
         laneObj.players = newPlayers;
@@ -2699,7 +2767,7 @@
           if (l && l.lane) {
             laneMap[l.lane] = l.players || [];
             (l.players || []).forEach(p => {
-              if (p && p.name && p.name !== '[開放入座]') {
+              if (p && p.name && !String(p.name).trim().startsWith('[')) {
                 totalCount++;
                 const gen = p.gender || memberMap[p.name] || 'M';
                 const genStr = String(gen).trim();
@@ -2721,7 +2789,7 @@
             if (isStaff) {
               staffLaneCount++;
               const staffPlayers = laneMap[lk] || [];
-              staffPlayers.forEach(p => { if (p && p.name && p.name !== '[開放入座]') staffPlayerCount++; });
+              staffPlayers.forEach(p => { if (p && p.name && !String(p.name).trim().startsWith('[')) staffPlayerCount++; });
             }
           }
         });
@@ -2807,13 +2875,14 @@
             html += `<td rowspan="8" class="lane-number-cell" style="width:24%">${laneKey}</td>`;
           }
 
-          // 檢查該號位是否有人 (若姓名為 [開放入座] 或 [開放選位]，視為開放空位處理)
+          // 檢查該號位是否有人 (若姓名為 [開放入座]、[開放選位] 或 [保留席]、[未開放]，視為特殊空位處理)
           const p = (players && players[r] && players[r].name) ? players[r] : null;
           const isSlotOpenPlaceholder = (p && (p.name === '[開放入座]' || p.name === '[開放選位]'));
+          const isSlotReservedPlaceholder = (p && (p.name === '[保留席]' || p.name === '[未開放]'));
 
           // 代號欄位 (選項 B：有人選位讀取並顯示隊友代號，空位顯示 --)
           let playerCode = '--';
-          if (p && !isSlotOpenPlaceholder) {
+          if (p && !isSlotOpenPlaceholder && !isSlotReservedPlaceholder) {
             if (p.code !== undefined && p.code !== null && String(p.code).trim() !== '') {
               playerCode = String(p.code).trim();
             }
@@ -2843,7 +2912,7 @@
             }
           }
 
-          if (p && !isSlotOpenPlaceholder) {
+          if (p && !isSlotOpenPlaceholder && !isSlotReservedPlaceholder) {
             let pGender = p.gender;
             if (rawResponse && rawResponse.members) {
               const mem = rawResponse.members.find(m => m.name === p.name);
@@ -2854,16 +2923,17 @@
             const colorClass = isFem ? 'female-text' : 'male-text';
 
             const isSlotChangedJoin = lastSlotChange && (lastSlotChange.action === 'join' || lastSlotChange.action === 'late_join');
+            const adminResTag = (isAdmin && (p.isReserved === true || p.isReserved === 'true')) ? '<span style="font-size:11px; color:#dc2626; font-weight:bold; margin-left:2px;" title="幹部保留席">[🔒保留]</span>' : '';
             if (isSlotChangedJoin) {
               html += `
                 <td onclick="handlePlayerClick('${p.name}', '${laneKey}', ${slotIndex})" style="cursor:pointer; width:60%; background:#fef3c7; border:2px solid #f59e0b; font-weight:900;" class="${colorClass}">
-                  ${p.name} <span style="font-size:11.5px; color:#d97706; font-weight:bold; margin-left:2px;">(已變更)</span>
+                  ${p.name}${adminResTag} <span style="font-size:11.5px; color:#d97706; font-weight:bold; margin-left:2px;">(已變更)</span>
                 </td>
               `;
             } else {
               html += `
                 <td onclick="handlePlayerClick('${p.name}', '${laneKey}', ${slotIndex})" style="cursor:pointer; width:60%;" class="${colorClass}">
-                  ${p.name}
+                  ${p.name}${adminResTag}
                 </td>
               `;
             }
@@ -2871,6 +2941,17 @@
             if (!isOpen) {
               const closedLabel = isAdmin ? '🚫 不開放 (已關閉)' : '🚫 不開放';
               html += `<td class="slot-locked" style="width:60%;">${closedLabel}</td>`;
+            } else if (isSlotReservedPlaceholder) {
+              // ★ 幹部鎖定保留席位：一般隊友顯示 🔒 未開放，幹部顯示 🔒 保留席 (點擊管理)
+              if (!isAdmin) {
+                html += `<td class="slot-locked" style="width:60%;">🔒 未開放</td>`;
+              } else {
+                html += `
+                  <td onclick="openSlotAction('${laneKey}', ${slotIndex})" class="slot-cell-empty" style="background:#f1f5f9; border:1.5px dashed #94a3b8;">
+                    <span class="slot-pill-btn" style="background:#64748b; color:#ffffff; font-size:11px; padding:3px 6px;">🔒 保留席 (點擊管理)</span>
+                  </td>
+                `;
+              }
             } else if (lastSlotChange && lastSlotChange.action === 'leave') {
               // ★ 請假退出者：席位空出，背景改為暖金黃 #fef3c7，搭配深橘色邊框
               const btnLabel = (isStaff && isAdmin && isSlotOpenPlaceholder) ? '＋ 可選位 (已開放)' : '＋ 可選位';
@@ -2977,32 +3058,7 @@
       title.innerHTML = `🎳 選位 <span style="color:${dayColor}; font-weight:900;">【${currentDay}賽事】</span> ${laneKey} 道 第 ${slotIndex} 位`;
       sub.innerText = myCurrentInfo ? `提示：您目前已在【${myCurrentInfo.lane} 道 第 ${myCurrentInfo.slot} 位】` : `目前操作者：${currentUserName || (isAdmin ? '幹部管理者' : '隊友')}`;
 
-      // ★ 若是工作人員專用道且操作者為管理者，最上方新增「🟢 開放此位供隊友自行選位」/「🔒 鎖定此位僅限幹部」切換按鈕
-      const isMonDay = currentDay === '週一';
-      const curStaffLanes = isMonDay ? (cfg.monStaffLanes || cfg.staffLanes || '7/8') : (cfg.thuStaffLanes || cfg.staffLanes || '7/8');
-      const isCurrentLaneStaff = isLaneStaff(laneKey, curStaffLanes);
-      
-      let staffToggleHtml = '';
-      if (isAdmin && isCurrentLaneStaff) {
-        const laneObj = (dayData || []).find(l => l.lane === laneKey);
-        const slotPlayer = (laneObj && laneObj.players && laneObj.players[slotIndex - 1]) ? laneObj.players[slotIndex - 1].name : null;
-        const isAlreadyOpened = (slotPlayer === '[開放入座]' || slotPlayer === '[開放選位]');
-        if (isAlreadyOpened) {
-          staffToggleHtml = `
-            <button type="button" onclick="toggleStaffSlotOpen('${laneKey}', ${slotIndex}, false)" class="modal-btn" style="background:#dc2626; color:#fff; font-weight:900; border:1px solid #b91c1c; margin-bottom:8px;">
-              🔒 取消開放此位 (收回幹部專用)
-            </button>
-          `;
-        } else {
-          staffToggleHtml = `
-            <button type="button" onclick="toggleStaffSlotOpen('${laneKey}', ${slotIndex}, true)" class="modal-btn" style="background:#059669; color:#fff; font-weight:900; border:1px solid #047857; margin-bottom:8px;">
-              🟢 開放此位供隊友自行選位
-            </button>
-          `;
-        }
-      }
-
-      let btnsHtml = staffToggleHtml;
+      let btnsHtml = '';
       if (currentUserName) {
         if (!myCurrentInfo) {
           btnsHtml += `
@@ -3026,6 +3082,39 @@
         </button>
       `;
 
+      // ★ 幹部席位管制專區：置於彈出視窗底部獨立區塊，杜絕手滑誤按，全場所有球道皆支援
+      if (isAdmin) {
+        const laneObj = (dayData || []).find(l => l.lane === laneKey);
+        const slotPlayer = (laneObj && laneObj.players && laneObj.players[slotIndex - 1]) ? laneObj.players[slotIndex - 1].name : null;
+        const isSlotOpenPl = (slotPlayer === '[開放入座]' || slotPlayer === '[開放選位]');
+        const isSlotResPl = (slotPlayer === '[保留席]' || slotPlayer === '[未開放]');
+        const isMonDay = currentDay === '週一';
+        const curStaffLanes = isMonDay ? (cfg.monStaffLanes || cfg.staffLanes || '7/8') : (cfg.thuStaffLanes || cfg.staffLanes || '7/8');
+        const isStaff = isLaneStaff(laneKey, curStaffLanes);
+        
+        // 判斷該席位目前是否處於鎖定/未開放狀態
+        const isCurrentlyLocked = isStaff ? !isSlotOpenPl : isSlotResPl;
+
+        btnsHtml += `
+          <div style="margin-top:14px; padding:10px 12px; background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:10px; text-align:left;">
+            <div style="font-weight:900; font-size:12.5px; color:#334155; margin-bottom:4px; display:flex; align-items:center; justify-content:space-between;">
+              <span>🛡️ 幹部席位管制專區</span>
+              <span style="font-size:11px; font-weight:bold; color:${isCurrentlyLocked ? '#dc2626' : '#16a34a'};">
+                ${isCurrentlyLocked ? '🔒 目前鎖定不開放' : '🟢 目前對外開放'}
+              </span>
+            </div>
+            <p style="font-size:11px; color:#64748b; margin:0 0 8px 0; line-height:1.4;">
+              ${isCurrentlyLocked
+                ? '此席位目前已鎖定保留，一般隊友看到 🔒未開放 無法自行選位。'
+                : '此席位目前開放一般隊友自行選位。若需保留請點擊下方鎖定。'}
+            </p>
+            <button type="button" onclick="confirmToggleSlotLock('${laneKey}', ${slotIndex}, ${!isCurrentlyLocked})" class="modal-btn" style="background:${isCurrentlyLocked ? '#059669' : '#dc2626'}; color:#fff; font-weight:900; border:1px solid ${isCurrentlyLocked ? '#047857' : '#b91c1c'}; padding:7px 10px; margin-bottom:0;">
+              ${isCurrentlyLocked ? '🟢 解除鎖定 (開放隊友選位)' : '🔒 鎖定此席位 (禁止一般隊友選位)'}
+            </button>
+          </div>
+        `;
+      }
+
       btnBox.innerHTML = btnsHtml;
       populateProxySelect(dayData || []);
 
@@ -3043,18 +3132,36 @@
       modal.style.display = 'flex';
     }
 
-    // ★ 幹部切換專用道空位開放／鎖定狀態
-    async function toggleStaffSlotOpen(laneKey, slotIndex, toOpen) {
-      closeActionModal();
-      if (toOpen) {
-        // 開放此位：以靜默模式寫入 [開放入座]
-        await submitJoin(laneKey, slotIndex, '[開放入座]', false, 'M', true);
-        showToast(`🟢 已開放【${currentDay}】${laneKey} 道 第 ${slotIndex} 位供隊友自行選位！`, 3000, false);
-      } else {
-        // 取消開放：以靜默模式清空席位
-        await executeLeave('[開放入座]', laneKey, slotIndex, '', true);
-        showToast(`🔒 已收回【${currentDay}】${laneKey} 道 第 ${slotIndex} 位為幹部專用！`, 3000, false);
-      }
+    // ★ 幹部切換任何球道席位之開放／鎖定狀態 (二次確認防誤按)
+    function confirmToggleSlotLock(laneKey, slotIndex, toLock) {
+      const actionText = toLock ? '鎖定此席位 (禁止一般隊友選位)' : '解除鎖定 (開放隊友自由選位)';
+      customConfirm(`確定要將【${currentDay}】${laneKey} 道 第 ${slotIndex} 位設定為【${actionText}】嗎？`, async (confirmed) => {
+        if (!confirmed) return;
+        closeActionModal();
+        showToast('⏳ 正在更新席位狀態...', 0, true);
+        const isMon = currentDay === '週一';
+        const cfg = rawResponse ? rawResponse.config : {};
+        const curStaffLanes = isMon ? (cfg.monStaffLanes || cfg.staffLanes || '7/8') : (cfg.thuStaffLanes || cfg.staffLanes || '7/8');
+        const isStaff = isLaneStaff(laneKey, curStaffLanes);
+        
+        if (isStaff) {
+          if (toLock) {
+            await executeLeave('[開放入座]', laneKey, slotIndex, '', true);
+            showToast(`🔒 已收回【${currentDay}】${laneKey} 道 第 ${slotIndex} 位為幹部專用！`, 3000, false);
+          } else {
+            await submitJoin(laneKey, slotIndex, '[開放入座]', false, 'M', true);
+            showToast(`🟢 已開放【${currentDay}】${laneKey} 道 第 ${slotIndex} 位供隊友自行選位！`, 3000, false);
+          }
+        } else {
+          if (toLock) {
+            await submitJoin(laneKey, slotIndex, '[保留席]', false, 'M', true);
+            showToast(`🔒 已鎖定【${currentDay}】${laneKey} 道 第 ${slotIndex} 位（隊友無法選位）！`, 3000, false);
+          } else {
+            await executeLeave('[保留席]', laneKey, slotIndex, '', true);
+            showToast(`🟢 已解除鎖定【${currentDay}】${laneKey} 道 第 ${slotIndex} 位（開放隊友選位）！`, 3000, false);
+          }
+        }
+      });
     }
 
     function toggleProxySection() {
@@ -3205,6 +3312,38 @@
         }
       }
 
+      // 判斷此席位或此道是否處於保留／不開放管制狀態
+      const curLaneObj = lanesList.find(l => l && l.lane === laneKey);
+      const curPlayers = curLaneObj ? normalize8Players(curLaneObj.players) : Array(8).fill(null);
+      const curPlayer = curPlayers[slotIndex - 1];
+      const hasLaneReserved = curPlayers.some(p => p && (String(p.name).trim() === '[保留席]' || String(p.name).trim() === '[未開放]'));
+      const isReserved = !!(curPlayer && (curPlayer.isReserved === true || curPlayer.isReserved === 'true')) || hasLaneReserved;
+      currentAdminSeatTarget.isReserved = isReserved;
+
+      const badgeEl = document.getElementById('adminSeatLockStatusBadge');
+      const descEl = document.getElementById('adminSeatLockDesc');
+      const lockBtn = document.getElementById('adminSeatLockBtn');
+
+      if (badgeEl && descEl && lockBtn) {
+        if (isReserved) {
+          badgeEl.innerText = '🔒 目前管制：保留席(未開放)';
+          badgeEl.style.color = '#dc2626';
+          descEl.innerText = '此席位或球道已設為保留管制。若前方出現空缺，隊員自動向前遞補，球道尾端自動維持 🔒未開放。';
+          lockBtn.innerText = '🟢 解除保留 (恢復為對外開放席)';
+          lockBtn.style.background = '#059669';
+          lockBtn.style.borderColor = '#047857';
+          lockBtn.style.color = '#ffffff';
+        } else {
+          badgeEl.innerText = '🟢 目前管制：對外開放';
+          badgeEl.style.color = '#16a34a';
+          descEl.innerText = '此席位目前為一般開放席。若要將此名額設為幹部保留席（限制對外開放），請點擊下方按鈕。';
+          lockBtn.innerText = '🔒 設為未開放保留席 (幹部管制)';
+          lockBtn.style.background = '#dc2626';
+          lockBtn.style.borderColor = '#b91c1c';
+          lockBtn.style.color = '#ffffff';
+        }
+      }
+
       const modal = document.getElementById('adminSeatActionModal');
       if (modal) modal.style.display = 'flex';
     }
@@ -3241,6 +3380,89 @@
       const { playerName, gender } = currentAdminSeatTarget;
       closeAdminSeatModal();
       await submitJoin(targetLane, targetSlot, playerName, false, gender || 'M');
+    }
+
+    // ★ 幹部於人名彈窗中切換開放／不開放保留席 (二次確認防誤觸)
+    function toggleAdminSeatLockFromModal() {
+      if (!currentAdminSeatTarget) return;
+      const { playerName, laneKey, slotIndex, isReserved } = currentAdminSeatTarget;
+      const toLock = !isReserved;
+      const actionText = toLock ? '【🔒 設為未開放保留席】' : '【🟢 解除保留，恢復為對外開放】';
+      const promptText = toLock
+        ? `確定要將【${currentDay}】${laneKey} 道 第 ${slotIndex} 位【${playerName}】設定為${actionText}嗎？\n\n（設定後，若同道前方有空缺將自動依序往前遞補，尾端自動維持 🔒未開放）`
+        : `確定要將【${currentDay}】${laneKey} 道 第 ${slotIndex} 位【${playerName}】${actionText}嗎？`;
+
+      customConfirm(promptText, async (confirmed) => {
+        if (!confirmed) return;
+        closeAdminSeatModal();
+        showToast('⏳ 正在更新席位管制狀態...', 0, true);
+
+        const isMon = currentDay === '週一';
+        const targetDayKey = isMon ? 'mon' : 'thu';
+        const cfg = rawResponse ? rawResponse.config : {};
+        const curStaffLanes = isMon ? (cfg.monStaffLanes || cfg.staffLanes || '7/8') : (cfg.thuStaffLanes || cfg.staffLanes || '7/8');
+        const isStaff = isLaneStaff(laneKey, curStaffLanes);
+
+        const applyLockChange = (laneObj) => {
+          if (!laneObj) return;
+          let pl = normalize8Players(laneObj.players);
+          if (toLock) {
+            // 標記隊友保留，並若有空間補上保留席標記
+            let found = false;
+            if (pl[slotIndex - 1] && pl[slotIndex - 1].name === playerName) {
+              pl[slotIndex - 1].isReserved = true;
+              found = true;
+            } else {
+              const idx = pl.findIndex(p => p && p.name === playerName);
+              if (idx !== -1) { pl[idx].isReserved = true; found = true; }
+            }
+            const hasRes = pl.some(p => p && (p.name === '[保留席]' || p.name === '[未開放]'));
+            if (!hasRes) {
+              for (let i = 0; i < 8; i++) {
+                if (!pl[i]) {
+                  pl[i] = { name: '[保留席]', gender: 'M', code: '' };
+                  break;
+                }
+              }
+            }
+          } else {
+            // 解除保留：清除 isReserved，且清除該道上所有 [保留席]
+            pl.forEach(p => {
+              if (p) {
+                if (p.isReserved) delete p.isReserved;
+                if (p.name === '[保留席]' || p.name === '[未開放]') p.name = '';
+              }
+            });
+          }
+          laneObj.players = pl;
+          compactSingleLane(laneObj, isStaff);
+        };
+
+        // 1. 本地樂觀更新
+        if (rawResponse && rawResponse.data && rawResponse.data[targetDayKey]) {
+          let list = Array.isArray(rawResponse.data[targetDayKey]) ? rawResponse.data[targetDayKey] : Object.values(rawResponse.data[targetDayKey]);
+          let laneObj = list.find(l => l && l.lane === laneKey);
+          if (laneObj) applyLockChange(laneObj);
+          renderAll();
+        }
+
+        // 2. Firebase 即時更新
+        if (rtdb && isFirebaseReady) {
+          try {
+            await rtdb.ref(`data/${targetDayKey}`).transaction(dayLanes => {
+              if (!dayLanes) return dayLanes;
+              let list = Array.isArray(dayLanes) ? dayLanes : Object.values(dayLanes);
+              let laneObj = list.find(l => l && l.lane === laneKey);
+              if (laneObj) applyLockChange(laneObj);
+              return dayLanes;
+            });
+          } catch (err) {
+            console.error('Firebase update seat lock error:', err);
+          }
+        }
+
+        showToast(toLock ? `🔒 已將【${playerName}】之席位設定為未開放保留席！` : `🟢 已解除【${playerName}】之席位保留管制！`, 3000, false);
+      });
     }
 
     async function joinSelf(laneKey, slotIndex) {
@@ -3298,7 +3520,7 @@
 
       // 檢查該隊友目前是否已在場上某個席位 (移位判斷)
       let oldSeatInfo = null;
-      if (name !== '[開放入座]') {
+      if (name !== '[開放入座]' && name !== '[保留席]') {
         const curDayData = (rawResponse && rawResponse.data && rawResponse.data[targetDayKey]) ? rawResponse.data[targetDayKey] : [];
         const laneArr = Array.isArray(curDayData) ? curDayData : Object.values(curDayData);
         laneArr.forEach(l => {
@@ -3321,8 +3543,8 @@
             if (!dayLanes) return dayLanes;
             let list = Array.isArray(dayLanes) ? dayLanes : Object.values(dayLanes);
 
-            // 若為非 [開放入座]，清理全場舊席位 (若舊席位在專用道上則還原為 [開放入座])
-            if (name !== '[開放入座]') {
+            // 若為非系統佔位符號，清理全場舊席位 (若舊席位在專用道上則還原為 [開放入座])
+            if (name !== '[開放入座]' && name !== '[保留席]') {
               list.forEach(l => {
                 if (l && l.players) {
                   let pl = normalize8Players(l.players);
@@ -3357,7 +3579,7 @@
             targetLane.players = normalize8Players(targetLane.players);
 
             const existing = targetLane.players[slotIndex - 1];
-            if (existing && existing.name && existing.name !== name && existing.name !== '[開放入座]') {
+            if (existing && existing.name && existing.name !== name && existing.name !== '[開放入座]' && existing.name !== '[保留席]') {
               // 席位已被佔用，中止交易！
               return undefined;
             }
@@ -3381,7 +3603,7 @@
               showToast(`🎉 成功${actWord}【${currentDay}】${lane} 道 第 ${slotIndex} 位！`, 3000, false);
             }
             // ★ 若在預排結束時段，記錄至 Firebase lateChanges
-            if (isPreLockActive(currentDay) && name !== '[開放入座]' && name !== '[開放選位]') {
+            if (isPreLockActive(currentDay) && name !== '[開放入座]' && name !== '[開放選位]' && name !== '[保留席]') {
               const now = new Date();
               const hh = String(now.getHours()).padStart(2, '0');
               const mm = String(now.getMinutes()).padStart(2, '0');
@@ -3405,7 +3627,7 @@
               });
             }
             // ★ 記錄至 Firebase adminChanges (全程席位異動看板：10:00~下週10:00)
-            if (name !== '[開放入座]' && name !== '[開放選位]' && rtdb) {
+            if (name !== '[開放入座]' && name !== '[開放選位]' && name !== '[保留席]' && rtdb) {
               const now = new Date();
               const mm = String(now.getMonth() + 1).padStart(2, '0');
               const dd = String(now.getDate()).padStart(2, '0');
@@ -3578,23 +3800,33 @@
           targetLaneObj.players = normalize8Players(targetLaneObj.players);
 
           const isStaff = isLaneStaff(laneKey, currentStaffLane);
-          const shouldRestoreOpen = isStaff && (playerName !== '[開放入座]');
+          let wasReserved = false;
           if (slotIndex && slotIndex >= 1 && slotIndex <= 8) {
-            targetLaneObj.players[slotIndex - 1] = shouldRestoreOpen ? { name: '[開放入座]', gender: 'M' } : null;
+            const p = targetLaneObj.players[slotIndex - 1];
+            if (p && (p.isReserved === true || p.isReserved === 'true')) wasReserved = true;
+          }
+          for (let pi = 0; pi < targetLaneObj.players.length; pi++) {
+            if (targetLaneObj.players[pi] && targetLaneObj.players[pi].name === playerName) {
+              if (targetLaneObj.players[pi].isReserved === true || targetLaneObj.players[pi].isReserved === 'true') wasReserved = true;
+            }
+          }
+          const shouldRestoreOpen = isStaff && (playerName !== '[開放入座]' && playerName !== '[保留席]');
+          const restoreVal = shouldRestoreOpen 
+            ? { name: '[開放入座]', gender: 'M' } 
+            : (wasReserved ? { name: '[保留席]', gender: 'M', code: '' } : null);
+
+          if (slotIndex && slotIndex >= 1 && slotIndex <= 8) {
+            targetLaneObj.players[slotIndex - 1] = restoreVal;
           }
           // 同時確保該球道上所有該姓名的席位都被清除
           for (let pi = 0; pi < targetLaneObj.players.length; pi++) {
             if (targetLaneObj.players[pi] && targetLaneObj.players[pi].name === playerName) {
-              targetLaneObj.players[pi] = shouldRestoreOpen ? { name: '[開放入座]', gender: 'M' } : null;
+              targetLaneObj.players[pi] = restoreVal;
             }
           }
 
-          // ★ 溢位隊友自動向前遞補：若該道有超出當前水位的隊友，立即自動向前遞補補滿！
-          const cfg = rawResponse ? rawResponse.config : {};
-          const currentLimit = computeAllowedSlots(dayList, cfg, currentDay);
-          if (checkHasOverflowPlayers(targetLaneObj, currentLimit)) {
-            compactSingleLane(targetLaneObj, isStaff);
-          }
+          // ★ 自動向前遞補排齊 (保留席自動置於道尾)
+          compactSingleLane(targetLaneObj, isStaff);
         }
         renderAll();
       }
@@ -3614,20 +3846,30 @@
             targetLane.players = normalize8Players(targetLane.players);
 
             const isStaff = isLaneStaff(laneKey, currentStaffLane);
-            const shouldRestoreOpen = isStaff && (playerName !== '[開放入座]');
+            let wasReserved = false;
             if (slotIndex && slotIndex >= 1 && slotIndex <= 8) {
-              targetLane.players[slotIndex - 1] = shouldRestoreOpen ? { name: '[開放入座]', gender: 'M' } : null;
+              const p = targetLane.players[slotIndex - 1];
+              if (p && (p.isReserved === true || p.isReserved === 'true')) wasReserved = true;
+            }
+            for (let pi = 0; pi < targetLane.players.length; pi++) {
+              if (targetLane.players[pi] && targetLane.players[pi].name === playerName) {
+                if (targetLane.players[pi].isReserved === true || targetLane.players[pi].isReserved === 'true') wasReserved = true;
+              }
+            }
+            const shouldRestoreOpen = isStaff && (playerName !== '[開放入座]' && playerName !== '[保留席]');
+            const restoreVal = shouldRestoreOpen 
+              ? { name: '[開放入座]', gender: 'M' } 
+              : (wasReserved ? { name: '[保留席]', gender: 'M', code: '' } : null);
+
+            if (slotIndex && slotIndex >= 1 && slotIndex <= 8) {
+              targetLane.players[slotIndex - 1] = restoreVal;
             } else {
-              targetLane.players = targetLane.players.map(p => (p && p.name === playerName ? (shouldRestoreOpen ? { name: '[開放入座]', gender: 'M' } : null) : p));
+              targetLane.players = targetLane.players.map(p => (p && p.name === playerName ? restoreVal : p));
             }
 
-            // ★ 溢位隊友自動向前遞補
-            const cfg = rawResponse ? rawResponse.config : {};
-            const currentLimit = computeAllowedSlots(list, cfg, currentDay);
-            if (checkHasOverflowPlayers(targetLane, currentLimit)) {
-              if (compactSingleLane(targetLane, isStaff)) {
-                didCompactOverflow = true;
-              }
+            // ★ 自動向前遞補排齊
+            if (compactSingleLane(targetLane, isStaff)) {
+              didCompactOverflow = true;
             }
             return list;
           });
@@ -3654,7 +3896,7 @@
             });
           }
           // ★ 若在預排結束時段，記錄至 Firebase lateChanges
-          if (isPreLockActive(currentDay) && playerName !== '[開放入座]' && rtdb) {
+          if (isPreLockActive(currentDay) && playerName !== '[開放入座]' && playerName !== '[保留席]' && rtdb) {
             const now = new Date();
             const hh = String(now.getHours()).padStart(2, '0');
             const mm = String(now.getMinutes()).padStart(2, '0');
@@ -3668,7 +3910,7 @@
             });
           }
           // ★ 記錄至 Firebase adminChanges (全程席位異動看板：10:00~下週10:00)
-          if (playerName !== '[開放入座]' && rtdb) {
+          if (playerName !== '[開放入座]' && playerName !== '[保留席]' && rtdb) {
             const now = new Date();
             const mm = String(now.getMonth() + 1).padStart(2, '0');
             const dd = String(now.getDate()).padStart(2, '0');

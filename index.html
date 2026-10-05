@@ -4612,8 +4612,8 @@
       const cfg = rawResponse ? rawResponse.config : {};
       const savedStaff = isMon ? localStorage.getItem('bowling_mon_staff_lanes') : localStorage.getItem('bowling_thu_staff_lanes');
       const savedOpen = isMon ? localStorage.getItem('bowling_mon_open_lanes') : localStorage.getItem('bowling_thu_open_lanes');
-      const dayStaff = isMon ? (cfg.monStaffLanes || savedStaff || cfg.staffLanes || '7/8') : (cfg.thuStaffLanes || savedStaff || cfg.staffLanes || '7/8');
-      const dayOpen = isMon ? (cfg.monOpenLanes || savedOpen || cfg.openLanes || '3-24') : (cfg.thuOpenLanes || savedOpen || cfg.openLanes || '3-24');
+      const dayStaff = isMon ? (cfg.monStaffLanes || cfg.staffLanes || savedStaff || '7/8') : (cfg.thuStaffLanes || cfg.staffLanes || savedStaff || '7/8');
+      const dayOpen = isMon ? (cfg.monOpenLanes || cfg.openLanes || savedOpen || '3-24') : (cfg.thuOpenLanes || cfg.openLanes || savedOpen || '3-24');
       const dayRotate = isMon ? (cfg.monRotateMode || cfg.rotateMode || 'sequential') : (cfg.thuRotateMode || cfg.rotateMode || 'sequential');
 
       // 初始化連假停練狀態
@@ -4982,22 +4982,8 @@
 
         currentRelocateNotice = notice;
 
-        // 5. 呼叫後端 LINE 推播 (帶入隊員清單比對 LINE_ID) - 嚴格單次防重護盾 (5秒內不重複觸發)
-        const now = Date.now();
-        if (now - lastRelocateNoticeTimestamp > 5000) {
-          lastRelocateNoticeTimestamp = now;
-          try {
-            const lineNoticeUrl = `${API_BASE}?action=sendRelocateNotice&day=${encodeURIComponent(targetDay)}&noticeText=${encodeURIComponent(notice)}&playersJson=${encodeURIComponent(JSON.stringify(relocatedList))}`;
-            fetch(lineNoticeUrl).then(r => r.json()).then(res => {
-              if (res && res.status === 'success') {
-                showToast(res.message, 3000, false);
-              }
-            }).catch(e => console.warn('Line notice fetch err:', e));
-          } catch (ne) {}
-        }
-
+        // ★ 依交接手冊 3.3 準則：幹部後台移位的主動推播與彈窗已停用，安靜移位不扣推播配額
         showToast(`🎉 已成功自動移位 ${relocatedList.length} 位隊友！`, 3000, false);
-        openRelocateNoticeModal(notice);
       } finally {
         isActionInProgress = false;
         if (btnSave) {
@@ -5082,13 +5068,27 @@
           const res = await (await fetch(url)).json();
           showToast(res.message || '✅ 輪調完成！', 3000, false);
           closeSettingsModal();
-          await fetchData(true); // force fetch
-          // 同步最新輪調結果到 Firebase
-          if (rtdb && rawResponse && rawResponse.data) {
-            const dayKey = targetDay === '週一' ? 'mon' : 'thu';
-            if (rawResponse.data[dayKey]) {
-              rtdb.ref(`data/${dayKey}`).set(rawResponse.data[dayKey]).catch(err => console.warn('Firebase rotation sync error:', err));
+          const dayKey = targetDay === '週一' ? 'mon' : 'thu';
+          if (res.newStaffLane && rawResponse && rawResponse.config) {
+            rawResponse.config[dayKey + 'StaffLanes'] = res.newStaffLane;
+            try {
+              localStorage.setItem(`bowling_${dayKey}_staff_lanes`, res.newStaffLane);
+            } catch (ce) {}
+            if (rtdb) {
+              rtdb.ref(`config/${dayKey}StaffLanes`).set(res.newStaffLane).catch(err => console.warn('Firebase staff sync error:', err));
             }
+          }
+          if (res.updatedLaneData && rawResponse && rawResponse.data) {
+            rawResponse.data[dayKey] = res.updatedLaneData;
+            try {
+              localStorage.setItem('bowling_cache_raw', JSON.stringify(rawResponse));
+            } catch (ce) {}
+            if (rtdb) {
+              rtdb.ref(`data/${dayKey}`).set(res.updatedLaneData).catch(err => console.warn('Firebase rotation sync error:', err));
+            }
+            renderAll();
+          } else {
+            await fetchData(true);
           }
         } catch (e) {
           showToast('❌ 輪調執行失敗，請檢查網路。', 3000, false);

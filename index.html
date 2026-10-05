@@ -954,86 +954,109 @@
 
   <!-- 1. 選位選單彈窗 -->
   <div id="actionModal" class="modal-overlay">
-    <div class="modal-card">
-      <h3 id="modalTitle" style="font-size:16px; font-weight:900; margin-bottom:4px;">🎳 球道選位選單</h3>
-      <p id="modalSub" style="font-size:12px; color:#64748b; margin-bottom:12px;"></p>
+    <div class="modal-card" style="text-align:left; background:#f8fafc; border-radius:14px; max-width:360px; padding:16px 14px; box-shadow:0 12px 30px rgba(0,0,0,0.25);">
+      
+      <!-- 【區塊一：選位與調度主作業方塊 (含取消關閉)】 -->
+      <div style="background:#ffffff; border:1.5px solid #cbd5e1; border-radius:12px; padding:14px 12px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <h3 id="modalTitle" style="font-size:16px; font-weight:900; margin:0 0 4px 0; color:#1e293b;">🎳 球道選位選單</h3>
+        <p id="modalSub" style="font-size:12px; color:#64748b; margin:0 0 12px 0;"></p>
 
-      <div id="modalButtons"></div>
+        <div id="modalButtons"></div>
 
-      <div id="proxySection" style="display:none; margin-top:12px; padding-top:12px; border-top:1px solid #e2e8f0;">
-        <!-- 管理者專用：切換代報未報名隊友 VS 移位現有隊友 -->
-        <div id="proxyModeTabs" style="display:none; margin-bottom:10px; border-bottom:1px solid #cbd5e1; padding-bottom:8px;">
-          <div style="display:flex; gap:6px;">
-            <button type="button" id="tabProxyJoin" onclick="switchProxyTab('join')" class="quick-btn" style="flex:1; padding:6px 4px; font-weight:bold; background:#2563eb; color:#fff; border-radius:6px;">👥 幫未報名隊友選位</button>
-            <button type="button" id="tabProxyMove" onclick="switchProxyTab('move')" class="quick-btn" style="flex:1; padding:6px 4px; font-weight:bold; background:#f1f5f9; color:#475569; border-radius:6px;">🔄 移位現有隊友至此席</button>
+        <div id="proxySection" style="display:none; margin-top:10px; padding-top:10px; border-top:1px solid #e2e8f0;">
+          <!-- 管理者專用：切換代報未報名隊友 VS 移位現有隊友 -->
+          <div id="proxyModeTabs" style="display:none; margin-bottom:10px; border-bottom:1px solid #cbd5e1; padding-bottom:8px;">
+            <div style="flex:1; display:flex; gap:6px;">
+              <button type="button" id="tabProxyJoin" onclick="switchProxyTab('join')" class="quick-btn" style="flex:1; padding:6px 4px; font-weight:bold; background:#2563eb; color:#fff; border-radius:6px;">👥 幫未報名隊友選位</button>
+              <button type="button" id="tabProxyMove" onclick="switchProxyTab('move')" class="quick-btn" style="flex:1; padding:6px 4px; font-weight:bold; background:#f1f5f9; color:#475569; border-radius:6px;">🔄 移位現有隊友至此席</button>
+            </div>
+          </div>
+
+          <div id="proxyJoinArea">
+            <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px; color:#1e293b;">👥 選擇未報名隊友：</label>
+            <select id="proxySelect" style="width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1; font-size:12.5px; margin-bottom:8px;"></select>
+            <button onclick="confirmProxyJoin()" class="modal-btn btn-primary">確定為隊友選位</button>
+          </div>
+
+          <div id="proxyMoveArea" style="display:none;">
+            <label style="display:block; font-size:12px; font-weight:bold; color:#1e40af; margin-bottom:4px;">🔄 選擇欲移至此席的已選位隊友：</label>
+            <select id="proxyMoveSelect" style="width:100%; padding:8px; border-radius:6px; border:1px solid #93c5fd; font-size:12.5px; margin-bottom:8px; font-weight:bold; color:#1e293b; background:#fff;"></select>
+            <button onclick="confirmProxyMoveHere()" class="modal-btn btn-warn">確定將該隊友移位至此席</button>
+          </div>
+
+          <div id="guestSection" style="display:none; margin-top:8px; padding-top:8px; border-top:1px dashed #cbd5e1;">
+            <label style="display:block; font-size:12px; font-weight:bold; color:#d97706; margin-bottom:4px;">👑 手動輸入臨時來賓 (不建檔)</label>
+            <div style="display:flex; gap:4px; margin-bottom:6px;">
+              <input type="text" id="guestName" placeholder="姓名" style="flex:1; padding:6px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px;">
+              <select id="guestGender" style="padding:6px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px;">
+                <option value="M">男 (藍)</option>
+                <option value="F">女 (紅)</option>
+              </select>
+            </div>
+            <button onclick="confirmGuestJoin()" class="modal-btn btn-warn">➕ 加入臨時來賓</button>
           </div>
         </div>
 
-        <div id="proxyJoinArea">
-          <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px; color:#1e293b;">👥 選擇未報名隊友：</label>
-          <select id="proxySelect" style="width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1; font-size:12.5px; margin-bottom:8px;"></select>
-          <button onclick="confirmProxyJoin()" class="modal-btn btn-primary">確定為隊友選位</button>
-        </div>
-
-        <div id="proxyMoveArea" style="display:none;">
-          <label style="display:block; font-size:12px; font-weight:bold; color:#1e40af; margin-bottom:4px;">🔄 選擇欲移至此席的已選位隊友：</label>
-          <select id="proxyMoveSelect" style="width:100%; padding:8px; border-radius:6px; border:1px solid #93c5fd; font-size:12.5px; margin-bottom:8px; font-weight:bold; color:#1e293b; background:#fff;"></select>
-          <button onclick="confirmProxyMoveHere()" class="modal-btn btn-warn">確定將該隊友移位至此席</button>
-        </div>
-
-        <div id="guestSection" style="display:none; margin-top:8px; padding-top:8px; border-top:1px dashed #cbd5e1;">
-          <label style="display:block; font-size:12px; font-weight:bold; color:#d97706; margin-bottom:4px;">👑 手動輸入臨時來賓 (不建檔)</label>
-          <div style="display:flex; gap:4px; margin-bottom:6px;">
-            <input type="text" id="guestName" placeholder="姓名" style="flex:1; padding:6px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px;">
-            <select id="guestGender" style="padding:6px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px;">
-              <option value="M">男 (藍)</option>
-              <option value="F">女 (紅)</option>
-            </select>
-          </div>
-          <button onclick="confirmGuestJoin()" class="modal-btn btn-warn">➕ 加入臨時來賓</button>
-        </div>
+        <button onclick="closeActionModal()" class="modal-btn btn-secondary" style="margin-top:10px; margin-bottom:0; padding:8px;">✖ 取消 (關閉視窗)</button>
       </div>
 
-      <button onclick="closeActionModal()" class="modal-btn btn-secondary" style="margin-top:8px; margin-bottom:0;">✖ 取消 (關閉視窗)</button>
+      <!-- 【區塊二：最底部 🛡️ 幹部席位管制專區】 -->
+      <div id="emptySlotLockSection" style="display:none; margin-top:12px; padding:10px 12px; background:#ffffff; border:1.5px solid #cbd5e1; border-radius:12px; text-align:left; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <div style="font-weight:900; font-size:12.5px; color:#334155; margin-bottom:4px; display:flex; align-items:center; justify-content:space-between;">
+          <span>🛡️ 幹部席位管制專區</span>
+          <span id="emptySlotLockStatusBadge" style="font-size:11px; font-weight:bold;"></span>
+        </div>
+        <p id="emptySlotLockDesc" style="font-size:11px; color:#64748b; margin:0 0 8px 0; line-height:1.4;"></p>
+        <button type="button" id="emptySlotLockBtn" class="modal-btn" style="padding:7px 10px; margin-bottom:0; font-weight:900;"></button>
+      </div>
+
     </div>
   </div>
 
   <!-- 1.1 幹部專用：席位調度彈窗 (管理者點選已入座隊友時觸發：請假 / 移位換道) -->
   <div id="adminSeatActionModal" class="modal-overlay" style="z-index: 10004 !important;">
-    <div class="modal-card" style="text-align:left; background:#ffffff; border-radius:14px; max-width:360px; padding:18px 16px; box-shadow:0 12px 30px rgba(0,0,0,0.25);">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1.5px solid #e2e8f0; padding-bottom:8px;">
-        <h3 style="font-size:16px; font-weight:900; margin:0; color:#1e293b;">👑 幹部席位調度</h3>
-        <button type="button" onclick="closeAdminSeatModal()" style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:50%; width:28px; height:28px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:13px; font-weight:900; color:#64748b; padding:0; flex-shrink:0; line-height:1;" title="關閉">✕</button>
-      </div>
+    <div class="modal-card" style="text-align:left; background:#f8fafc; border-radius:14px; max-width:360px; padding:16px 14px; box-shadow:0 12px 30px rgba(0,0,0,0.25);">
+      
+      <!-- 【區塊一：席位調度作業主方塊 (含取消關閉)】 -->
+      <div style="background:#ffffff; border:1.5px solid #cbd5e1; border-radius:12px; padding:14px 12px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1.5px solid #e2e8f0; padding-bottom:8px;">
+          <h3 style="font-size:16px; font-weight:900; margin:0; color:#1e293b;">👑 幹部席位調度</h3>
+          <button type="button" onclick="closeAdminSeatModal()" style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:50%; width:28px; height:28px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:13px; font-weight:900; color:#64748b; padding:0; flex-shrink:0; line-height:1;" title="關閉">✕</button>
+        </div>
 
-      <div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; padding:10px 12px; margin-bottom:12px;">
-        <div id="adminSeatModalPlayerInfo" style="font-size:15px; font-weight:900; color:#0f172a; margin-bottom:4px;"></div>
-        <div id="adminSeatModalLaneInfo" style="font-size:12.5px; color:#475569; font-weight:bold;"></div>
-      </div>
+        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:10px 12px; margin-bottom:12px;">
+          <div id="adminSeatModalPlayerInfo" style="font-size:15px; font-weight:900; color:#0f172a; margin-bottom:4px;"></div>
+          <div id="adminSeatModalLaneInfo" style="font-size:12.5px; color:#475569; font-weight:bold;"></div>
+        </div>
 
-      <div style="display:flex; flex-direction:column; gap:8px;">
-        <button type="button" onclick="adminSeatActionLeave()" class="modal-btn" style="background:#dc2626; color:#ffffff; font-weight:900; margin-bottom:0; box-shadow:0 1px 3px rgba(220,38,38,0.3); padding:10px;">
-          ❌ 幫隊友請假 (取消此席位)
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <button type="button" onclick="adminSeatActionLeave()" class="modal-btn" style="background:#dc2626; color:#ffffff; font-weight:900; margin-bottom:0; box-shadow:0 1px 3px rgba(220,38,38,0.3); padding:10px;">
+            ❌ 幫隊友請假 (取消此席位)
+          </button>
+
+          <button type="button" onclick="toggleAdminMoveTargetSection()" class="modal-btn" style="background:#2563eb; color:#ffffff; font-weight:900; margin-bottom:0; box-shadow:0 1px 3px rgba(37,99,235,0.3); padding:10px;">
+            🔄 幫隊友移位換道 (選擇目標球道席位)
+          </button>
+        </div>
+
+        <!-- 移位目標球道選擇區塊 -->
+        <div id="adminMoveTargetSection" style="display:none; margin-top:10px; padding:10px; background:#eff6ff; border:1.5px solid #93c5fd; border-radius:8px;">
+          <label style="display:block; font-size:12px; font-weight:bold; color:#1e40af; margin-bottom:6px;">
+            🎯 請選擇目標空位（目前已開放球道）：
+          </label>
+          <select id="adminMoveTargetSelect" style="width:100%; padding:8px; border-radius:6px; border:1px solid #93c5fd; font-size:12.5px; margin-bottom:10px; font-weight:bold; color:#1e293b; background:#fff;"></select>
+          <button type="button" onclick="confirmAdminMoveTarget()" class="modal-btn btn-primary" style="margin-bottom:0; font-weight:900; padding:9px;">
+            確定移位至該席
+          </button>
+        </div>
+
+        <button type="button" onclick="closeAdminSeatModal()" class="modal-btn btn-secondary" style="margin-top:10px; margin-bottom:0; padding:8px;">
+          ✖ 取消關閉
         </button>
-
-        <button type="button" onclick="toggleAdminMoveTargetSection()" class="modal-btn" style="background:#2563eb; color:#ffffff; font-weight:900; margin-bottom:0; box-shadow:0 1px 3px rgba(37,99,235,0.3); padding:10px;">
-          🔄 幫隊友移位換道 (選擇目標球道席位)
-        </button>
       </div>
 
-      <!-- 移位目標球道選擇區塊 -->
-      <div id="adminMoveTargetSection" style="display:none; margin-top:10px; padding:10px; background:#eff6ff; border:1.5px solid #93c5fd; border-radius:8px;">
-        <label style="display:block; font-size:12px; font-weight:bold; color:#1e40af; margin-bottom:6px;">
-          🎯 請選擇目標空位（目前已開放球道）：
-        </label>
-        <select id="adminMoveTargetSelect" style="width:100%; padding:8px; border-radius:6px; border:1px solid #93c5fd; font-size:12.5px; margin-bottom:10px; font-weight:bold; color:#1e293b; background:#fff;"></select>
-        <button type="button" onclick="confirmAdminMoveTarget()" class="modal-btn btn-primary" style="margin-bottom:0; font-weight:900; padding:9px;">
-          確定移位至該席
-        </button>
-      </div>
-
-      <!-- 幹部席位管制專區 (防誤觸獨立卡片) -->
-      <div id="adminSeatLockSection" style="margin-top:12px; padding:10px 12px; background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:10px; text-align:left;">
+      <!-- 【區塊二：最底部 🛡️ 幹部席位管制專區】 -->
+      <div id="adminSeatLockSection" style="margin-top:12px; padding:10px 12px; background:#ffffff; border:1.5px solid #cbd5e1; border-radius:12px; text-align:left; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
         <div style="font-weight:900; font-size:12.5px; color:#334155; margin-bottom:4px; display:flex; align-items:center; justify-content:space-between;">
           <span>🛡️ 幹部席位管制專區</span>
           <span id="adminSeatLockStatusBadge" style="font-size:11px; font-weight:bold;"></span>
@@ -1042,9 +1065,6 @@
         <button type="button" id="adminSeatLockBtn" onclick="toggleAdminSeatLockFromModal()" class="modal-btn" style="padding:7px 10px; margin-bottom:0; font-weight:900;"></button>
       </div>
 
-      <button type="button" onclick="closeAdminSeatModal()" class="modal-btn btn-secondary" style="margin-top:10px; margin-bottom:0; padding:8px;">
-        ✖ 取消關閉
-      </button>
     </div>
   </div>
 
@@ -2941,8 +2961,13 @@
             if (!isOpen) {
               const closedLabel = isAdmin ? '🚫 不開放 (已關閉)' : '🚫 不開放';
               html += `<td class="slot-locked" style="width:60%;">${closedLabel}</td>`;
-            } else if (isSlotReservedPlaceholder) {
-              // ★ 幹部鎖定保留席位：一般隊友顯示 🔒 未開放，幹部顯示 🔒 保留席 (點擊管理)
+            } else if (deadPassed && !isAdmin) {
+              html += `<td class="slot-locked" style="width:60%;">⏰ 報名已截止</td>`;
+            } else if (slotIndex > allowedSlots && !isAdmin) {
+              // ★ 嚴格全場人數水位把關：超出當前人數水位，一般隊友一律顯示「🔒 未開放」
+              html += `<td class="slot-locked" style="width:60%;">🔒 未開放</td>`;
+            } else if (isSlotReservedPlaceholder || (isStaff && !isSlotOpenPlaceholder)) {
+              // ★ 方案 B 統一標準化：不論一般道之 [保留席] 或幹部道未開放席，皆統一呈現
               if (!isAdmin) {
                 html += `<td class="slot-locked" style="width:60%;">🔒 未開放</td>`;
               } else {
@@ -2954,25 +2979,16 @@
               }
             } else if (lastSlotChange && lastSlotChange.action === 'leave') {
               // ★ 請假退出者：席位空出，背景改為暖金黃 #fef3c7，搭配深橘色邊框
-              const btnLabel = (isStaff && isAdmin && isSlotOpenPlaceholder) ? '＋ 可選位 (已開放)' : '＋ 可選位';
               html += `
                 <td onclick="openSlotAction('${laneKey}', ${slotIndex})" class="slot-cell-empty" style="background:#fef3c7; border:2px solid #f59e0b;">
-                  <span class="slot-pill-btn" style="background:linear-gradient(180deg, #f59e0b 0%, #d97706 100%); color:#ffffff; border:1px solid #b45309; box-shadow:0 1.5px 3px rgba(180,83,9,0.3); font-weight:500;">${btnLabel} (已變更)</span>
+                  <span class="slot-pill-btn" style="background:linear-gradient(180deg, #f59e0b 0%, #d97706 100%); color:#ffffff; border:1px solid #b45309; box-shadow:0 1.5px 3px rgba(180,83,9,0.3); font-weight:500;">＋ 可選位 (已變更)</span>
                 </td>
               `;
-            } else if (deadPassed && !isAdmin) {
-              html += `<td class="slot-locked" style="width:60%;">⏰ 報名已截止</td>`;
-            } else if (slotIndex > allowedSlots && !isAdmin) {
-              // ★ 嚴格全場人數水位把關：不論一般道或專用道，只要未達該人數水位（例如每道滿4人才開第5位），一般隊友一律顯示「🔒 未開放」！
-              html += `<td class="slot-locked" style="width:60%;">🔒 未開放</td>`;
-            } else if (isStaff && !isAdmin && !isSlotOpenPlaceholder) {
-              // 專用道幹部私有空位：一般隊友顯示「🔒 未開放」
-              html += `<td class="slot-locked" style="width:60%;">🔒 未開放</td>`;
             } else {
-              const btnLabel = (isStaff && isAdmin && isSlotOpenPlaceholder) ? '＋ 可選位 (已開放)' : '＋ 可選位';
+              // ★ 對外開放空位（一般球道空位，或幹部道之 [開放入座]）
               html += `
                 <td onclick="openSlotAction('${laneKey}', ${slotIndex})" class="slot-cell-empty">
-                  <span class="slot-pill-btn">${btnLabel}</span>
+                  <span class="slot-pill-btn">＋ 可選位</span>
                 </td>
               `;
             }
@@ -3082,8 +3098,13 @@
         </button>
       `;
 
-      // ★ 幹部席位管制專區：置於彈出視窗底部獨立區塊，杜絕手滑誤按，全場所有球道皆支援
-      if (isAdmin) {
+      // ★ 幹部席位管制專區：置於彈出視窗最底部獨立卡片 (完全獨立於上半部選位方塊，不卡在中間)
+      const emptyLockSec = document.getElementById('emptySlotLockSection');
+      const emptyBadge = document.getElementById('emptySlotLockStatusBadge');
+      const emptyDesc = document.getElementById('emptySlotLockDesc');
+      const emptyBtn = document.getElementById('emptySlotLockBtn');
+
+      if (isAdmin && emptyLockSec && emptyBadge && emptyDesc && emptyBtn) {
         const laneObj = (dayData || []).find(l => l.lane === laneKey);
         const slotPlayer = (laneObj && laneObj.players && laneObj.players[slotIndex - 1]) ? laneObj.players[slotIndex - 1].name : null;
         const isSlotOpenPl = (slotPlayer === '[開放入座]' || slotPlayer === '[開放選位]');
@@ -3095,24 +3116,22 @@
         // 判斷該席位目前是否處於鎖定/未開放狀態
         const isCurrentlyLocked = isStaff ? !isSlotOpenPl : isSlotResPl;
 
-        btnsHtml += `
-          <div style="margin-top:14px; padding:10px 12px; background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:10px; text-align:left;">
-            <div style="font-weight:900; font-size:12.5px; color:#334155; margin-bottom:4px; display:flex; align-items:center; justify-content:space-between;">
-              <span>🛡️ 幹部席位管制專區</span>
-              <span style="font-size:11px; font-weight:bold; color:${isCurrentlyLocked ? '#dc2626' : '#16a34a'};">
-                ${isCurrentlyLocked ? '🔒 目前鎖定不開放' : '🟢 目前對外開放'}
-              </span>
-            </div>
-            <p style="font-size:11px; color:#64748b; margin:0 0 8px 0; line-height:1.4;">
-              ${isCurrentlyLocked
-                ? '此席位目前已鎖定保留，一般隊友看到 🔒未開放 無法自行選位。'
-                : '此席位目前開放一般隊友自行選位。若需保留請點擊下方鎖定。'}
-            </p>
-            <button type="button" onclick="confirmToggleSlotLock('${laneKey}', ${slotIndex}, ${!isCurrentlyLocked})" class="modal-btn" style="background:${isCurrentlyLocked ? '#059669' : '#dc2626'}; color:#fff; font-weight:900; border:1px solid ${isCurrentlyLocked ? '#047857' : '#b91c1c'}; padding:7px 10px; margin-bottom:0;">
-              ${isCurrentlyLocked ? '🟢 解除鎖定 (開放隊友選位)' : '🔒 鎖定此席位 (禁止一般隊友選位)'}
-            </button>
-          </div>
-        `;
+        emptyBadge.innerText = isCurrentlyLocked ? '🔒 目前鎖定不開放' : '🟢 目前對外開放';
+        emptyBadge.style.color = isCurrentlyLocked ? '#dc2626' : '#16a34a';
+
+        emptyDesc.innerText = isCurrentlyLocked
+          ? '此席位目前已鎖定保留，一般隊友看到 🔒未開放 無法自行選位。'
+          : '此席位目前開放一般隊友自行選位。若需保留請點擊下方鎖定。';
+
+        emptyBtn.innerText = isCurrentlyLocked ? '🟢 解除鎖定 (開放隊友選位)' : '🔒 鎖定此席位 (禁止一般隊友選位)';
+        emptyBtn.style.background = isCurrentlyLocked ? '#059669' : '#dc2626';
+        emptyBtn.style.borderColor = isCurrentlyLocked ? '#047857' : '#b91c1c';
+        emptyBtn.style.color = '#ffffff';
+        emptyBtn.onclick = () => confirmToggleSlotLock(laneKey, slotIndex, !isCurrentlyLocked);
+
+        emptyLockSec.style.display = 'block';
+      } else if (emptyLockSec) {
+        emptyLockSec.style.display = 'none';
       }
 
       btnBox.innerHTML = btnsHtml;
@@ -3251,34 +3270,9 @@
     let currentAdminSeatTarget = null;
 
     function openAdminSeatModal(playerName, laneKey, slotIndex) {
-      currentAdminSeatTarget = { playerName, laneKey, slotIndex };
-      
-      const pInfoEl = document.getElementById('adminSeatModalPlayerInfo');
-      const lInfoEl = document.getElementById('adminSeatModalLaneInfo');
-      const moveSec = document.getElementById('adminMoveTargetSection');
-      const sel = document.getElementById('adminMoveTargetSelect');
-
-      let gen = 'M';
-      let code = '';
-      if (rawResponse && rawResponse.members) {
-        const m = rawResponse.members.find(x => x.name === playerName);
-        if (m) {
-          if (m.gender) gen = m.gender;
-          if (m.code) code = m.code;
-        }
-      }
-      currentAdminSeatTarget.gender = gen;
-
-      const genBadge = (gen === 'F' || gen === '女') ? '<span style="color:#e11d48; font-weight:bold;">(女)</span>' : '<span style="color:#2563eb; font-weight:bold;">(男)</span>';
-      const codeStr = code ? ` <span style="font-size:12px; color:#64748b; font-family:monospace;">[${code}]</span>` : '';
-
-      if (pInfoEl) pInfoEl.innerHTML = `👤 選手：<b>${playerName}</b> ${genBadge}${codeStr}`;
-      if (lInfoEl) lInfoEl.innerText = `📍 目前席位：【${currentDay}賽事】${laneKey} 道 第 ${slotIndex} 位`;
-      if (moveSec) moveSec.style.display = 'none';
-
-      // 填充目標球道下拉選單 (列出目前所有已開放球道之空缺席位)
-      if (sel) {
-        sel.innerHTML = '<option value="">-- 請選擇目標空位 --</option>';
+      try {
+        currentAdminSeatTarget = { playerName, laneKey, slotIndex };
+        
         const isMon = currentDay === '週一';
         const targetDayKey = isMon ? 'mon' : 'thu';
         const cfg = rawResponse ? rawResponse.config : {};
@@ -3286,66 +3280,96 @@
         const dayData = (rawResponse && rawResponse.data && rawResponse.data[targetDayKey]) ? rawResponse.data[targetDayKey] : [];
         const lanesList = Array.isArray(dayData) ? dayData : Object.values(dayData);
 
-        let foundEmptyCount = 0;
+        const pInfoEl = document.getElementById('adminSeatModalPlayerInfo');
+        const lInfoEl = document.getElementById('adminSeatModalLaneInfo');
+        const moveSec = document.getElementById('adminMoveTargetSection');
+        const sel = document.getElementById('adminMoveTargetSelect');
 
-        ALL_LANES.forEach(lk => {
-          if (!isLaneOpen(lk, openStr)) return;
-          const laneObj = lanesList.find(l => l && l.lane === lk);
-          const players = laneObj ? normalize8Players(laneObj.players) : Array(8).fill(null);
-          
-          for (let s = 1; s <= 8; s++) {
-            // 跳過原本席位
-            if (lk === laneKey && s === slotIndex) continue;
-            const p = players[s - 1];
-            if (!p || !p.name || p.name === '[開放入座]') {
-              const opt = document.createElement('option');
-              opt.value = `${lk}_${s}`;
-              opt.innerText = `🎳 【${lk} 道 第 ${s} 位】(空席)`;
-              sel.appendChild(opt);
-              foundEmptyCount++;
-            }
+        let gen = 'M';
+        let code = '';
+        if (rawResponse && rawResponse.members) {
+          const m = rawResponse.members.find(x => x.name === playerName);
+          if (m) {
+            if (m.gender) gen = m.gender;
+            if (m.code) code = m.code;
           }
-        });
-
-        if (foundEmptyCount === 0) {
-          sel.innerHTML = '<option value="">-- 目前全場開放球道無剩餘空位 --</option>';
         }
-      }
+        currentAdminSeatTarget.gender = gen;
 
-      // 判斷此席位或此道是否處於保留／不開放管制狀態
-      const curLaneObj = lanesList.find(l => l && l.lane === laneKey);
-      const curPlayers = curLaneObj ? normalize8Players(curLaneObj.players) : Array(8).fill(null);
-      const curPlayer = curPlayers[slotIndex - 1];
-      const hasLaneReserved = curPlayers.some(p => p && (String(p.name).trim() === '[保留席]' || String(p.name).trim() === '[未開放]'));
-      const isReserved = !!(curPlayer && (curPlayer.isReserved === true || curPlayer.isReserved === 'true')) || hasLaneReserved;
-      currentAdminSeatTarget.isReserved = isReserved;
+        const genBadge = (gen === 'F' || gen === '女') ? '<span style="color:#e11d48; font-weight:bold;">(女)</span>' : '<span style="color:#2563eb; font-weight:bold;">(男)</span>';
+        const codeStr = code ? ` <span style="font-size:12px; color:#64748b; font-family:monospace;">[${code}]</span>` : '';
 
-      const badgeEl = document.getElementById('adminSeatLockStatusBadge');
-      const descEl = document.getElementById('adminSeatLockDesc');
-      const lockBtn = document.getElementById('adminSeatLockBtn');
+        if (pInfoEl) pInfoEl.innerHTML = `👤 選手：<b>${playerName}</b> ${genBadge}${codeStr}`;
+        if (lInfoEl) lInfoEl.innerText = `📍 目前席位：【${currentDay}賽事】${laneKey} 道 第 ${slotIndex} 位`;
+        if (moveSec) moveSec.style.display = 'none';
 
-      if (badgeEl && descEl && lockBtn) {
-        if (isReserved) {
-          badgeEl.innerText = '🔒 目前管制：保留席(未開放)';
-          badgeEl.style.color = '#dc2626';
-          descEl.innerText = '此席位或球道已設為保留管制。若前方出現空缺，隊員自動向前遞補，球道尾端自動維持 🔒未開放。';
-          lockBtn.innerText = '🟢 解除保留 (恢復為對外開放席)';
-          lockBtn.style.background = '#059669';
-          lockBtn.style.borderColor = '#047857';
-          lockBtn.style.color = '#ffffff';
-        } else {
-          badgeEl.innerText = '🟢 目前管制：對外開放';
-          badgeEl.style.color = '#16a34a';
-          descEl.innerText = '此席位目前為一般開放席。若要將此名額設為幹部保留席（限制對外開放），請點擊下方按鈕。';
-          lockBtn.innerText = '🔒 設為未開放保留席 (幹部管制)';
-          lockBtn.style.background = '#dc2626';
-          lockBtn.style.borderColor = '#b91c1c';
-          lockBtn.style.color = '#ffffff';
+        // 填充目標球道下拉選單 (列出目前所有已開放球道之空缺席位)
+        if (sel) {
+          sel.innerHTML = '<option value="">-- 請選擇目標空位 --</option>';
+          let foundEmptyCount = 0;
+
+          ALL_LANES.forEach(lk => {
+            if (!isLaneOpen(lk, openStr)) return;
+            const laneObj = lanesList.find(l => l && l.lane === lk);
+            const players = laneObj ? normalize8Players(laneObj.players) : Array(8).fill(null);
+            
+            for (let s = 1; s <= 8; s++) {
+              // 跳過原本席位
+              if (lk === laneKey && s === slotIndex) continue;
+              const p = players[s - 1];
+              if (!p || !p.name || p.name === '[開放入座]') {
+                const opt = document.createElement('option');
+                opt.value = `${lk}_${s}`;
+                opt.innerText = `🎳 【${lk} 道 第 ${s} 位】(空席)`;
+                sel.appendChild(opt);
+                foundEmptyCount++;
+              }
+            }
+          });
+
+          if (foundEmptyCount === 0) {
+            sel.innerHTML = '<option value="">-- 目前全場開放球道無剩餘空位 --</option>';
+          }
         }
-      }
 
-      const modal = document.getElementById('adminSeatActionModal');
-      if (modal) modal.style.display = 'flex';
+        // 判斷此席位或此道是否處於保留／不開放管制狀態
+        const curLaneObj = lanesList.find(l => l && l.lane === laneKey);
+        const curPlayers = curLaneObj ? normalize8Players(curLaneObj.players) : Array(8).fill(null);
+        const curPlayer = curPlayers[slotIndex - 1];
+        const hasLaneReserved = curPlayers.some(p => p && (String(p.name).trim() === '[保留席]' || String(p.name).trim() === '[未開放]'));
+        const isReserved = !!(curPlayer && (curPlayer.isReserved === true || curPlayer.isReserved === 'true')) || hasLaneReserved;
+        currentAdminSeatTarget.isReserved = isReserved;
+
+        const badgeEl = document.getElementById('adminSeatLockStatusBadge');
+        const descEl = document.getElementById('adminSeatLockDesc');
+        const lockBtn = document.getElementById('adminSeatLockBtn');
+
+        if (badgeEl && descEl && lockBtn) {
+          if (isReserved) {
+            badgeEl.innerText = '🔒 目前管制：保留席(未開放)';
+            badgeEl.style.color = '#dc2626';
+            descEl.innerText = '此席位或球道已設為保留管制。若前方出現空缺，隊員自動向前遞補，球道尾端自動維持 🔒未開放。';
+            lockBtn.innerText = '🟢 解除保留 (恢復為對外開放席)';
+            lockBtn.style.background = '#059669';
+            lockBtn.style.borderColor = '#047857';
+            lockBtn.style.color = '#ffffff';
+          } else {
+            badgeEl.innerText = '🟢 目前管制：對外開放';
+            badgeEl.style.color = '#16a34a';
+            descEl.innerText = '此席位目前為一般開放席。若要將此名額設為幹部保留席（限制對外開放），請點擊下方按鈕。';
+            lockBtn.innerText = '🔒 設為未開放保留席 (幹部管制)';
+            lockBtn.style.background = '#dc2626';
+            lockBtn.style.borderColor = '#b91c1c';
+            lockBtn.style.color = '#ffffff';
+          }
+        }
+
+        const modal = document.getElementById('adminSeatActionModal');
+        if (modal) modal.style.display = 'flex';
+      } catch (err) {
+        console.error('openAdminSeatModal error:', err);
+        showToast('⚠️ 開啟席位調度視窗時發生錯誤，請重試', 3000, false);
+      }
     }
 
     function closeAdminSeatModal() {

@@ -1938,23 +1938,42 @@
       return 4;
     }
 
-    // ★ 檢查某球道是否有空洞 (中途空位) 或超出當前水位的溢位隊友
-    function checkHasOverflowPlayers(laneObj, allowedSlots) {
+    // ★ 檢查某球道是否需要向前遞補 (狀況3+4合併：若有姓名在未開放或保留席上且前方有空位，或幹部專用道)
+    function checkHasOverflowPlayers(laneObj, allowedSlots, isStaff = false) {
       if (!laneObj || !laneObj.players) return false;
       const pl = normalize8Players(laneObj.players);
-      let sawEmpty = false;
+      let firstVacantIdx = -1;
+
       for (let i = 0; i < 8; i++) {
-        const isOccupied = pl[i] && pl[i].name && String(pl[i].name).trim() !== '' && !String(pl[i].name).trim().startsWith('[');
-        if (!isOccupied) {
-          sawEmpty = true;
-        } else if (sawEmpty) {
-          // 前方有空位但後方有人入座：需要自動向前排齊遞補！
-          return true;
+        const p = pl[i];
+        const isOccupied = p && p.name && String(p.name).trim() !== '' && !String(p.name).trim().startsWith('[');
+
+        if (!isOccupied && firstVacantIdx === -1) {
+          firstVacantIdx = i; // 第一個空缺席位
         }
-        if (i >= allowedSlots && isOccupied) {
-          return true;
+
+        if (isOccupied) {
+          const isBeyondCapacity = (i >= allowedSlots); // i 是 0-indexed，i >= allowedSlots 代表席位 (i+1) > allowedSlots
+          const isPlayerReserved = !!(p.isReserved === true || p.isReserved === 'true');
+          // 若有真實姓名在未開放席或保留席上，且前方同道有空缺
+          if (isBeyondCapacity || isPlayerReserved) {
+            if (firstVacantIdx !== -1 && firstVacantIdx < i) {
+              return true;
+            }
+          }
         }
       }
+
+      // 若為幹部專用道，前方出現空位且後方有隊友，則需要向前排齊
+      if (isStaff && firstVacantIdx !== -1) {
+        for (let i = firstVacantIdx + 1; i < 8; i++) {
+          const p = pl[i];
+          if (p && p.name && String(p.name).trim() !== '' && !String(p.name).trim().startsWith('[')) {
+            return true;
+          }
+        }
+      }
+
       return false;
     }
 
@@ -3879,8 +3898,12 @@
             }
           }
 
-          // ★ 自動向前遞補排齊 (保留席自動置於道尾)
-          compactSingleLane(targetLaneObj, isStaff);
+          // ★ 依狀況 3+4 判斷：僅在有隊友落在未開放或保留席且前方有空位時，自動向前遞補排齊
+          const cfg = rawResponse ? rawResponse.config : {};
+          const allowed = computeAllowedSlots(dayList, cfg, currentDay);
+          if (checkHasOverflowPlayers(targetLaneObj, allowed, isStaff)) {
+            compactSingleLane(targetLaneObj, isStaff);
+          }
         }
         renderAll();
       }
@@ -3921,9 +3944,12 @@
               targetLane.players = targetLane.players.map(p => (p && p.name === playerName ? restoreVal : p));
             }
 
-            // ★ 自動向前遞補排齊
-            if (compactSingleLane(targetLane, isStaff)) {
-              didCompactOverflow = true;
+            // ★ 自動向前遞補排齊 (依狀況 3+4 判定)
+            const allowed = computeAllowedSlots(list, cfg, currentDay);
+            if (checkHasOverflowPlayers(targetLane, allowed, isStaff)) {
+              if (compactSingleLane(targetLane, isStaff)) {
+                didCompactOverflow = true;
+              }
             }
             return list;
           });
@@ -3989,7 +4015,7 @@
           }
           // 背景非同步發送 GAS 備援（fire-and-forget，不卡介面）
           try {
-            const bgUrl = `${API_BASE}?action=leaveLane&day=${encodeURIComponent(currentDay)}&lane=${encodeURIComponent(laneKey)}&slot=${slotIndex}&name=${encodeURIComponent(playerName)}&pin=${encodeURIComponent(pin || '')}&operatorName=${encodeURIComponent(currentUserName)}&isAdmin=${isAdmin}&skipFirebaseSync=true&_t=${Date.now()}`;
+            const bgUrl = `${API_BASE}?action=leaveLane&day=${encodeURIComponent(currentDay)}&lane=${encodeURIComponent(laneKey)}&slot=${slotIndex}&name=${encodeURIComponent(playerName)}&pin=${encodeURIComponent(pin || '')}&operatorName=${encodeURIComponent(currentUserName)}&isAdmin=${isAdmin}&skipFirebaseSync=true&skipAdminChange=true&_t=${Date.now()}`;
             fetch(bgUrl, { mode: 'no-cors' }).catch(() => {});
           } catch (ignore) {}
           return;

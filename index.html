@@ -930,7 +930,7 @@
             </div>
             <div style="margin-bottom:6px;">
               <strong>2. 工作人員專用道保留位（幹部釋出即解鎖）：</strong><br>
-              專用道（如 7/8 道）空位平時由工作幹部調度，預設顯示「🔒 未開放」。若幹部釋出空位，將解鎖顯示為 <span class="slot-pill-mini">＋ 可選位</span> 供隊友自由報名；若隊友選位後反悔取消，該席位亦會 <strong>自動維持開放</strong> 供他人遞補。
+              專用道空位平時由工作幹部調度，預設顯示「🔒 未開放」。若幹部釋出空位，將解鎖顯示為 <span class="slot-pill-mini">＋ 可選位</span> 供隊友自由報名；若隊友選位後反悔取消，該席位亦會 <strong>自動維持開放</strong> 供他人遞補。
             </div>
             <div>
               <strong>3. 非本次賽事使用道（顯示「🚫 不開放」）：</strong><br>
@@ -1628,6 +1628,16 @@
         if (val) {
           if (!rawResponse) rawResponse = { status: 'success', data: {}, config: {}, members: [] };
           rawResponse.config = Object.assign(rawResponse.config || {}, val);
+          // ★ 雙向即時落盤快取：確保本地 storage 永遠持有最新真實設定值
+          try {
+            if (val.monStaffLanes) localStorage.setItem('bowling_mon_staff_lanes', val.monStaffLanes);
+            if (val.thuStaffLanes) localStorage.setItem('bowling_thu_staff_lanes', val.thuStaffLanes);
+            if (val.monOpenLanes) localStorage.setItem('bowling_mon_open_lanes', val.monOpenLanes);
+            if (val.thuOpenLanes) localStorage.setItem('bowling_thu_open_lanes', val.thuOpenLanes);
+            if (val.monPauseDate !== undefined) localStorage.setItem('bowling_mon_pause_date', val.monPauseDate);
+            if (val.thuPauseDate !== undefined) localStorage.setItem('bowling_thu_pause_date', val.thuPauseDate);
+            localStorage.setItem('bowling_cache_raw', JSON.stringify(rawResponse));
+          } catch (ce) {}
           validateAdminSession(rawResponse.config);
           renderAll();
         }
@@ -1840,7 +1850,7 @@
       throw lastError;
     }
     let selectedOpenLanes = new Set(["3/4", "5/6", "7/8", "9/10", "11/12", "13/14", "15/16", "17/18", "19/20", "21/22", "23/24"]);
-    let selectedStaffLanes = new Set(["7/8"]);
+    let selectedStaffLanes = new Set([]);
     let currentAllowedSlots = 4;
     let selectedSlotIndex = 1;
     let currentRelocateNotice = '';
@@ -1884,6 +1894,17 @@
       return s;
     }
 
+    // ★ 智能工作人員道解析器 (三層防護：1.雲端即時最新 -> 2.手機本地真實暫存 -> 3.無專用道空值；徹底拔除寫死 7/8)
+    function getStaffLaneForDay(targetDay, cfg) {
+      const isMon = (targetDay === '週一' || targetDay === 'mon');
+      const configObj = cfg || (rawResponse ? rawResponse.config : {}) || {};
+      const savedStaff = isMon ? localStorage.getItem('bowling_mon_staff_lanes') : localStorage.getItem('bowling_thu_staff_lanes');
+      const staff = isMon
+        ? (configObj.monStaffLanes || savedStaff || configObj.staffLanes || '')
+        : (configObj.thuStaffLanes || savedStaff || configObj.staffLanes || '');
+      return normalizeLane(staff);
+    }
+
     // ★ 賽事報名截止判定 (已取消前一日 17:00 提早截止限制，報名一路開放至開打當天 09:20 輪調為下週)
     function isDeadlinePassed(dayStr, fallbackRaw, deadlineTimeStr) {
       return false;
@@ -1893,7 +1914,7 @@
     function computeAllowedSlots(dayLanes, cfg, targetDay) {
       const isMon = targetDay === '週一';
       const openStr = isMon ? (cfg.monOpenLanes || cfg.openLanes || '3-24') : (cfg.thuOpenLanes || cfg.openLanes || '3-24');
-      const staffStr = normalizeLane((isMon ? cfg.monStaffLanes : cfg.thuStaffLanes) || cfg.staffLanes || '7/8');
+      const staffStr = getStaffLaneForDay(targetDay, cfg);
       
       let generalOpen = 0;
       let generalPlayers = 0;
@@ -2260,6 +2281,18 @@
             }
             if (savedThuPause && res.config.thuPauseDate === undefined) {
               res.config.thuPauseDate = savedThuPause;
+            }
+            const savedMonStaff = localStorage.getItem('bowling_mon_staff_lanes');
+            const savedThuStaff = localStorage.getItem('bowling_thu_staff_lanes');
+            if (savedMonStaff && !res.config.monStaffLanes) {
+              res.config.monStaffLanes = savedMonStaff;
+            } else if (res.config.monStaffLanes) {
+              try { localStorage.setItem('bowling_mon_staff_lanes', res.config.monStaffLanes); } catch (e) {}
+            }
+            if (savedThuStaff && !res.config.thuStaffLanes) {
+              res.config.thuStaffLanes = savedThuStaff;
+            } else if (res.config.thuStaffLanes) {
+              try { localStorage.setItem('bowling_thu_staff_lanes', res.config.thuStaffLanes); } catch (e) {}
             }
           }
           // ★ 關鍵防護：保留記憶體或快取中的 lateChanges (晚鳥異動) 與 adminChanges (全程席位異動)，避免被 GAS 試算表回傳覆蓋抹平
@@ -2685,7 +2718,7 @@
 
     function renderAll() {
       try {
-        const cfg = (rawResponse && rawResponse.config) ? rawResponse.config : { openLanes: '3-24', staffLanes: '7/8', monDate: '', thuDate: '' };
+        const cfg = (rawResponse && rawResponse.config) ? rawResponse.config : { openLanes: '3-24', staffLanes: '', monDate: '', thuDate: '' };
         const isMon = currentDay === '週一';
 
         // ★ 切換 Body 主題背景色
@@ -2761,7 +2794,7 @@
         }
 
         const dayData = (rawResponse && rawResponse.data) ? (isMon ? (rawResponse.data.mon || []) : (rawResponse.data.thu || [])) : [];
-        const currentStaffLanes = isMon ? (cfg.monStaffLanes || cfg.staffLanes || '7/8') : (cfg.thuStaffLanes || cfg.staffLanes || '7/8');
+        const currentStaffLanes = getStaffLaneForDay(currentDay, cfg);
         const savedMon = localStorage.getItem('bowling_mon_open_lanes');
         const savedThu = localStorage.getItem('bowling_thu_open_lanes');
         const currentOpenLanes = isMon 
@@ -3109,8 +3142,7 @@
         const slotPlayer = (laneObj && laneObj.players && laneObj.players[slotIndex - 1]) ? laneObj.players[slotIndex - 1].name : null;
         const isSlotOpenPl = (slotPlayer === '[開放入座]' || slotPlayer === '[開放選位]');
         const isSlotResPl = (slotPlayer === '[保留席]' || slotPlayer === '[未開放]');
-        const isMonDay = currentDay === '週一';
-        const curStaffLanes = isMonDay ? (cfg.monStaffLanes || cfg.staffLanes || '7/8') : (cfg.thuStaffLanes || cfg.staffLanes || '7/8');
+        const curStaffLanes = getStaffLaneForDay(currentDay, cfg);
         const isStaff = isLaneStaff(laneKey, curStaffLanes);
         
         // 判斷該席位目前是否處於鎖定/未開放狀態
@@ -3158,9 +3190,7 @@
         if (!confirmed) return;
         closeActionModal();
         showToast('⏳ 正在更新席位狀態...', 0, true);
-        const isMon = currentDay === '週一';
-        const cfg = rawResponse ? rawResponse.config : {};
-        const curStaffLanes = isMon ? (cfg.monStaffLanes || cfg.staffLanes || '7/8') : (cfg.thuStaffLanes || cfg.staffLanes || '7/8');
+        const curStaffLanes = getStaffLaneForDay(currentDay, cfg);
         const isStaff = isLaneStaff(laneKey, curStaffLanes);
         
         if (isStaff) {
@@ -3424,7 +3454,7 @@
         const isMon = currentDay === '週一';
         const targetDayKey = isMon ? 'mon' : 'thu';
         const cfg = rawResponse ? rawResponse.config : {};
-        const curStaffLanes = isMon ? (cfg.monStaffLanes || cfg.staffLanes || '7/8') : (cfg.thuStaffLanes || cfg.staffLanes || '7/8');
+        const curStaffLanes = getStaffLaneForDay(currentDay, cfg);
         const isStaff = isLaneStaff(laneKey, curStaffLanes);
 
         const applyLockChange = (laneObj) => {
@@ -3539,7 +3569,7 @@
 
       const isMonDay = currentDay === '週一';
       const cfg = rawResponse ? rawResponse.config : {};
-      const currentStaffLane = isMonDay ? (cfg.monStaffLanes || cfg.staffLanes || '7/8') : (cfg.thuStaffLanes || cfg.staffLanes || '7/8');
+      const currentStaffLane = getStaffLaneForDay(currentDay, cfg);
       const targetDayKey = isMonDay ? 'mon' : 'thu';
 
       // 檢查該隊友目前是否已在場上某個席位 (移位判斷)
@@ -3799,7 +3829,7 @@
       const previousRawResponse = JSON.parse(JSON.stringify(rawResponse || {}));
       const isMonDay = currentDay === '週一';
       const cfg = rawResponse ? rawResponse.config : {};
-      const currentStaffLane = isMonDay ? (cfg.monStaffLanes || cfg.staffLanes || '7/8') : (cfg.thuStaffLanes || cfg.staffLanes || '7/8');
+      const currentStaffLane = getStaffLaneForDay(currentDay, cfg);
       const targetDayKey = isMonDay ? 'mon' : 'thu';
 
       // 檢查 PIN 碼 (若非本人且非管理者，進行比對；若隊友未設 PIN 碼，輸入任何 PIN 碼皆無效)
@@ -4876,9 +4906,8 @@
       if (btnT) btnT.className = !isMon ? 'btn-day btn-day-thu active' : 'btn-day btn-day-thu';
 
       const cfg = rawResponse ? rawResponse.config : {};
-      const savedStaff = isMon ? localStorage.getItem('bowling_mon_staff_lanes') : localStorage.getItem('bowling_thu_staff_lanes');
       const savedOpen = isMon ? localStorage.getItem('bowling_mon_open_lanes') : localStorage.getItem('bowling_thu_open_lanes');
-      const dayStaff = isMon ? (cfg.monStaffLanes || cfg.staffLanes || savedStaff || '7/8') : (cfg.thuStaffLanes || cfg.staffLanes || savedStaff || '7/8');
+      const dayStaff = getStaffLaneForDay(day, cfg);
       const dayOpen = isMon ? (cfg.monOpenLanes || cfg.openLanes || savedOpen || '3-24') : (cfg.thuOpenLanes || cfg.openLanes || savedOpen || '3-24');
       const dayRotate = isMon ? (cfg.monRotateMode || cfg.rotateMode || 'sequential') : (cfg.thuRotateMode || cfg.rotateMode || 'sequential');
 

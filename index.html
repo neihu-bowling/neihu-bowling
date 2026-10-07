@@ -3012,7 +3012,7 @@
             if (isSlotChangedJoin) {
               html += `
                 <td onclick="handlePlayerClick('${p.name}', '${laneKey}', ${slotIndex})" style="cursor:pointer; width:60%; background:#fef3c7; border:2px solid #f59e0b; font-weight:900;" class="${colorClass}">
-                  ${p.name}${adminResTag} <span style="font-size:11.5px; color:#d97706; font-weight:bold; margin-left:2px;">(已變更)</span>
+                  ${p.name}${adminResTag}
                 </td>
               `;
             } else {
@@ -3043,10 +3043,10 @@
                 `;
               }
             } else if (lastSlotChange && lastSlotChange.action === 'leave') {
-              // ★ 請假退出者：席位空出，背景改為暖金黃 #fef3c7，搭配深橘色邊框
+              // ★ 請假退出者：席位空出，背景改為暖金黃 #fef3c7，搭配深橘色邊框，按鈕維持原生藍色
               html += `
                 <td onclick="openSlotAction('${laneKey}', ${slotIndex})" class="slot-cell-empty" style="background:#fef3c7; border:2px solid #f59e0b;">
-                  <span class="slot-pill-btn" style="background:linear-gradient(180deg, #f59e0b 0%, #d97706 100%); color:#ffffff; border:1px solid #b45309; box-shadow:0 1.5px 3px rgba(180,83,9,0.3); font-weight:500;">＋ 可選位 (已變更)</span>
+                  <span class="slot-pill-btn">＋ 可選位</span>
                 </td>
               `;
             } else {

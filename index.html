@@ -1613,6 +1613,7 @@
 
           // ★ 即時雙向落盤快取：確保本地快取永遠與 Firebase 最新球道名冊保持 100% 同步，徹底杜絕重開網頁時閃現舊資料
           try {
+            rawResponse.v = 2;
             localStorage.setItem('bowling_cache_raw', JSON.stringify(rawResponse));
           } catch (ce) {}
 
@@ -1641,6 +1642,7 @@
             if (val.thuOpenLanes) localStorage.setItem('bowling_thu_open_lanes', val.thuOpenLanes);
             if (val.monPauseDate !== undefined) localStorage.setItem('bowling_mon_pause_date', val.monPauseDate);
             if (val.thuPauseDate !== undefined) localStorage.setItem('bowling_thu_pause_date', val.thuPauseDate);
+            rawResponse.v = 2;
             localStorage.setItem('bowling_cache_raw', JSON.stringify(rawResponse));
           } catch (ce) {}
           validateAdminSession(rawResponse.config);
@@ -1680,6 +1682,7 @@
           });
           try {
             localStorage.setItem('bowling_cache_members', JSON.stringify(rawResponse.members));
+            rawResponse.v = 2;
             localStorage.setItem('bowling_cache_raw', JSON.stringify(rawResponse));
           } catch (ce) {}
           initUserIdentity();
@@ -1698,6 +1701,7 @@
         if (!rawResponse) rawResponse = { status: 'success', data: {}, config: {}, members: [] };
         rawResponse.lateChanges = val || {};
         try {
+          rawResponse.v = 2;
           localStorage.setItem('bowling_cache_raw', JSON.stringify(rawResponse));
         } catch (ce) {}
         renderAll();
@@ -1709,6 +1713,7 @@
         if (!rawResponse) rawResponse = { status: 'success', data: {}, config: {}, members: [] };
         rawResponse.adminChanges = val || {};
         try {
+          rawResponse.v = 2;
           localStorage.setItem('bowling_cache_raw', JSON.stringify(rawResponse));
         } catch (ce) {}
         if (isAdmin) {
@@ -2247,8 +2252,11 @@
         if (cachedStr) {
           try {
             const cached = JSON.parse(cachedStr);
-            if (cached && (cached.data || cached.members)) {
+            // 🛡️ 智慧版本戳記：若快取無 v: 2 (代表為舊版未即時同步之歷史殘留快取)，不預載舊球道名單，避免開場閃現已退席之舊隊員
+            if (cached && cached.v === 2 && cached.data) {
               rawResponse = cached;
+            } else if (cached && cached.members) {
+              rawResponse = { status: 'success', data: {}, config: cached.config || {}, members: cached.members };
             }
           } catch (ce) {}
         }
@@ -3214,25 +3222,31 @@
         if (!confirmed) return;
         closeActionModal();
         showToast('⏳ 正在更新席位狀態...', 0, true);
-        const curStaffLanes = getStaffLaneForDay(currentDay, cfg);
-        const isStaff = isLaneStaff(laneKey, curStaffLanes);
-        
-        if (isStaff) {
-          if (toLock) {
-            await executeLeave('[開放入座]', laneKey, slotIndex, '', true);
-            showToast(`🔒 已收回【${currentDay}】${laneKey} 道 第 ${slotIndex} 位為幹部專用！`, 3000, false);
+        try {
+          const cfg = (rawResponse && rawResponse.config) ? rawResponse.config : {};
+          const curStaffLanes = getStaffLaneForDay(currentDay, cfg);
+          const isStaff = isLaneStaff(laneKey, curStaffLanes);
+          
+          if (isStaff) {
+            if (toLock) {
+              await executeLeave('[開放入座]', laneKey, slotIndex, '', true);
+              showToast(`🔒 已收回【${currentDay}】${laneKey} 道 第 ${slotIndex} 位為幹部專用！`, 3000, false);
+            } else {
+              await submitJoin(laneKey, slotIndex, '[開放入座]', false, 'M', true);
+              showToast(`🟢 已開放【${currentDay}】${laneKey} 道 第 ${slotIndex} 位供隊友自行選位！`, 3000, false);
+            }
           } else {
-            await submitJoin(laneKey, slotIndex, '[開放入座]', false, 'M', true);
-            showToast(`🟢 已開放【${currentDay}】${laneKey} 道 第 ${slotIndex} 位供隊友自行選位！`, 3000, false);
+            if (toLock) {
+              await submitJoin(laneKey, slotIndex, '[保留席]', false, 'M', true);
+              showToast(`🔒 已鎖定【${currentDay}】${laneKey} 道 第 ${slotIndex} 位（隊友無法選位）！`, 3000, false);
+            } else {
+              await executeLeave('[保留席]', laneKey, slotIndex, '', true);
+              showToast(`🟢 已解除鎖定【${currentDay}】${laneKey} 道 第 ${slotIndex} 位（開放隊友選位）！`, 3000, false);
+            }
           }
-        } else {
-          if (toLock) {
-            await submitJoin(laneKey, slotIndex, '[保留席]', false, 'M', true);
-            showToast(`🔒 已鎖定【${currentDay}】${laneKey} 道 第 ${slotIndex} 位（隊友無法選位）！`, 3000, false);
-          } else {
-            await executeLeave('[保留席]', laneKey, slotIndex, '', true);
-            showToast(`🟢 已解除鎖定【${currentDay}】${laneKey} 道 第 ${slotIndex} 位（開放隊友選位）！`, 3000, false);
-          }
+        } catch (err) {
+          console.error('confirmToggleSlotLock error:', err);
+          showToast('❌ 更新席位狀態失敗，請重新嘗試！', 3000, false);
         }
       });
     }
@@ -3911,6 +3925,7 @@
           }
         }
         try {
+          rawResponse.v = 2;
           localStorage.setItem('bowling_cache_raw', JSON.stringify(rawResponse));
         } catch (ce) {}
         renderAll();

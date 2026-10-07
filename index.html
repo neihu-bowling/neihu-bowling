@@ -1611,6 +1611,11 @@
             thu: normalizeDayList(val.thu)
           };
 
+          // ★ 即時雙向落盤快取：確保本地快取永遠與 Firebase 最新球道名冊保持 100% 同步，徹底杜絕重開網頁時閃現舊資料
+          try {
+            localStorage.setItem('bowling_cache_raw', JSON.stringify(rawResponse));
+          } catch (ce) {}
+
           if (!window.hasInit) {
             currentDay = getAutoDefaultDay();
             window.hasInit = true;
@@ -3905,6 +3910,9 @@
             compactSingleLane(targetLaneObj, isStaff);
           }
         }
+        try {
+          localStorage.setItem('bowling_cache_raw', JSON.stringify(rawResponse));
+        } catch (ce) {}
         renderAll();
       }
 

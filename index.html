@@ -3045,7 +3045,7 @@
             } else if (lastSlotChange && lastSlotChange.action === 'leave') {
               // ★ 請假退出者：席位空出，背景改為暖金黃 #fef3c7，搭配深橘色邊框，按鈕維持原生藍色
               html += `
-                <td onclick="openSlotAction('${laneKey}', ${slotIndex})" class="slot-cell-empty" style="background:#fef3c7; border:2px solid #f59e0b;">
+                <td onclick="openSlotAction('${laneKey}', ${slotIndex})" class="slot-cell-empty" style="background:#fef3c7 !important; border:2px solid #f59e0b;">
                   <span class="slot-pill-btn">＋ 可選位</span>
                 </td>
               `;

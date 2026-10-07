@@ -1614,7 +1614,7 @@
           // ★ 即時雙向落盤快取：確保本地快取永遠與 Firebase 最新球道名冊保持 100% 同步，徹底杜絕重開網頁時閃現舊資料
           try {
             rawResponse.v = 2;
-            localStorage.setItem('bowling_cache_raw', JSON.stringify(rawResponse));
+            rawResponse.v = 2; localStorage.setItem('bowling_cache_raw', JSON.stringify(rawResponse));
           } catch (ce) {}
 
           if (!window.hasInit) {
@@ -1643,7 +1643,7 @@
             if (val.monPauseDate !== undefined) localStorage.setItem('bowling_mon_pause_date', val.monPauseDate);
             if (val.thuPauseDate !== undefined) localStorage.setItem('bowling_thu_pause_date', val.thuPauseDate);
             rawResponse.v = 2;
-            localStorage.setItem('bowling_cache_raw', JSON.stringify(rawResponse));
+            rawResponse.v = 2; localStorage.setItem('bowling_cache_raw', JSON.stringify(rawResponse));
           } catch (ce) {}
           validateAdminSession(rawResponse.config);
           renderAll();
@@ -1683,7 +1683,7 @@
           try {
             localStorage.setItem('bowling_cache_members', JSON.stringify(rawResponse.members));
             rawResponse.v = 2;
-            localStorage.setItem('bowling_cache_raw', JSON.stringify(rawResponse));
+            rawResponse.v = 2; localStorage.setItem('bowling_cache_raw', JSON.stringify(rawResponse));
           } catch (ce) {}
           initUserIdentity();
           // ★ 若隊員管理彈窗剛好是打開的，即時刷新列表確保毫秒級無縫更新
@@ -1702,7 +1702,7 @@
         rawResponse.lateChanges = val || {};
         try {
           rawResponse.v = 2;
-          localStorage.setItem('bowling_cache_raw', JSON.stringify(rawResponse));
+          rawResponse.v = 2; localStorage.setItem('bowling_cache_raw', JSON.stringify(rawResponse));
         } catch (ce) {}
         renderAll();
       });
@@ -1714,7 +1714,7 @@
         rawResponse.adminChanges = val || {};
         try {
           rawResponse.v = 2;
-          localStorage.setItem('bowling_cache_raw', JSON.stringify(rawResponse));
+          rawResponse.v = 2; localStorage.setItem('bowling_cache_raw', JSON.stringify(rawResponse));
         } catch (ce) {}
         if (isAdmin) {
           renderAdminChangesUI();
@@ -2410,7 +2410,7 @@
             } catch (ce) {}
           }
           try {
-            localStorage.setItem('bowling_cache_raw', JSON.stringify(rawResponse));
+            rawResponse.v = 2; localStorage.setItem('bowling_cache_raw', JSON.stringify(rawResponse));
             if (rawResponse.members && rawResponse.members.length > 0) {
               localStorage.setItem('bowling_cache_members', JSON.stringify(rawResponse.members));
             }
@@ -3926,7 +3926,7 @@
         }
         try {
           rawResponse.v = 2;
-          localStorage.setItem('bowling_cache_raw', JSON.stringify(rawResponse));
+          rawResponse.v = 2; localStorage.setItem('bowling_cache_raw', JSON.stringify(rawResponse));
         } catch (ce) {}
         renderAll();
       }
@@ -5425,7 +5425,7 @@
           if (res.updatedLaneData && rawResponse && rawResponse.data) {
             rawResponse.data[dayKey] = res.updatedLaneData;
             try {
-              localStorage.setItem('bowling_cache_raw', JSON.stringify(rawResponse));
+              rawResponse.v = 2; localStorage.setItem('bowling_cache_raw', JSON.stringify(rawResponse));
             } catch (ce) {}
             if (rtdb) {
               rtdb.ref(`data/${dayKey}`).set(res.updatedLaneData).catch(err => console.warn('Firebase rotation sync error:', err));

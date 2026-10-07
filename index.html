@@ -1600,10 +1600,14 @@
           const normalizeDayList = (rawList) => {
             if (!rawList) return [];
             const arr = Array.isArray(rawList) ? rawList : Object.values(rawList);
-            return arr.map(l => {
-              if (!l) return null;
-              return { lane: l.lane, players: normalize8Players(l.players) };
-            }).filter(Boolean);
+            const deduplicatedMap = {};
+            arr.forEach(l => {
+              if (l && l.lane) {
+                // 如果 Firebase 傳來重複的球道，保留後面那一筆（或是最新更新的）
+                deduplicatedMap[String(l.lane).trim()] = { lane: l.lane, players: normalize8Players(l.players) };
+              }
+            });
+            return Object.values(deduplicatedMap);
           };
 
           rawResponse.data = {

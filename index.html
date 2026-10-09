@@ -966,34 +966,56 @@
       
       <!-- 【區塊一：選位與調度主作業方塊 (含取消關閉)】 -->
       <div style="background:#ffffff; border:1.5px solid #cbd5e1; border-radius:12px; padding:14px 12px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <!-- ★ 幹部模式專用標頭 (比照幹部席位調度：標題列 + ✕ 關閉 + 席位資訊方塊) -->
+        <div id="adminSlotHeader" style="display:none;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1.5px solid #e2e8f0; padding-bottom:8px;">
+            <h3 style="font-size:16px; font-weight:900; margin:0; color:#1e293b;">👑 幹部選位調度</h3>
+            <button type="button" onclick="closeActionModal()" style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:50%; width:28px; height:28px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:13px; font-weight:900; color:#64748b; padding:0; flex-shrink:0; line-height:1;" title="關閉">✕</button>
+          </div>
+          <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:10px 12px; margin-bottom:12px;">
+            <div id="adminSlotInfoSeat" style="font-size:15px; font-weight:900; color:#0f172a; margin-bottom:4px;"></div>
+            <div id="adminSlotInfoOp" style="font-size:12.5px; color:#475569; font-weight:bold;"></div>
+          </div>
+        </div>
+
         <h3 id="modalTitle" style="font-size:16px; font-weight:900; margin:0 0 4px 0; color:#1e293b;">🎳 球道選位選單</h3>
         <p id="modalSub" style="font-size:12px; color:#64748b; margin:0 0 12px 0;"></p>
 
         <div id="modalButtons"></div>
 
-        <div id="proxySection" style="display:none; margin-top:10px; padding-top:10px; border-top:1px solid #e2e8f0;">
-          <!-- 管理者專用：切換代報未報名隊友 VS 移位現有隊友 -->
-          <div id="proxyModeTabs" style="display:none; margin-bottom:10px; border-bottom:1px solid #cbd5e1; padding-bottom:8px;">
-            <div style="flex:1; display:flex; gap:6px;">
-              <button type="button" id="tabProxyJoin" onclick="switchProxyTab('join')" class="quick-btn" style="flex:1; padding:6px 4px; font-weight:bold; background:#2563eb; color:#fff; border-radius:6px;">👥 幫未報名隊友選位</button>
-              <button type="button" id="tabProxyMove" onclick="switchProxyTab('move')" class="quick-btn" style="flex:1; padding:6px 4px; font-weight:bold; background:#f1f5f9; color:#475569; border-radius:6px;">🔄 移位現有隊友至此席</button>
+        <!-- ★ 代辦選位群組：幹部模式展開時藍色方塊包住按鈕與內容 (一般隊友模式維持原樣) -->
+        <div id="proxyGroup" style="border:1.5px solid transparent; border-radius:10px; padding:0; background:transparent;">
+          <div id="proxyGroupBtn"></div>
+          <div id="proxySection" style="display:none; margin-top:10px; padding-top:10px; border-top:1px solid #e2e8f0;">
+            <!-- 管理者專用：切換代報未報名隊友 VS 移位現有隊友 -->
+            <div id="proxyModeTabs" style="display:none; margin-bottom:10px; border-bottom:1px solid #cbd5e1; padding-bottom:8px;">
+              <div style="flex:1; display:flex; gap:6px;">
+                <button type="button" id="tabProxyJoin" onclick="switchProxyTab('join')" class="quick-btn" style="flex:1; padding:6px 4px; font-weight:bold; background:#2563eb; color:#fff; border-radius:6px;">👥 幫未報名隊友選位</button>
+                <button type="button" id="tabProxyMove" onclick="switchProxyTab('move')" class="quick-btn" style="flex:1; padding:6px 4px; font-weight:bold; background:#f1f5f9; color:#475569; border-radius:6px;">🔄 移位現有隊友至此席</button>
+              </div>
+            </div>
+
+            <div id="proxyJoinArea">
+              <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px; color:#1e293b;">👥 選擇未報名隊友：</label>
+              <select id="proxySelect" style="width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1; font-size:12.5px; margin-bottom:8px;"></select>
+              <button onclick="confirmProxyJoin()" class="modal-btn btn-primary">確定為隊友選位</button>
+            </div>
+
+            <div id="proxyMoveArea" style="display:none;">
+              <label style="display:block; font-size:12px; font-weight:bold; color:#1e40af; margin-bottom:4px;">🔄 選擇欲移至此席的已選位隊友：</label>
+              <select id="proxyMoveSelect" style="width:100%; padding:8px; border-radius:6px; border:1px solid #93c5fd; font-size:12.5px; margin-bottom:8px; font-weight:bold; color:#1e293b; background:#fff;"></select>
+              <button onclick="confirmProxyMoveHere()" class="modal-btn btn-warn">確定將該隊友移位至此席</button>
             </div>
           </div>
+        </div>
 
-          <div id="proxyJoinArea">
-            <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px; color:#1e293b;">👥 選擇未報名隊友：</label>
-            <select id="proxySelect" style="width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1; font-size:12.5px; margin-bottom:8px;"></select>
-            <button onclick="confirmProxyJoin()" class="modal-btn btn-primary">確定為隊友選位</button>
-          </div>
-
-          <div id="proxyMoveArea" style="display:none;">
-            <label style="display:block; font-size:12px; font-weight:bold; color:#1e40af; margin-bottom:4px;">🔄 選擇欲移至此席的已選位隊友：</label>
-            <select id="proxyMoveSelect" style="width:100%; padding:8px; border-radius:6px; border:1px solid #93c5fd; font-size:12.5px; margin-bottom:8px; font-weight:bold; color:#1e293b; background:#fff;"></select>
-            <button onclick="confirmProxyMoveHere()" class="modal-btn btn-warn">確定將該隊友移位至此席</button>
-          </div>
-
-          <div id="guestSection" style="display:none; margin-top:8px; padding-top:8px; border-top:1px dashed #cbd5e1;">
-            <label style="display:block; font-size:12px; font-weight:bold; color:#d97706; margin-bottom:4px;">👑 手動輸入臨時來賓 (不建檔)</label>
+        <!-- ★ 幹部專用：臨時來賓群組 (獨立第 3 顆按鈕，展開時紫色方塊包住按鈕與內容) -->
+        <div id="guestGroup" style="display:none; border:1.5px solid transparent; border-radius:10px; padding:0; background:transparent; margin-top:8px;">
+          <button type="button" onclick="toggleAdminSlotGroup('guest')" class="modal-btn" style="background:#7c3aed; color:#ffffff; font-weight:900; margin-bottom:0; box-shadow:0 1px 3px rgba(124,58,237,0.3); padding:10px;">
+            👑 臨時來賓選位 (不建檔)
+          </button>
+          <div id="guestSection" style="display:none; margin-top:10px;">
+            <label style="display:block; font-size:12px; font-weight:bold; color:#5b21b6; margin-bottom:4px;">👑 手動輸入臨時來賓 (不建檔)</label>
             <div style="display:flex; gap:4px; margin-bottom:6px;">
               <input type="text" id="guestName" placeholder="姓名" style="flex:1; padding:6px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px;">
               <select id="guestGender" style="padding:6px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px;">
@@ -1001,7 +1023,7 @@
                 <option value="F">女 (紅)</option>
               </select>
             </div>
-            <button onclick="confirmGuestJoin()" class="modal-btn btn-warn">➕ 加入臨時來賓</button>
+            <button onclick="confirmGuestJoin()" class="modal-btn" style="background:#7c3aed; color:#ffffff; margin-bottom:0;">➕ 加入臨時來賓</button>
           </div>
         </div>
 
@@ -3154,7 +3176,14 @@
       const guestSec = document.getElementById('guestSection');
 
       proxySec.style.display = 'none';
-      guestSec.style.display = isAdmin ? 'block' : 'none';
+      // ★ 幹部模式：代辦選位(藍)、臨時來賓(紫) 群組預設收起；一般隊友模式代辦區維持原樣、隱藏臨時來賓
+      setAdminSlotGroupOpen('proxy', false);
+      setAdminSlotGroupOpen('guest', false);
+      proxySec.style.marginTop = '10px';
+      proxySec.style.paddingTop = isAdmin ? '0' : '10px';
+      proxySec.style.borderTop = isAdmin ? 'none' : '1px solid #e2e8f0';
+      const guestGrp = document.getElementById('guestGroup');
+      if (guestGrp) guestGrp.style.display = isAdmin ? 'block' : 'none';
 
       const dayData = currentDay === '週一' ? (rawResponse ? rawResponse.data.mon : []) : (rawResponse ? rawResponse.data.thu : []);
       let myCurrentInfo = null;
@@ -3171,11 +3200,25 @@
       title.innerHTML = `🎳 選位 <span style="color:${dayColor}; font-weight:900;">【${currentDay}賽事】</span> ${laneKey} 道 第 ${slotIndex} 位`;
       sub.innerText = myCurrentInfo ? `提示：您目前已在【${myCurrentInfo.lane} 道 第 ${myCurrentInfo.slot} 位】` : `目前操作者：${currentUserName || (isAdmin ? '幹部管理者' : '隊友')}`;
 
+      // ★ 幹部模式：比照幹部席位調度標頭樣式 (一般隊友模式維持原標題)
+      const adminSlotHeader = document.getElementById('adminSlotHeader');
+      if (adminSlotHeader) adminSlotHeader.style.display = isAdmin ? 'block' : 'none';
+      title.style.display = isAdmin ? 'none' : '';
+      sub.style.display = isAdmin ? 'none' : '';
+      if (isAdmin) {
+        const seatEl = document.getElementById('adminSlotInfoSeat');
+        const opEl = document.getElementById('adminSlotInfoOp');
+        if (seatEl) seatEl.innerHTML = `📍 目標席位：<span style="color:${dayColor};">【${currentDay}賽事】</span>${laneKey} 道 第 ${slotIndex} 位`;
+        if (opEl) opEl.innerText = myCurrentInfo ? `💡 提示：您目前已在【${myCurrentInfo.lane} 道 第 ${myCurrentInfo.slot} 位】` : `👤 操作者：${currentUserName || '幹部管理者'}`;
+      }
+      // 幹部模式「安排我自己」一律綠色，避免與藍色代辦按鈕重複
+      const selfBtnColor = isAdmin ? '#16a34a' : dayColor;
+
       let btnsHtml = '';
       if (currentUserName) {
         if (!myCurrentInfo) {
           btnsHtml += `
-            <button onclick="joinSelf('${laneKey}', ${slotIndex})" class="modal-btn" style="background:${dayColor}; color:#fff;">
+            <button onclick="joinSelf('${laneKey}', ${slotIndex})" class="modal-btn" style="background:${selfBtnColor}; color:#fff;">
               🙋‍♂️ 安排我自己 (${currentUserName}) 選位【${laneKey} 道 第 ${slotIndex} 位】
             </button>
           `;
@@ -3189,11 +3232,22 @@
       }
 
       const proxyBtnLabel = isAdmin ? '👥 幹部代辦選位／移位隊友至此席' : '👥 幫其他隊友代選位 (免輸PIN)';
-      btnsHtml += `
-        <button onclick="toggleProxySection()" class="modal-btn btn-secondary">
-          ${proxyBtnLabel}
-        </button>
-      `;
+      const proxyGroupBtn = document.getElementById('proxyGroupBtn');
+      if (isAdmin) {
+        // ★ 幹部模式：藍色按鈕置於代辦群組內，展開時方塊包住按鈕
+        if (proxyGroupBtn) proxyGroupBtn.innerHTML = `
+          <button type="button" onclick="toggleAdminSlotGroup('proxy')" class="modal-btn" style="background:#2563eb; color:#ffffff; font-weight:900; margin-bottom:0; box-shadow:0 1px 3px rgba(37,99,235,0.3); padding:10px;">
+            ${proxyBtnLabel}
+          </button>
+        `;
+      } else {
+        if (proxyGroupBtn) proxyGroupBtn.innerHTML = '';
+        btnsHtml += `
+          <button onclick="toggleProxySection()" class="modal-btn btn-secondary">
+            ${proxyBtnLabel}
+          </button>
+        `;
+      }
 
       // ★ 幹部席位管制專區：置於彈出視窗最底部獨立卡片 (完全獨立於上半部選位方塊，不卡在中間)
       const emptyLockSec = document.getElementById('emptySlotLockSection');
@@ -3281,6 +3335,34 @@
           showToast('❌ 更新席位狀態失敗，請重新嘗試！', 3000, false);
         }
       });
+    }
+
+    // ★ 幹部選位調度：代辦選位(藍) / 臨時來賓(紫) 群組展開收起 (一次只展開一個，展開時方塊包住按鈕)
+    const ADMIN_SLOT_GROUPS = {
+      proxy: { groupId: 'proxyGroup', secId: 'proxySection', bg: '#eff6ff', border: '#93c5fd' },
+      guest: { groupId: 'guestGroup', secId: 'guestSection', bg: '#f5f3ff', border: '#c4b5fd' }
+    };
+
+    function setAdminSlotGroupOpen(key, open) {
+      const g = ADMIN_SLOT_GROUPS[key];
+      if (!g) return;
+      const grp = document.getElementById(g.groupId);
+      const sec = document.getElementById(g.secId);
+      if (sec) sec.style.display = open ? 'block' : 'none';
+      if (grp) {
+        const useBox = open && isAdmin;
+        grp.style.background = useBox ? g.bg : 'transparent';
+        grp.style.borderColor = useBox ? g.border : 'transparent';
+        grp.style.padding = useBox ? '8px' : '0';
+      }
+    }
+
+    function toggleAdminSlotGroup(key) {
+      const g = ADMIN_SLOT_GROUPS[key];
+      const sec = g ? document.getElementById(g.secId) : null;
+      const willOpen = !(sec && sec.style.display === 'block');
+      Object.keys(ADMIN_SLOT_GROUPS).forEach(k => setAdminSlotGroupOpen(k, false));
+      setAdminSlotGroupOpen(key, willOpen);
     }
 
     function toggleProxySection() {

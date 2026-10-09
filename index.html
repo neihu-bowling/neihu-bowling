@@ -1034,35 +1034,38 @@
             ❌ 幫隊友請假 (取消此席位)
           </button>
 
-          <button type="button" onclick="toggleAdminMoveTargetSection()" class="modal-btn" style="background:#2563eb; color:#ffffff; font-weight:900; margin-bottom:0; box-shadow:0 1px 3px rgba(37,99,235,0.3); padding:10px;">
-            🔄 幫隊友移位換道 (選擇目標球道席位)
-          </button>
+          <!-- ★ 移位換道群組：展開時藍色方塊包住按鈕與選單 -->
+          <div id="adminMoveGroup" style="border:1.5px solid transparent; border-radius:10px; padding:0; background:transparent;">
+            <button type="button" onclick="toggleAdminMoveTargetSection()" class="modal-btn" style="background:#2563eb; color:#ffffff; font-weight:900; margin-bottom:0; box-shadow:0 1px 3px rgba(37,99,235,0.3); padding:10px;">
+              🔄 幫隊友移位換道 (選擇目標空位)
+            </button>
+            <!-- 移位目標球道選擇區塊 -->
+            <div id="adminMoveTargetSection" style="display:none; margin-top:10px;">
+              <label style="display:block; font-size:12px; font-weight:bold; color:#1e40af; margin-bottom:6px;">
+                🎯 請選擇目標空位（目前已開放球道）：
+              </label>
+              <select id="adminMoveTargetSelect" style="width:100%; padding:8px; border-radius:6px; border:1px solid #93c5fd; font-size:12.5px; margin-bottom:10px; font-weight:bold; color:#1e293b; background:#fff;"></select>
+              <button type="button" onclick="confirmAdminMoveTarget()" class="modal-btn btn-primary" style="margin-bottom:0; font-weight:900; padding:9px;">
+                確定移位至該席
+              </button>
+            </div>
+          </div>
 
-          <button type="button" onclick="toggleAdminSwapTargetSection()" class="modal-btn" style="background:#7c3aed; color:#ffffff; font-weight:900; margin-bottom:0; box-shadow:0 1px 3px rgba(124,58,237,0.3); padding:10px;">
-            ↕️ 同道換位 (與同道隊友互換)
-          </button>
-        </div>
-
-        <!-- 移位目標球道選擇區塊 -->
-        <div id="adminMoveTargetSection" style="display:none; margin-top:10px; padding:10px; background:#eff6ff; border:1.5px solid #93c5fd; border-radius:8px;">
-          <label style="display:block; font-size:12px; font-weight:bold; color:#1e40af; margin-bottom:6px;">
-            🎯 請選擇目標空位（目前已開放球道）：
-          </label>
-          <select id="adminMoveTargetSelect" style="width:100%; padding:8px; border-radius:6px; border:1px solid #93c5fd; font-size:12.5px; margin-bottom:10px; font-weight:bold; color:#1e293b; background:#fff;"></select>
-          <button type="button" onclick="confirmAdminMoveTarget()" class="modal-btn btn-primary" style="margin-bottom:0; font-weight:900; padding:9px;">
-            確定移位至該席
-          </button>
-        </div>
-
-        <!-- ★ 幹部專用：同道換位 (與同道已入座隊友互換，保留標記維持在原席位號碼) -->
-        <div id="adminSwapTargetSection" style="display:none; margin-top:10px; padding:10px; background:#f5f3ff; border:1.5px solid #c4b5fd; border-radius:8px;">
-          <label style="display:block; font-size:12px; font-weight:bold; color:#5b21b6; margin-bottom:6px;">
-            ↕️ 請選擇要互換的同道隊友：
-          </label>
-          <select id="adminSwapTargetSelect" style="width:100%; padding:8px; border-radius:6px; border:1px solid #c4b5fd; font-size:12.5px; margin-bottom:10px; font-weight:bold; color:#1e293b; background:#fff;"></select>
-          <button type="button" onclick="confirmAdminSwapSameLane()" class="modal-btn" style="background:#7c3aed; color:#ffffff; margin-bottom:0; font-weight:900; padding:9px;">
-            確定互換
-          </button>
+          <!-- ★ 幹部專用：同道換位群組 (與同道已入座隊友互換，保留標記維持在原席位號碼)；展開時紫色方塊包住按鈕與選單 -->
+          <div id="adminSwapGroup" style="border:1.5px solid transparent; border-radius:10px; padding:0; background:transparent;">
+            <button type="button" onclick="toggleAdminSwapTargetSection()" class="modal-btn" style="background:#7c3aed; color:#ffffff; font-weight:900; margin-bottom:0; box-shadow:0 1px 3px rgba(124,58,237,0.3); padding:10px;">
+              ↕️ 同道換位 (與同道隊友互換)
+            </button>
+            <div id="adminSwapTargetSection" style="display:none; margin-top:10px;">
+              <label style="display:block; font-size:12px; font-weight:bold; color:#5b21b6; margin-bottom:6px;">
+                ↕️ 請選擇要互換的同道隊友：
+              </label>
+              <select id="adminSwapTargetSelect" style="width:100%; padding:8px; border-radius:6px; border:1px solid #c4b5fd; font-size:12.5px; margin-bottom:10px; font-weight:bold; color:#1e293b; background:#fff;"></select>
+              <button type="button" onclick="confirmAdminSwapSameLane()" class="modal-btn" style="background:#7c3aed; color:#ffffff; margin-bottom:0; font-weight:900; padding:9px;">
+                確定互換
+              </button>
+            </div>
+          </div>
         </div>
 
         <button type="button" onclick="closeAdminSeatModal()" class="modal-btn btn-secondary" style="margin-top:10px; margin-bottom:0; padding:8px;">
@@ -3389,12 +3392,12 @@
 
         if (pInfoEl) pInfoEl.innerHTML = `👤 選手：<b>${playerName}</b> ${genBadge}${codeStr}`;
         if (lInfoEl) lInfoEl.innerText = `📍 目前席位：【${currentDay}賽事】${laneKey} 道 第 ${slotIndex} 位`;
-        if (moveSec) moveSec.style.display = 'none';
+        setAdminSeatGroupOpen('move', false);
 
         // ★ 同道換位：填充同道其他已入座隊友 (排除空位與 [保留席]/[未開放]/[開放入座] 等系統佔位)
         const swapSec = document.getElementById('adminSwapTargetSection');
         const swapSel = document.getElementById('adminSwapTargetSelect');
-        if (swapSec) swapSec.style.display = 'none';
+        setAdminSeatGroupOpen('swap', false);
         if (swapSel) {
           swapSel.innerHTML = '<option value="">-- 請選擇同道互換隊友 --</option>';
           const swapLaneObj = lanesList.find(l => l && l.lane === laneKey);
@@ -3503,10 +3506,35 @@
       });
     }
 
+    // ★ 幹部席位調度：展開／收起「移位換道」或「同道換位」群組 (展開時方塊包住按鈕與選單)
+    const ADMIN_SEAT_GROUPS = {
+      move: { groupId: 'adminMoveGroup', secId: 'adminMoveTargetSection', bg: '#eff6ff', border: '#93c5fd' },
+      swap: { groupId: 'adminSwapGroup', secId: 'adminSwapTargetSection', bg: '#f5f3ff', border: '#c4b5fd' }
+    };
+
+    function setAdminSeatGroupOpen(key, open) {
+      const g = ADMIN_SEAT_GROUPS[key];
+      if (!g) return;
+      const grp = document.getElementById(g.groupId);
+      const sec = document.getElementById(g.secId);
+      if (sec) sec.style.display = open ? 'block' : 'none';
+      if (grp) {
+        grp.style.background = open ? g.bg : 'transparent';
+        grp.style.borderColor = open ? g.border : 'transparent';
+        grp.style.padding = open ? '8px' : '0';
+      }
+    }
+
+    function isAdminSeatGroupOpen(key) {
+      const g = ADMIN_SEAT_GROUPS[key];
+      const sec = g ? document.getElementById(g.secId) : null;
+      return !!(sec && sec.style.display === 'block');
+    }
+
     function toggleAdminMoveTargetSection() {
-      const sec = document.getElementById('adminMoveTargetSection');
-      if (!sec) return;
-      sec.style.display = (sec.style.display === 'none' || sec.style.display === '') ? 'block' : 'none';
+      const willOpen = !isAdminSeatGroupOpen('move');
+      setAdminSeatGroupOpen('swap', false);
+      setAdminSeatGroupOpen('move', willOpen);
     }
 
     async function confirmAdminMoveTarget() {
@@ -3523,9 +3551,9 @@
 
     // ==================== ★ 幹部專用：同道換位 ====================
     function toggleAdminSwapTargetSection() {
-      const sec = document.getElementById('adminSwapTargetSection');
-      if (!sec) return;
-      sec.style.display = (sec.style.display === 'none' || sec.style.display === '') ? 'block' : 'none';
+      const willOpen = !isAdminSeatGroupOpen('swap');
+      setAdminSeatGroupOpen('move', false);
+      setAdminSeatGroupOpen('swap', willOpen);
     }
 
     // 互換同道兩席位之隊友 (保留標記 isReserved 維持在原席位號碼，不隨人移動)

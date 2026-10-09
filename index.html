@@ -1037,6 +1037,10 @@
           <button type="button" onclick="toggleAdminMoveTargetSection()" class="modal-btn" style="background:#2563eb; color:#ffffff; font-weight:900; margin-bottom:0; box-shadow:0 1px 3px rgba(37,99,235,0.3); padding:10px;">
             🔄 幫隊友移位換道 (選擇目標球道席位)
           </button>
+
+          <button type="button" onclick="toggleAdminSwapTargetSection()" class="modal-btn" style="background:#7c3aed; color:#ffffff; font-weight:900; margin-bottom:0; box-shadow:0 1px 3px rgba(124,58,237,0.3); padding:10px;">
+            ↕️ 同道換位 (與同道隊友互換)
+          </button>
         </div>
 
         <!-- 移位目標球道選擇區塊 -->
@@ -1047,6 +1051,17 @@
           <select id="adminMoveTargetSelect" style="width:100%; padding:8px; border-radius:6px; border:1px solid #93c5fd; font-size:12.5px; margin-bottom:10px; font-weight:bold; color:#1e293b; background:#fff;"></select>
           <button type="button" onclick="confirmAdminMoveTarget()" class="modal-btn btn-primary" style="margin-bottom:0; font-weight:900; padding:9px;">
             確定移位至該席
+          </button>
+        </div>
+
+        <!-- ★ 幹部專用：同道換位 (與同道已入座隊友互換，保留標記維持在原席位號碼) -->
+        <div id="adminSwapTargetSection" style="display:none; margin-top:10px; padding:10px; background:#f5f3ff; border:1.5px solid #c4b5fd; border-radius:8px;">
+          <label style="display:block; font-size:12px; font-weight:bold; color:#5b21b6; margin-bottom:6px;">
+            ↕️ 請選擇要互換的同道隊友：
+          </label>
+          <select id="adminSwapTargetSelect" style="width:100%; padding:8px; border-radius:6px; border:1px solid #c4b5fd; font-size:12.5px; margin-bottom:10px; font-weight:bold; color:#1e293b; background:#fff;"></select>
+          <button type="button" onclick="confirmAdminSwapSameLane()" class="modal-btn" style="background:#7c3aed; color:#ffffff; margin-bottom:0; font-weight:900; padding:9px;">
+            確定互換
           </button>
         </div>
 
@@ -3376,6 +3391,33 @@
         if (lInfoEl) lInfoEl.innerText = `📍 目前席位：【${currentDay}賽事】${laneKey} 道 第 ${slotIndex} 位`;
         if (moveSec) moveSec.style.display = 'none';
 
+        // ★ 同道換位：填充同道其他已入座隊友 (排除空位與 [保留席]/[未開放]/[開放入座] 等系統佔位)
+        const swapSec = document.getElementById('adminSwapTargetSection');
+        const swapSel = document.getElementById('adminSwapTargetSelect');
+        if (swapSec) swapSec.style.display = 'none';
+        if (swapSel) {
+          swapSel.innerHTML = '<option value="">-- 請選擇同道互換隊友 --</option>';
+          const swapLaneObj = lanesList.find(l => l && l.lane === laneKey);
+          const swapPlayers = swapLaneObj ? normalize8Players(swapLaneObj.players) : Array(8).fill(null);
+          let swapCount = 0;
+          for (let s = 1; s <= 8; s++) {
+            if (s === slotIndex) continue;
+            const sp = swapPlayers[s - 1];
+            const spName = (sp && sp.name) ? String(sp.name).trim() : '';
+            if (!spName || spName.startsWith('[')) continue;
+            const opt = document.createElement('option');
+            opt.value = `${s}`;
+            const resMark = (sp.isReserved === true || sp.isReserved === 'true') ? ' [🔒保留]' : '';
+            opt.innerText = `↕️ 第 ${s} 位【${spName}】${resMark}`;
+            opt.setAttribute('data-name', spName);
+            swapSel.appendChild(opt);
+            swapCount++;
+          }
+          if (swapCount === 0) {
+            swapSel.innerHTML = '<option value="">-- 同道目前沒有其他已入座隊友 --</option>';
+          }
+        }
+
         // 填充目標球道下拉選單 (列出目前所有已開放球道之空缺席位)
         if (sel) {
           sel.innerHTML = '<option value="">-- 請選擇目標空位 --</option>';
@@ -3477,6 +3519,130 @@
       const { playerName, gender } = currentAdminSeatTarget;
       closeAdminSeatModal();
       await submitJoin(targetLane, targetSlot, playerName, false, gender || 'M');
+    }
+
+    // ==================== ★ 幹部專用：同道換位 ====================
+    function toggleAdminSwapTargetSection() {
+      const sec = document.getElementById('adminSwapTargetSection');
+      if (!sec) return;
+      sec.style.display = (sec.style.display === 'none' || sec.style.display === '') ? 'block' : 'none';
+    }
+
+    // 互換同道兩席位之隊友 (保留標記 isReserved 維持在原席位號碼，不隨人移動)
+    // 成功回傳 true；若任一席位已非預期隊友 (名單已被他人變動) 回傳 false
+    function applySameLaneSwap(pl, slotA, nameA, slotB, nameB) {
+      const pA = pl[slotA - 1];
+      const pB = pl[slotB - 1];
+      if (!pA || !pB || String(pA.name).trim() !== nameA || String(pB.name).trim() !== nameB) return false;
+      const resA = pA.isReserved;
+      const resB = pB.isReserved;
+      const newA = Object.assign({}, pB);
+      const newB = Object.assign({}, pA);
+      delete newA.isReserved;
+      delete newB.isReserved;
+      if (resA === true || resA === 'true') newA.isReserved = true;
+      if (resB === true || resB === 'true') newB.isReserved = true;
+      pl[slotA - 1] = newA;
+      pl[slotB - 1] = newB;
+      return true;
+    }
+
+    function confirmAdminSwapSameLane() {
+      if (!isAdmin) return;
+      const sel = document.getElementById('adminSwapTargetSelect');
+      if (!sel || !sel.value) return showToast('⚠️ 請先選擇要互換的同道隊友！', 3000);
+      if (!currentAdminSeatTarget) return;
+
+      const slotA = currentAdminSeatTarget.slotIndex;
+      const nameA = String(currentAdminSeatTarget.playerName).trim();
+      const laneKey = currentAdminSeatTarget.laneKey;
+      const slotB = parseInt(sel.value, 10);
+      const optB = sel.options[sel.selectedIndex];
+      const nameB = optB ? String(optB.getAttribute('data-name') || '').trim() : '';
+      if (!nameB || !slotB || slotB === slotA) return showToast('⚠️ 互換對象無效，請重新選擇！', 3000);
+
+      closeAdminSeatModal();
+      customConfirm(`👑 管理者操作：確定將【${currentDay} ${laneKey} 道】\n第 ${slotA} 位【${nameA}】⇄ 第 ${slotB} 位【${nameB}】\n互換席位嗎？\n\n（保留標記維持在原席位號碼）`, async (confirmed) => {
+        if (!confirmed) return;
+        await executeAdminSameLaneSwap(laneKey, slotA, nameA, slotB, nameB);
+      });
+    }
+
+    async function executeAdminSameLaneSwap(laneKey, slotA, nameA, slotB, nameB) {
+      if (isActionInProgress) return;
+      if (!rtdb || !isFirebaseReady) {
+        return showToast('⚠️ 即時資料庫尚未連線，請稍後再試！', 3000, false);
+      }
+      isActionInProgress = true;
+      showToast('⏳ 正在互換席位...', 0, true);
+
+      const isMon = currentDay === '週一';
+      const targetDayKey = isMon ? 'mon' : 'thu';
+      let swapOk = false;
+
+      try {
+        const txResult = await rtdb.ref(`data/${targetDayKey}`).transaction(dayLanes => {
+          swapOk = false;
+          if (!dayLanes) return dayLanes;
+          const list = Array.isArray(dayLanes) ? dayLanes : Object.values(dayLanes);
+          const laneObj = list.find(l => l && l.lane === laneKey);
+          if (!laneObj) return; // 中止交易
+          const pl = normalize8Players(laneObj.players);
+          if (!applySameLaneSwap(pl, slotA, nameA, slotB, nameB)) return; // 名單已變動，中止交易
+          laneObj.players = pl;
+          swapOk = true;
+          return dayLanes;
+        });
+
+        isActionInProgress = false;
+
+        if (!txResult || !txResult.committed || !swapOk) {
+          showToast('⚠️ 名單剛剛已變動，請重新開啟席位視窗再操作！', 3500, false);
+          return;
+        }
+
+        showToast(`✅ 已完成互換：第 ${slotA} 位【${nameB}】、第 ${slotB} 位【${nameA}】`, 3000, false);
+
+        const now = new Date();
+        const MM = String(now.getMonth() + 1).padStart(2, '0');
+        const DD = String(now.getDate()).padStart(2, '0');
+        const hh = String(now.getHours()).padStart(2, '0');
+        const mi = String(now.getMinutes()).padStart(2, '0');
+        const ts = Date.now();
+
+        // 預排結束時段：兩席位標記為變更 (比照現有晚鳥補位規則)
+        if (isPreLockActive(currentDay)) {
+          rtdb.ref(`lateChanges/${targetDayKey}`).push({ time: `${hh}:${mi}`, name: nameB, action: 'late_join', lane: laneKey, slot: slotA, timestamp: ts });
+          rtdb.ref(`lateChanges/${targetDayKey}`).push({ time: `${hh}:${mi}`, name: nameA, action: 'late_join', lane: laneKey, slot: slotB, timestamp: ts + 1 });
+        }
+
+        // 全程席位異動看板：記錄兩筆換道移位
+        const op = `幹部(${currentUserName || '管理員'})`;
+        rtdb.ref(`adminChanges/${targetDayKey}`).push({ date: `${MM}/${DD}`, time: `${hh}:${mi}`, name: nameA, action: 'move', lane: laneKey, slot: slotB, fromLane: laneKey, fromSlot: slotA, operator: op, timestamp: ts });
+        rtdb.ref(`adminChanges/${targetDayKey}`).push({ date: `${MM}/${DD}`, time: `${hh}:${mi}`, name: nameB, action: 'move', lane: laneKey, slot: slotA, fromLane: laneKey, fromSlot: slotB, operator: op, timestamp: ts + 1 });
+
+        // 背景同步至 Google 試算表 (依 1/2 ~ 23/24 固定順序，確保 LINE 預排表卡片同步)
+        try {
+          const finalVal = txResult.snapshot ? txResult.snapshot.val() : null;
+          if (finalVal) {
+            const finalList = Array.isArray(finalVal) ? finalVal : Object.values(finalVal);
+            const orderedList = ALL_LANES.map(lk => {
+              const lo = finalList.find(l => l && l.lane === lk);
+              const pls = normalize8Players(lo ? lo.players : null).map(pp => pp ? { name: pp.name, gender: pp.gender || 'M' } : null);
+              return { lane: lk, players: pls };
+            });
+            const syncData = { [targetDayKey]: orderedList };
+            const syncUrl = `${API_BASE}?action=batchSyncLanes&data=${encodeURIComponent(JSON.stringify(syncData))}`;
+            fetch(syncUrl, { mode: 'no-cors' }).catch(e => console.warn('Swap batch sync err:', e));
+          }
+        } catch (syncErr) {
+          console.warn('Swap sheet sync error:', syncErr);
+        }
+      } catch (err) {
+        isActionInProgress = false;
+        console.error('Same lane swap error:', err);
+        showToast('❌ 互換失敗，請重新嘗試。', 3000, false);
+      }
     }
 
     // ★ 幹部於人名彈窗中切換開放／不開放保留席 (二次確認防誤觸)

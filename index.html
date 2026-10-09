@@ -286,6 +286,13 @@
       font-size: 16px !important;
       letter-spacing: 1px;
     }
+    /* ★ 無性別紀錄 (如未填性別之來賓)：黑色 */
+    .nogender-text {
+      color: #000000 !important;
+      font-weight: 900 !important;
+      font-size: 16px !important;
+      letter-spacing: 1px;
+    }
     .slot-cell-empty {
       background-color: #ffffff !important;
       cursor: pointer;
@@ -384,7 +391,8 @@
       color: #94a3b8 !important;
     }
     .lane-disabled .male-text,
-    .lane-disabled .female-text {
+    .lane-disabled .female-text,
+    .lane-disabled .nogender-text {
       color: #64748b !important;
       opacity: 0.75;
     }
@@ -3026,9 +3034,10 @@
               const mem = rawResponse.members.find(m => m.name === p.name);
               if (mem && mem.gender) pGender = mem.gender;
             }
-            const pGenStr = String(pGender || 'M').trim();
+            const pGenStr = String(pGender || '').trim();
             const isFem = (pGenStr.includes('女') || pGenStr.toUpperCase().startsWith('F') || pGenStr.toUpperCase() === 'W');
-            const colorClass = isFem ? 'female-text' : 'male-text';
+            // ★ 無性別紀錄顯示黑色；女生紅色；其餘男生藍色
+            const colorClass = !pGenStr ? 'nogender-text' : (isFem ? 'female-text' : 'male-text');
 
             const isSlotChangedJoin = lastSlotChange && (lastSlotChange.action === 'join' || lastSlotChange.action === 'late_join');
             const adminResTag = (isAdmin && (p.isReserved === true || p.isReserved === 'true')) ? '<span style="font-size:11px; color:#dc2626; font-weight:bold; margin-left:2px;" title="幹部保留席">[🔒保留]</span>' : '';
@@ -3387,10 +3396,22 @@
         }
         currentAdminSeatTarget.gender = gen;
 
-        const genBadge = (gen === 'F' || gen === '女') ? '<span style="color:#e11d48; font-weight:bold;">(女)</span>' : '<span style="color:#2563eb; font-weight:bold;">(男)</span>';
+        // ★ 姓名顏色比照球道表：先取球道席位性別，名冊有性別則以名冊為準；含「女」/F 開頭/W 為女生 (紅)，其餘男生 (藍)
+        let dispGen = '';
+        const dispLaneObj = lanesList.find(l => l && l.lane === laneKey);
+        const dispSeat = dispLaneObj ? normalize8Players(dispLaneObj.players)[slotIndex - 1] : null;
+        if (dispSeat && dispSeat.gender) dispGen = dispSeat.gender;
+        if (rawResponse && rawResponse.members) {
+          const dispMem = rawResponse.members.find(x => x.name === playerName);
+          if (dispMem && dispMem.gender) dispGen = dispMem.gender;
+        }
+        const dispGenStr = String(dispGen || '').trim();
+        const dispIsFem = (dispGenStr.includes('女') || dispGenStr.toUpperCase().startsWith('F') || dispGenStr.toUpperCase() === 'W');
+        // ★ 無性別紀錄顯示黑色；女生紅色；其餘男生藍色
+        const nameColor = !dispGenStr ? '#000000' : (dispIsFem ? '#C00000' : '#0000FF');
         const codeStr = code ? ` <span style="font-size:12px; color:#64748b; font-family:monospace;">[${code}]</span>` : '';
 
-        if (pInfoEl) pInfoEl.innerHTML = `👤 選手：<b>${playerName}</b> ${genBadge}${codeStr}`;
+        if (pInfoEl) pInfoEl.innerHTML = `👤 選手：<b style="color:${nameColor};">${playerName}</b>${codeStr}`;
         if (lInfoEl) lInfoEl.innerText = `📍 目前席位：【${currentDay}賽事】${laneKey} 道 第 ${slotIndex} 位`;
         setAdminSeatGroupOpen('move', false);
 

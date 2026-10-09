@@ -2958,11 +2958,36 @@
 
         renderColumn('leftCol', LEFT_LANES, dayData || [], cfg, allowedSlots, currentStaffLanes, currentOpenLanes);
         renderColumn('rightCol', RIGHT_LANES, dayData || [], cfg, allowedSlots, currentStaffLanes, currentOpenLanes);
+        fitLaneTableText();
         updateOperatorDisplay();
       } catch (err) {
         console.error("renderAll error:", err);
       }
     }
+
+    // ★ 大字自動縮字：表頭、球道、代號、姓名、未開放/不開放、可選位/保留席按鈕，塞不下時自動縮小到剛好放得下
+    //   (手機系統字型放大時生效；一般字型放得下則完全不變動)
+    function fitLaneTableText() {
+      try {
+        const targets = [];
+        document.querySelectorAll('.table-bordered th, .table-bordered td.lane-number-cell, .table-bordered td.code-cell, .table-bordered td.slot-locked, .table-bordered td.male-text, .table-bordered td.female-text, .table-bordered td.nogender-text')
+          .forEach(td => targets.push([td, td]));
+        document.querySelectorAll('.table-bordered td.slot-cell-empty .slot-pill-btn')
+          .forEach(sp => targets.push([sp.parentElement, sp]));
+        targets.forEach(([box, el]) => {
+          for (let i = 0; i < 6; i++) {
+            if (box.scrollWidth - box.clientWidth <= 0.5) break;
+            const cur = parseFloat(el.style.getPropertyValue('font-size')) || parseFloat(getComputedStyle(el).fontSize);
+            const ratio = box.clientWidth / box.scrollWidth;
+            el.style.setProperty('font-size', Math.max(6, cur * ratio * 0.96) + 'px', 'important');
+          }
+        });
+      } catch (e) {
+        console.warn('fitLaneTableText error:', e);
+      }
+    }
+    window.addEventListener('resize', () => { try { fitLaneTableText(); } catch (e) {} });
+    try { if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => fitLaneTableText()); } catch (e) {}
 
     function renderColumn(colId, lanesArray, dayData, cfg, allowedSlots, currentStaffLanes, currentOpenLanes) {
       const col = document.getElementById(colId);
@@ -2997,9 +3022,9 @@
           <table class="table-bordered ${disabledClass} ${staffTableClass}">
             <thead>
               <tr class="${currentHeaderClass}">
-                <th style="width:24%">球道</th>
+                <th style="width:18%">球道</th>
                 <th style="width:16%">代</th>
-                <th style="width:60%">姓　名</th>
+                <th style="width:66%">姓　名</th>
               </tr>
             </thead>
             <tbody>
@@ -3010,7 +3035,8 @@
           const r = slotIndex - 1;
           html += `<tr>`;
           if (slotIndex === 1) {
-            html += `<td rowspan="8" class="lane-number-cell" style="width:24%">${laneKey}</td>`;
+            // ★ 球道號碼改直式 (如 23 ／ 24)，節省欄寬
+            html += `<td rowspan="8" class="lane-number-cell" style="width:18%; line-height:1.15;">${String(laneKey).replace('/', '<br>／<br>')}</td>`;
           }
 
           // 檢查該號位是否有人 (若姓名為 [開放入座]、[開放選位] 或 [保留席]、[未開放]，視為特殊空位處理)
@@ -3035,7 +3061,7 @@
           const codeStyle = isOccupiedCode
             ? 'font-weight:900; color:#0f172a; width:16%; font-size:12.5px; font-family:monospace;'
             : 'color:#94a3b8; width:16%; font-size:12px; font-weight:bold;';
-          html += `<td style="${codeStyle}">${playerCode}</td>`;
+          html += `<td class="code-cell" style="${codeStyle}">${playerCode}</td>`;
 
           // 尋找該席位在 lateChanges 的最後一筆紀錄
           let lastSlotChange = null;
@@ -3065,13 +3091,13 @@
             const adminResTag = (isAdmin && (p.isReserved === true || p.isReserved === 'true')) ? '<span style="font-size:11px; color:#dc2626; font-weight:bold; margin-left:2px;" title="幹部保留席">[🔒保留]</span>' : '';
             if (isSlotChangedJoin) {
               html += `
-                <td onclick="handlePlayerClick('${p.name}', '${laneKey}', ${slotIndex})" style="cursor:pointer; width:60%; background:#fef3c7; border:2px solid #f59e0b; font-weight:900;" class="${colorClass}">
+                <td onclick="handlePlayerClick('${p.name}', '${laneKey}', ${slotIndex})" style="cursor:pointer; width:66%; background:#fef3c7; border:2px solid #f59e0b; font-weight:900;" class="${colorClass}">
                   ${p.name}${adminResTag}
                 </td>
               `;
             } else {
               html += `
-                <td onclick="handlePlayerClick('${p.name}', '${laneKey}', ${slotIndex})" style="cursor:pointer; width:60%;" class="${colorClass}">
+                <td onclick="handlePlayerClick('${p.name}', '${laneKey}', ${slotIndex})" style="cursor:pointer; width:66%;" class="${colorClass}">
                   ${p.name}${adminResTag}
                 </td>
               `;
@@ -3079,16 +3105,16 @@
           } else {
             if (!isOpen) {
               const closedLabel = isAdmin ? '🚫 不開放 (已關閉)' : '🚫 不開放';
-              html += `<td class="slot-locked" style="width:60%;">${closedLabel}</td>`;
+              html += `<td class="slot-locked" style="width:66%;">${closedLabel}</td>`;
             } else if (deadPassed && !isAdmin) {
-              html += `<td class="slot-locked" style="width:60%;">⏰ 報名已截止</td>`;
+              html += `<td class="slot-locked" style="width:66%;">⏰ 報名已截止</td>`;
             } else if (slotIndex > allowedSlots && !isAdmin) {
               // ★ 嚴格全場人數水位把關：超出當前人數水位，一般隊友一律顯示「🔒 未開放」
-              html += `<td class="slot-locked" style="width:60%;">🔒 未開放</td>`;
+              html += `<td class="slot-locked" style="width:66%;">🔒 未開放</td>`;
             } else if (isSlotReservedPlaceholder || (isStaff && !isSlotOpenPlaceholder)) {
               // ★ 方案 B 統一標準化：不論一般道之 [保留席] 或幹部道未開放席，皆統一呈現
               if (!isAdmin) {
-                html += `<td class="slot-locked" style="width:60%;">🔒 未開放</td>`;
+                html += `<td class="slot-locked" style="width:66%;">🔒 未開放</td>`;
               } else {
                 html += `
                   <td onclick="openSlotAction('${laneKey}', ${slotIndex})" class="slot-cell-empty" style="background:#f1f5f9; border:1.5px dashed #94a3b8;">

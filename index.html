@@ -48,7 +48,7 @@
     .header-card {
       background: #ffffff;
       border-radius: 12px;
-      padding: 12px;
+      padding: 12px 12px 6px 12px; /* ★ 底部間隙縮小 (操作者列與外框) */
       border: 1.5px solid #cbd5e1;
       box-shadow: 0 1px 4px rgba(0,0,0,0.08);
       margin-bottom: 8px;
@@ -168,16 +168,20 @@
       font-size: 12px;
       transition: all 0.2s ease;
     }
+    /* ★ 操作者標籤改為膠囊形狀 (與球道表本人姓名外框一致) */
+    .operator-badge-mon, .operator-badge-thu {
+      border-radius: 999px !important;
+    }
     .operator-badge-mon {
       background: #f0fdf4 !important;
       color: #15803d !important;
-      border: 2px solid #db2777 !important; /* ★ 與球道表操作者姓名外框同為桃紅色 */
+      border: 1.5px solid #db2777 !important; /* ★ 與球道表操作者姓名外框同為桃紅色 */
       font-size: 15px !important;
     }
     .operator-badge-thu {
       background: #eff6ff !important;
       color: #1e40af !important;
-      border: 2px solid #db2777 !important; /* ★ 與球道表操作者姓名外框同為桃紅色 */
+      border: 1.5px solid #db2777 !important; /* ★ 與球道表操作者姓名外框同為桃紅色 */
       font-size: 15px !important;
     }
     .operator-badge-unbound {
@@ -298,7 +302,16 @@
       overflow: visible !important;
       position: relative;
       z-index: 3;
-      box-shadow: inset 0 0 0 2.5px #db2777;
+    }
+    /* ★ 操作者本人姓名格：桃紅色圓角細框 (與頂部操作者標籤同樣式) */
+    .table-bordered td.self-name-cell::after {
+      content: '';
+      position: absolute;
+      top: 1px; bottom: 1px; left: 1px; right: 1px;
+      border: 1.5px solid #db2777;
+      border-radius: 10px;
+      pointer-events: none;
+      z-index: 2;
     }
     .self-pulse {
       display: inline-block;
@@ -2152,6 +2165,10 @@
           badge.innerText = hasPin ? currentUserName : `${currentUserName} (未設PIN)`;
           const isMon = currentDay === '週一';
           badge.className = isMon ? 'operator-badge operator-badge-mon' : 'operator-badge operator-badge-thu';
+          // ★ 操作者姓名顏色比照球道表：男生藍、女生紅、無性別紀錄黑
+          const opGen = String((curMem && curMem.gender) || '').trim();
+          const opFem = (opGen.includes('女') || opGen.toUpperCase().startsWith('F') || opGen.toUpperCase() === 'W');
+          badge.style.setProperty('color', !opGen ? '#000000' : (opFem ? '#C00000' : '#0000FF'), 'important');
           if (!hasPin) {
             badge.style.cursor = 'pointer';
             badge.title = '點此設定個人專屬 4 碼 PIN 碼';
@@ -2164,12 +2181,14 @@
         } else if (isVerifyingIdentity) {
           badge.innerText = '⏳ 身分識別中...';
           badge.className = 'operator-badge operator-badge-unbound';
+          badge.style.removeProperty('color');
           badge.style.cursor = 'wait';
           badge.title = '系統正在與 LINE 連線確認身分...';
           badge.onclick = null;
         } else {
           badge.innerText = '⚠️ 點此綁定姓名';
           badge.className = 'operator-badge operator-badge-unbound';
+          badge.style.removeProperty('color');
           badge.style.cursor = 'pointer';
           badge.title = '點此綁定隊員姓名';
           badge.onclick = openRegisterModal;

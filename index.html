@@ -2820,6 +2820,10 @@
           seatText = (item.lane && item.lane !== '全體球道')
             ? `${item.lane} 席位已向前遞補`
             : `所有球道已無縫向前排齊補滿`;
+        } else if (item.action === 'move' && item.fromLane && String(item.fromLane) === String(item.lane)) {
+          // ★ 同一道內移位 (含幹部同道換位)：標示為同道移位
+          actBadge = '<span style="color:#7c3aed; font-weight:bold;">↕️ 同道移位</span>';
+          seatText = `(${item.lane}道 第${item.fromSlot || ''}位 ➔ 第${item.slot}位)`;
         } else if (item.action === 'move') {
           actBadge = '<span style="color:#2563eb; font-weight:bold;">🔄 換道移位</span>';
           if (item.fromLane) {

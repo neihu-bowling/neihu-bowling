@@ -2047,6 +2047,45 @@
       return 4;
     }
 
+    // ★ 遞補追蹤：執行單道向前排齊，並記錄「換成不同隊友」之席位 (供預排結束後標示橘色框)
+    function compactSingleLaneTracked(laneObj, isStaff, movesOut) {
+      const nm = p => (p && p.name) ? String(p.name).trim() : '';
+      const before = normalize8Players(laneObj ? laneObj.players : null).map(nm);
+      const res = compactSingleLane(laneObj, isStaff);
+      if (res && laneObj && Array.isArray(movesOut)) {
+        const after = normalize8Players(laneObj.players).map(nm);
+        for (let s = 0; s < 8; s++) {
+          const n = after[s];
+          if (!n || n.startsWith('[') || n === before[s]) continue;
+          movesOut.push({ lane: laneObj.lane, name: n, slot: s + 1, fromSlot: before.indexOf(n) + 1 });
+        }
+      }
+      return res;
+    }
+
+    // ★ 預排結束時段之遞補：將換位隊友寫入 lateChanges (late_join + moved 標記)，網頁球道表即顯示橘色框
+    function pushCompactMovesLateChanges(dayKey, moves) {
+      if (!rtdb || !moves || moves.length === 0) return;
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mm = String(now.getMinutes()).padStart(2, '0');
+      const ts = Date.now();
+      let seq = 0;
+      moves.forEach(m => {
+        // 原席位 (被移出) 標記為異動空出；新席位標記為遞補入座
+        if (m.fromSlot) {
+          rtdb.ref(`lateChanges/${dayKey}`).push({
+            time: `${hh}:${mm}`, name: m.name, action: 'leave', moved: true,
+            lane: m.lane, slot: m.fromSlot, timestamp: ts + (seq++)
+          });
+        }
+        rtdb.ref(`lateChanges/${dayKey}`).push({
+          time: `${hh}:${mm}`, name: m.name, action: 'late_join', moved: true,
+          lane: m.lane, slot: m.slot, fromSlot: m.fromSlot || 0, timestamp: ts + (seq++)
+        });
+      });
+    }
+
     // ★ 檢查某球道是否需要向前遞補 (狀況3+4合併：若有姓名在未開放或保留席上且前方有空位，或幹部專用道)
     function checkHasOverflowPlayers(laneObj, allowedSlots, isStaff = false) {
       if (!laneObj || !laneObj.players) return false;
@@ -2705,7 +2744,8 @@
       const iconEl = document.getElementById('lateChangesToggleIcon');
       if (!card || !listEl) return;
 
-      const list = getLateChangesList(currentDay);
+      // ★ 遞補移位之「原席位空出」紀錄僅供球道表變色，不重複列於看板
+      const list = getLateChangesList(currentDay).filter(it => !(it.action === 'leave' && (it.moved === true || it.moved === 'true')));
       const isSim = isAdmin && isAdminSimulatePreLockActive();
 
       if (list.length === 0) {
@@ -2734,6 +2774,12 @@
       let html = '';
       list.forEach(item => {
         const isJoin = item.action === 'join' || item.action === 'late_join';
+        // ★ 遞補換位 (預排結束後向前排齊)
+        if (isJoin && (item.moved === true || item.moved === 'true')) {
+          const fromTxt = item.fromSlot ? `第 ${item.fromSlot} 位 ➔ ` : '';
+          html += `<div style="padding:2px 0;">• [${item.time || ''}] <b>${item.name}</b>：<span style="color:#7c3aed; font-weight:bold;">⬆️ 遞補移位</span> ${item.lane} 道 ${fromTxt}第 ${item.slot} 位</div>`;
+          return;
+        }
         const actBadge = isJoin 
           ? '<span style="color:#d97706; font-weight:bold;">＋ 晚鳥補位</span>' 
           : '<span style="color:#dc2626; font-weight:bold;">❌ 請假退出</span>';
@@ -3168,7 +3214,19 @@
             // ★ 無性別紀錄顯示黑色；女生紅色；其餘男生藍色
             const colorClass = !pGenStr ? 'nogender-text' : (isFem ? 'female-text' : 'male-text');
 
-            const isSlotChangedJoin = lastSlotChange && (lastSlotChange.action === 'join' || lastSlotChange.action === 'late_join');
+            // ★ 以「目前入座隊友本人」在此席位之最後紀錄判定 (避免遞補換位後，被前一位隊友的請假紀錄蓋掉橘色框)
+            let selfSlotChange = null;
+            if (isPreLock && lateList.length > 0) {
+              const targetLaneNorm2 = normalizeLane(laneKey);
+              for (let ci = lateList.length - 1; ci >= 0; ci--) {
+                const it = lateList[ci];
+                if (normalizeLane(it.lane) === targetLaneNorm2 && parseInt(it.slot, 10) === slotIndex && it.name === p.name) {
+                  selfSlotChange = it;
+                  break;
+                }
+              }
+            }
+            const isSlotChangedJoin = selfSlotChange && (selfSlotChange.action === 'join' || selfSlotChange.action === 'late_join');
             const adminResTag = (isAdmin && (p.isReserved === true || p.isReserved === 'true')) ? '<span style="font-size:11px; color:#dc2626; font-weight:bold; margin-left:2px;" title="幹部保留席">[🔒保留]</span>' : '';
             // ★ 操作者本人：姓名呼吸動畫，方便在球道表中找到自己
             const isSelfName = !!(currentUserName && String(p.name).trim() === String(currentUserName).trim());
@@ -3908,6 +3966,7 @@
         const curStaffLanes = getStaffLaneForDay(currentDay, cfg);
         const isStaff = isLaneStaff(laneKey, curStaffLanes);
 
+        let lockCompactMoves = [];
         const applyLockChange = (laneObj) => {
           if (!laneObj) return;
           let pl = normalize8Players(laneObj.players);
@@ -3940,7 +3999,7 @@
             });
           }
           laneObj.players = pl;
-          compactSingleLane(laneObj, isStaff);
+          compactSingleLaneTracked(laneObj, isStaff, lockCompactMoves);
         };
 
         // 1. 本地樂觀更新
@@ -3954,13 +4013,18 @@
         // 2. Firebase 即時更新
         if (rtdb && isFirebaseReady) {
           try {
-            await rtdb.ref(`data/${targetDayKey}`).transaction(dayLanes => {
+            const lockTx = await rtdb.ref(`data/${targetDayKey}`).transaction(dayLanes => {
+              lockCompactMoves = [];
               if (!dayLanes) return dayLanes;
               let list = Array.isArray(dayLanes) ? dayLanes : Object.values(dayLanes);
               let laneObj = list.find(l => l && l.lane === laneKey);
               if (laneObj) applyLockChange(laneObj);
               return dayLanes;
             });
+            // ★ 預排結束時段：遞補換位之席位標示橘色框
+            if (lockTx && lockTx.committed && isPreLockActive(currentDay)) {
+              pushCompactMovesLateChanges(targetDayKey, lockCompactMoves);
+            }
           } catch (err) {
             console.error('Firebase update seat lock error:', err);
           }
@@ -4044,7 +4108,9 @@
       if (rtdb && isFirebaseReady) {
         try {
           let txResult = null;
-          await rtdb.ref(`data/${targetDayKey}`).transaction(dayLanes => {
+          let joinCompactMoves = [];
+          const joinTx = await rtdb.ref(`data/${targetDayKey}`).transaction(dayLanes => {
+            joinCompactMoves = [];
             if (!dayLanes) return dayLanes;
             let list = Array.isArray(dayLanes) ? dayLanes : Object.values(dayLanes);
 
@@ -4068,7 +4134,7 @@
                     const allowed = computeAllowedSlots(list, cfg, currentDay);
                     const isOldStaff = isLaneStaff(l.lane, currentStaffLane);
                     if (checkHasOverflowPlayers(l, allowed)) {
-                      compactSingleLane(l, isOldStaff);
+                      compactSingleLaneTracked(l, isOldStaff, joinCompactMoves);
                     }
                   }
                 }
@@ -4106,6 +4172,10 @@
             if (!silentMode) {
               const actWord = oldSeatInfo ? '移位換道至' : '選位';
               showToast(`🎉 成功${actWord}【${currentDay}】${lane} 道 第 ${slotIndex} 位！`, 3000, false);
+            }
+            // ★ 預排結束時段：舊球道遞補換位之席位標示橘色框
+            if (joinTx && joinTx.committed && isPreLockActive(currentDay)) {
+              pushCompactMovesLateChanges(targetDayKey, joinCompactMoves);
             }
             // ★ 若在預排結束時段，記錄至 Firebase lateChanges
             if (isPreLockActive(currentDay) && name !== '[開放入座]' && name !== '[開放選位]' && name !== '[保留席]') {
@@ -4357,7 +4427,10 @@
       if (rtdb && isFirebaseReady) {
         try {
           let didCompactOverflow = false;
-          await rtdb.ref(`data/${targetDayKey}`).transaction(dayLanes => {
+          let leaveCompactMoves = [];
+          const leaveTx = await rtdb.ref(`data/${targetDayKey}`).transaction(dayLanes => {
+            didCompactOverflow = false;
+            leaveCompactMoves = [];
             if (!dayLanes) return dayLanes;
             let list = Array.isArray(dayLanes) ? dayLanes : Object.values(dayLanes);
             let targetLane = list.find(l => l && l.lane === laneKey);
@@ -4392,7 +4465,7 @@
             // ★ 自動向前遞補排齊 (依狀況 3+4 判定)
             const allowed = computeAllowedSlots(list, cfg, currentDay);
             if (checkHasOverflowPlayers(targetLane, allowed, isStaff)) {
-              if (compactSingleLane(targetLane, isStaff)) {
+              if (compactSingleLaneTracked(targetLane, isStaff, leaveCompactMoves)) {
                 didCompactOverflow = true;
               }
             }
@@ -4402,6 +4475,10 @@
           isActionInProgress = false;
           if (!silentMode) {
             showToast(`已取消【${playerName}】的報名`, 3000, false);
+          }
+          // ★ 預排結束時段：遞補換位之席位標示橘色框
+          if (didCompactOverflow && leaveTx && leaveTx.committed && isPreLockActive(currentDay)) {
+            pushCompactMovesLateChanges(targetDayKey, leaveCompactMoves);
           }
           if (didCompactOverflow && rtdb) {
             const now = new Date();

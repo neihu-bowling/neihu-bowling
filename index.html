@@ -1437,6 +1437,14 @@
           </div>
         </div>
 
+        <!-- 第 3-1 列：家庭群組 (文字相同即為同一家庭，可互相全權代為報名/請假) -->
+        <div style="margin-bottom:10px;">
+          <label style="font-size:13.5px; font-weight:bold; color:#1e293b; display:block; margin-bottom:4px;">🏠 家庭群組 (選填)：</label>
+          <input type="text" id="editMemberFamily" list="familyGroupOptions" oninput="updateFamilyPreview()" placeholder="如：許恆綻家庭 (同家人填相同文字)" autocomplete="off" style="width:100%; box-sizing:border-box; padding:7px 10px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:15px; font-weight:bold; background:#fff;">
+          <datalist id="familyGroupOptions"></datalist>
+          <div id="editMemberFamilyPreview" style="font-size:12.5px; color:#64748b; margin-top:4px; line-height:1.5;">留空＝不加入家庭群組</div>
+        </div>
+
         <!-- 第 4 列：LINE 綁定狀態 ＋ 解除按鈕 -->
         <div id="editMemberLineBox" style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:8px 10px; display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
           <div style="display:flex; align-items:center; gap:6px;">
@@ -1766,7 +1774,8 @@
               birthYear: by,
               handicap: hc || '0',
               lineId: (m.lineId !== undefined && m.lineId !== null) ? String(m.lineId) : (ex ? ex.lineId : ''),
-              pin: (m.pin !== undefined && m.pin !== null) ? String(m.pin) : ''
+              pin: (m.pin !== undefined && m.pin !== null) ? String(m.pin) : '',
+              family: (m.family !== undefined && m.family !== null) ? String(m.family).trim() : (ex && ex.family ? String(ex.family) : '')
             };
           });
           try {
@@ -1831,7 +1840,8 @@
                 birthYear: by,
                 handicap: hc,
                 lineId: m.lineId || '',
-                pin: m.pin || ''
+                pin: m.pin || '',
+                family: String(m.family || '').trim()
               };
             });
             rtdb.ref('members').set(enrichedMembers);
@@ -2448,7 +2458,9 @@
                   birthYear: by,
                   handicap: hc || '0',
                   lineId: (m.lineId !== undefined && m.lineId !== null) ? String(m.lineId) : (ex ? ex.lineId : ''),
-                  pin: (m.pin !== undefined && m.pin !== null) ? String(m.pin) : ''
+                  pin: (m.pin !== undefined && m.pin !== null) ? String(m.pin) : '',
+                  // ★ 家庭群組以 Firebase 為主檔 (僅於網頁隊員管理編輯)，試算表回傳時優先保留現有值
+                  family: ex ? String(ex.family || '').trim() : String(m.family || '').trim()
                 };
               });
             }
@@ -2478,7 +2490,9 @@
                   birthYear: by,
                   handicap: hc || '0',
                   lineId: (m.lineId !== undefined && m.lineId !== null) ? String(m.lineId) : (ex ? ex.lineId : ''),
-                  pin: (m.pin !== undefined && m.pin !== null) ? String(m.pin) : ''
+                  pin: (m.pin !== undefined && m.pin !== null) ? String(m.pin) : '',
+                  // ★ 家庭群組以 Firebase 為主檔 (僅於網頁隊員管理編輯)，試算表回傳時優先保留現有值
+                  family: ex ? String(ex.family || '').trim() : String(m.family || '').trim()
                 };
               });
             }
@@ -4254,6 +4268,15 @@
         return;
       }
 
+      // 2-1. 同一家庭群組 ➔ 可全權代家人取消，二次確認免 PIN 碼！
+      if (currentUserName && isSameFamily(currentUserName, playerName)) {
+        customConfirm(`確定要幫家人【${playerName}】取消在【${currentDay}】${laneKey} 道 第 ${slotIndex} 位的報名嗎？`, async (confirmed) => {
+          if (!confirmed) return;
+          executeLeave(playerName, laneKey, slotIndex, '');
+        });
+        return;
+      }
+
       // 3. 非本人操作 ➔ 必須輸入該隊友的 4 碼 PIN 碼！
       openPinConfirmModal(playerName, laneKey, slotIndex);
     }
@@ -4270,7 +4293,7 @@
       const targetDayKey = isMonDay ? 'mon' : 'thu';
 
       // 檢查 PIN 碼 (若非本人且非管理者，進行比對；若隊友未設 PIN 碼，輸入任何 PIN 碼皆無效)
-      if (!isAdmin && currentUserName !== playerName) {
+      if (!isAdmin && currentUserName !== playerName && !isSameFamily(currentUserName, playerName)) {
         const members = (rawResponse && rawResponse.members) ? rawResponse.members : [];
         const targetMember = members.find(m => m.name === playerName);
         if (!targetMember || !targetMember.pin || targetMember.pin !== pin) {
@@ -4946,8 +4969,8 @@
         html += `
           <div style="display:grid; grid-template-columns: 38px 1fr 28px 36px 36px 58px 44px 40px; align-items:center; background:${rowBg}; border-bottom:1px solid #f1f5f9; padding:7px 3px; text-align:center; white-space:nowrap; width:100%; min-width:350px; box-sizing:border-box;">
             <div>${codeDisp}</div>
-            <div style="text-align:center; overflow:hidden; text-overflow:ellipsis;">
-              <span class="${nameClass}" style="font-size:16px !important; font-weight:900 !important; cursor:pointer;" onclick="openEditMemberForm('${m.name}')">${m.name}</span>
+            <div style="text-align:center; overflow:${m.family ? 'visible' : 'hidden'}; text-overflow:ellipsis; position:relative;">
+              <span class="${nameClass}" style="font-size:16px !important; font-weight:900 !important; cursor:pointer;" onclick="openEditMemberForm('${m.name}')">${m.name}</span>${m.family ? `<span title="家庭群組：${m.family}" style="position:absolute; top:-6px; right:0; font-size:10px; line-height:1; pointer-events:none;">🏠</span>` : ''}
             </div>
             <div>${genderBadge}</div>
             <div>${byDisp}</div>
@@ -5043,6 +5066,9 @@
       byInput.value = '';
       handicapInput.value = '0';
       pinInput.value = '';
+      const familyInputAdd = document.getElementById('editMemberFamily');
+      if (familyInputAdd) familyInputAdd.value = '';
+      updateFamilyPreview();
       lineStatus.innerHTML = `<span style="color:#64748b; font-weight:bold;">⚪ 未綁定 LINE ID (新隊員)</span>`;
       unbindBtn.style.display = 'none';
 
@@ -5081,6 +5107,9 @@
       byInput.value = formBirthYear;
       handicapInput.value = (m.handicap !== undefined && m.handicap !== '' && String(m.handicap) !== '0') ? m.handicap : calculateHandicap(genderSel.value, formBirthYear);
       pinInput.value = m.pin || '';
+      const familyInputEdit = document.getElementById('editMemberFamily');
+      if (familyInputEdit) familyInputEdit.value = m.family || '';
+      updateFamilyPreview();
 
       if (m.lineId) {
         lineStatus.innerHTML = `<span style="color:#15803d; font-weight:bold;">🟢 已綁定 LINE ID</span>`;
@@ -5093,6 +5122,50 @@
       if (deleteBtn) deleteBtn.style.display = 'inline-block';
 
       card.style.display = 'block';
+    }
+
+    // ★ 家庭群組：兩位隊員「家庭群組」文字相同 (非空白) 即為同一家庭，可互相全權代為報名/請假 (免 PIN 碼)
+    function getMemberFamilyName(name) {
+      const members = (rawResponse && rawResponse.members) ? rawResponse.members : [];
+      const m = members.find(x => x && x.name === name);
+      return m ? String(m.family || '').trim() : '';
+    }
+    function isSameFamily(nameA, nameB) {
+      if (!nameA || !nameB) return false;
+      const fa = getMemberFamilyName(nameA);
+      return !!fa && fa === getMemberFamilyName(nameB);
+    }
+
+    // ★ 隊員管理：家庭群組下拉建議 + 同群組成員即時預覽
+    function updateFamilyPreview() {
+      const input = document.getElementById('editMemberFamily');
+      const preview = document.getElementById('editMemberFamilyPreview');
+      const dl = document.getElementById('familyGroupOptions');
+      if (!input || !preview) return;
+      const members = (rawResponse && rawResponse.members) ? rawResponse.members : [];
+      const groupMap = {};
+      members.forEach(m => {
+        const f = m && m.family ? String(m.family).trim() : '';
+        if (f) (groupMap[f] = groupMap[f] || []).push(m.name);
+      });
+      if (dl) {
+        dl.innerHTML = Object.keys(groupMap).sort().map(f => `<option value="${f.replace(/"/g, '&quot;')}">${groupMap[f].join('、')}</option>`).join('');
+      }
+      const val = input.value.trim();
+      const selfName = (document.getElementById('editOriginalName').value || '').trim();
+      if (!val) {
+        preview.innerHTML = '留空＝不加入家庭群組';
+        preview.style.color = '#64748b';
+        return;
+      }
+      const others = (groupMap[val] || []).filter(n => n !== selfName);
+      if (others.length) {
+        preview.innerHTML = `👨‍👩‍👦 同群組成員：<b style="color:#166534;">${others.join('、')}</b>`;
+        preview.style.color = '#166534';
+      } else {
+        preview.innerHTML = '🆕 新的家庭群組 (目前尚無其他成員，請確認文字與家人完全相同)';
+        preview.style.color = '#b45309';
+      }
     }
 
     function closeMemberEditCard() {
@@ -5241,6 +5314,8 @@
       const birthYear = document.getElementById('editMemberBirthYear').value.trim();
       const handicap = document.getElementById('editMemberHandicap').value.trim() || '0';
       const pin = document.getElementById('editMemberPin').value.trim();
+      const familyEl = document.getElementById('editMemberFamily');
+      const family = familyEl ? familyEl.value.trim() : '';
 
       if (!name) return showToast('⚠️ 請輸入隊員姓名！', 3000, false);
       if (!code) return showToast('⚠️ 請輸入隊員代號！', 3000, false);
@@ -5278,7 +5353,8 @@
             birthYear: birthYear,
             handicap: handicap,
             lineId: oldLineId,
-            pin: pin
+            pin: pin,
+            family: family
           };
         }
       } else {
@@ -5290,7 +5366,8 @@
           birthYear: birthYear,
           handicap: handicap,
           lineId: '',
-          pin: pin
+          pin: pin,
+          family: family
         });
       }
 

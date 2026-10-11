@@ -5407,6 +5407,90 @@
           })
         }).catch(err => console.warn('GAS member sync error:', err));
       } catch (ignore) {}
+
+      // 4. ★ 隊員改名：同步更新週一/週四球道上已入座之舊姓名 (歷史異動紀錄保留原名)
+      if (origName && origName !== name) {
+        renameMemberInLanes(origName, name, formattedCode);
+      }
+    }
+
+    // ★ 隊員改名後，將週一/週四球道上之舊姓名改為新姓名 (席位、性別、保留席標記不變)，並同步至 Google 試算表
+    async function renameMemberInLanes(oldName, newName, newCode) {
+      if (!oldName || !newName || oldName === newName) return;
+      const dayLabels = { mon: '週一', thu: '週四' };
+      const results = [];
+
+      // 1. 本地畫面立即更新
+      try {
+        ['mon', 'thu'].forEach(dk => {
+          let list = rawResponse && rawResponse.data ? rawResponse.data[dk] : null;
+          if (!list) return;
+          if (!Array.isArray(list)) list = Object.values(list);
+          list.forEach(l => {
+            if (!l || !l.players) return;
+            Object.keys(l.players).forEach(k => {
+              const p = l.players[k];
+              if (p && p.name === oldName) {
+                p.name = newName;
+                if (p.code !== undefined) p.code = newCode || '';
+              }
+            });
+          });
+        });
+        renderAll();
+      } catch (le) {
+        console.warn('Rename local update error:', le);
+      }
+
+      if (!rtdb) return;
+
+      // 2. Firebase 交易式更新 (防止與他人同時操作互相覆蓋)
+      for (const dk of ['mon', 'thu']) {
+        let changed = 0;
+        try {
+          const txResult = await rtdb.ref(`data/${dk}`).transaction(dayLanes => {
+            changed = 0;
+            if (!dayLanes) return dayLanes;
+            const list = Array.isArray(dayLanes) ? dayLanes : Object.values(dayLanes);
+            list.forEach(l => {
+              if (!l || !l.players) return;
+              Object.keys(l.players).forEach(k => {
+                const p = l.players[k];
+                if (p && p.name === oldName) {
+                  p.name = newName;
+                  if (p.code !== undefined) p.code = newCode || '';
+                  changed++;
+                }
+              });
+            });
+            if (changed === 0) return; // 無需變更，中止交易
+            return dayLanes;
+          });
+
+          if (!txResult || !txResult.committed || changed === 0) continue;
+          results.push(`${dayLabels[dk]} ${changed} 位`);
+
+          // 3. 背景同步至 Google 試算表 (依 1/2 ~ 23/24 固定順序，確保 LINE 預排表卡片同步)
+          const finalVal = txResult.snapshot ? txResult.snapshot.val() : null;
+          if (finalVal) {
+            const finalList = Array.isArray(finalVal) ? finalVal : Object.values(finalVal);
+            const orderedList = ALL_LANES.map(lk => {
+              const lo = finalList.find(l => l && l.lane === lk);
+              const pls = normalize8Players(lo ? lo.players : null).map(pp => pp ? { name: pp.name, gender: pp.gender || 'M' } : null);
+              return { lane: lk, players: pls };
+            });
+            const syncData = { [dk]: orderedList };
+            const syncUrl = `${API_BASE}?action=batchSyncLanes&data=${encodeURIComponent(JSON.stringify(syncData))}`;
+            fetch(syncUrl, { mode: 'no-cors' }).catch(e => console.warn('Rename batch sync err:', e));
+          }
+        } catch (err) {
+          console.warn('Rename lanes error:', dk, err);
+        }
+      }
+
+      if (results.length) {
+        showToast(`🔄 已同步更新球道上的名字【${oldName} ➔ ${newName}】：${results.join('、')}`, 4000, false);
+      }
     }
 
     function openSettingsModal() {

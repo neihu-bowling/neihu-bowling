@@ -2939,6 +2939,7 @@
         let staffPlayerCount = 0;
         let totalOpenCount = 0;
         let staffLaneCount = 0;
+        let generalReservedCount = 0;
 
         const memberMap = {};
         if (rawResponse && rawResponse.members) {
@@ -2975,6 +2976,9 @@
               staffLaneCount++;
               const staffPlayers = laneMap[lk] || [];
               staffPlayers.forEach(p => { if (p && p.name && !String(p.name).trim().startsWith('[')) staffPlayerCount++; });
+            } else {
+              // ★ 一般球道上的 🔒保留席 視為已佔用席位 (僅用於解鎖水位判斷，不計入已報名人數)
+              (laneMap[lk] || []).forEach(p => { const pn = (p && p.name) ? String(p.name).trim() : ''; if (pn === '[保留席]' || pn === '[未開放]') generalReservedCount++; });
             }
           }
         });
@@ -2986,7 +2990,7 @@
 
         // ★ 扣除工作人員專用道後計算「一般有效球道數」與「一般有效人數」
         const generalOpenCount = Math.max(1, totalOpenCount - staffLaneCount);
-        const generalPlayerCount = Math.max(0, totalCount - staffPlayerCount);
+        const generalPlayerCount = Math.max(0, totalCount - staffPlayerCount) + generalReservedCount;
 
         // ★ 智慧水位規則：達 4N 解鎖第 5 列，達 5N 解鎖第 6 列，達 6N 解鎖第 7 列，達 7N 解鎖第 8 列
         let allowedSlots = 4;

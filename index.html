@@ -1286,7 +1286,7 @@
             <label id="compactLanesLabel" style="font-weight:900; font-size:13px; color:#6d28d9;">⚡ 【預排整理】所有球道向前排齊補滿：</label>
           </div>
           <p style="font-size:11.5px; color:#5b21b6; margin:0 0 8px 0; line-height:1.5;">
-            系統將於賽前一日 17:00 預排結束時自動執行一次向前排齊。幹部亦可在此手動點擊「立即向前排齊」，消除中途取消留下的空席並保持隊友原有順序。
+            系統不會自動向前排齊（請假後席位保持空缺），如需排齊請由幹部在此手動點擊「立即向前排齊」，消除中途取消留下的空席並保持隊友原有順序。
           </p>
           <button type="button" onclick="adminCompactLanes()" class="quick-btn" style="background:#7c3aed; color:#ffffff; width:100%; font-weight:bold; padding:8px 6px; font-size:12px; box-shadow:0 1px 3px rgba(124,58,237,0.3);">
             ⚡ 立即向前排齊 (消除中途空洞)
@@ -3743,7 +3743,7 @@
           if (isReserved) {
             badgeEl.innerText = '🔒 目前管制：保留席(未開放)';
             badgeEl.style.color = '#dc2626';
-            descEl.innerText = '此席位或球道已設為保留管制。若前方出現空缺，隊員自動向前遞補，球道尾端自動維持 🔒未開放。';
+            descEl.innerText = '此席位或球道已設為保留管制，球道尾端維持 🔒未開放。若前方出現空缺，需由幹部手動「立即向前排齊」。';
             lockBtn.innerText = '🟢 解除保留 (恢復為對外開放席)';
             lockBtn.style.background = '#059669';
             lockBtn.style.borderColor = '#047857';
@@ -4133,15 +4133,8 @@
                     }
                   });
                   l.players = pl;
-                  // 若隊友換道移出舊道，且舊道有超出水位的溢位隊友，舊道立即向前排齊遞補！
-                  if (hadPlayer && l.lane !== lane) {
-                    const cfg = rawResponse ? rawResponse.config : {};
-                    const allowed = computeAllowedSlots(list, cfg, currentDay);
-                    const isOldStaff = isLaneStaff(l.lane, currentStaffLane);
-                    if (checkHasOverflowPlayers(l, allowed)) {
-                      compactSingleLaneTracked(l, isOldStaff, joinCompactMoves);
-                    }
-                  }
+                  // ★ 2026-10-17 停止自動遞補 (所有球道含工作人員道)：請假/換道後席位保持空缺，如需排齊由幹部手動「立即向前排齊」
+                  // (原：若隊友換道移出舊道，且舊道有超出水位的溢位隊友，舊道立即向前排齊遞補)
                 }
               });
             }
@@ -4414,12 +4407,8 @@
             }
           }
 
-          // ★ 依狀況 3+4 判斷：僅在有隊友落在未開放或保留席且前方有空位時，自動向前遞補排齊
-          const cfg = rawResponse ? rawResponse.config : {};
-          const allowed = computeAllowedSlots(dayList, cfg, currentDay);
-          if (checkHasOverflowPlayers(targetLaneObj, allowed, isStaff)) {
-            compactSingleLane(targetLaneObj, isStaff);
-          }
+          // ★ 2026-10-17 停止自動遞補 (所有球道含工作人員道)：請假/換道後席位保持空缺，如需排齊由幹部手動「立即向前排齊」
+          // (原：依狀況 3+4 判斷，有隊友落在未開放或保留席且前方有空位時，自動向前遞補排齊)
         }
         try {
           rawResponse.v = 2;
@@ -4467,13 +4456,8 @@
               targetLane.players = targetLane.players.map(p => (p && p.name === playerName ? restoreVal : p));
             }
 
-            // ★ 自動向前遞補排齊 (依狀況 3+4 判定)
-            const allowed = computeAllowedSlots(list, cfg, currentDay);
-            if (checkHasOverflowPlayers(targetLane, allowed, isStaff)) {
-              if (compactSingleLaneTracked(targetLane, isStaff, leaveCompactMoves)) {
-                didCompactOverflow = true;
-              }
-            }
+            // ★ 2026-10-17 停止自動遞補 (所有球道含工作人員道)：請假/換道後席位保持空缺，如需排齊由幹部手動「立即向前排齊」
+            // (原：自動向前遞補排齊，依狀況 3+4 判定)
             return list;
           });
 

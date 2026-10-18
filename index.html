@@ -1296,14 +1296,14 @@
         <!-- 🧹 幹部專用：預排結束後名單異動紀錄重置 (2026-10-18 已移除預排結束時段模擬) -->
         <div style="background:#fefce8; border:1.5px solid #facc15; border-radius:10px; padding:10px 12px; margin-bottom:12px;">
           <div style="font-weight:900; font-size:13px; color:#854d0e; margin-bottom:6px; display:flex; align-items:center; justify-content:space-between;">
-            <span>🧹 預排結束後名單異動紀錄重置：</span>
+            <span>🧹 名單異動紀錄重置：</span>
           </div>
           <p style="font-size:11.5px; color:#a16207; margin:0 0 8px 0; line-height:1.5;">
             清空本場「預排結束後名單異動」紀錄與球道黃底變色（全程席位異動明細不受影響）。
           </p>
           <div style="display:flex; gap:6px; flex-wrap:wrap;">
             <button type="button" onclick="clearFirebaseLateChanges()" class="quick-btn" style="background:#ef4444; color:#ffffff; flex:1; min-width:110px; font-weight:bold; padding:7px 4px;">
-              🧹 清空晚鳥與變色測試
+              🧹 預排結束後名單異動紀錄重置
             </button>
           </div>
         </div>
@@ -3072,6 +3072,39 @@
     window.addEventListener('resize', () => { try { fitLaneTableText(); } catch (e) {} });
     try { if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => fitLaneTableText()); } catch (e) {}
 
+    // ★ 2026-10-18 預排結束時段 (一般隊友)：只顯示「剩餘可選位最多」之球道各最前面一個可選位，其餘空位顯示 🔒 未開放
+    //   (幹部模式不受影響；判定條件與球道表「＋ 可選位」完全一致；回傳 null 表示不套用此規則)
+    function getPreLockVisibleOpenSlots(dayData, cfg, allowedSlots, currentStaffLanes, currentOpenLanes) {
+      if (isAdmin) return null;
+      const isMon = currentDay === '週一';
+      if (isDayHolidayPaused(currentDay) || !isPreLockActive(currentDay)) return null;
+      if (isDeadlinePassed(currentDay, isMon ? cfg.monDate : cfg.thuDate, isMon ? cfg.monDeadline : cfg.thuDeadline)) return null;
+      const laneMap = {};
+      (dayData || []).forEach(d => { if (d && d.lane) laneMap[d.lane] = d.players || []; });
+      const perLane = [];
+      LEFT_LANES.concat(RIGHT_LANES).forEach(laneKey => {
+        if (!isLaneOpen(laneKey, currentOpenLanes)) return;
+        const isStaff = isLaneStaff(laneKey, currentStaffLanes);
+        const players = laneMap[laneKey] || [];
+        const openSlots = [];
+        for (let slotIndex = 1; slotIndex <= 8; slotIndex++) {
+          if (slotIndex > allowedSlots) break;
+          const p = (players && players[slotIndex - 1] && players[slotIndex - 1].name) ? players[slotIndex - 1] : null;
+          const isOpenPH = (p && (p.name === '[開放入座]' || p.name === '[開放選位]'));
+          const isResPH = (p && (p.name === '[保留席]' || p.name === '[未開放]'));
+          if (p && !isOpenPH && !isResPH) continue; // 已有隊友入座
+          if (isResPH || (isStaff && !isOpenPH)) continue; // 保留席 / 工作人員道未開放席
+          openSlots.push(slotIndex);
+        }
+        if (openSlots.length > 0) perLane.push({ lane: laneKey, count: openSlots.length, first: openSlots[0] });
+      });
+      const visible = new Set();
+      if (perLane.length === 0) return visible;
+      const maxCount = Math.max(...perLane.map(x => x.count));
+      perLane.forEach(x => { if (x.count === maxCount) visible.add(x.lane + '#' + x.first); });
+      return visible;
+    }
+
     function renderColumn(colId, lanesArray, dayData, cfg, allowedSlots, currentStaffLanes, currentOpenLanes) {
       const col = document.getElementById(colId);
       if (!col) return;
@@ -3086,6 +3119,7 @@
       const isPaused = isDayHolidayPaused(currentDay);
       const lateList = getLateChangesList(currentDay);
       const isPreLock = !isPaused && isPreLockActive(currentDay);
+      const preLockVisibleSlots = getPreLockVisibleOpenSlots(dayData, cfg, allowedSlots, currentStaffLanes, currentOpenLanes);
 
       let html = '';
       lanesArray.forEach(laneKey => {
@@ -3225,6 +3259,13 @@
                     <span class="slot-pill-btn" style="background:#64748b; color:#ffffff;">🔒 保留席</span>
                   </td>
                 `;
+              }
+            } else if (preLockVisibleSlots && !preLockVisibleSlots.has(laneKey + '#' + slotIndex)) {
+              // ★ 預排結束時段：非「剩餘可選位最多球道之最前面空位」一律顯示未開放 (請假空出之黃底標示保留)
+              if (slotChanged) {
+                html += `<td class="slot-locked" style="width:66%; background:#fef3c7 !important; border:2px solid #f59e0b;">🔒 未開放</td>`;
+              } else {
+                html += `<td class="slot-locked" style="width:66%;">🔒 未開放</td>`;
               }
             } else if (slotChanged) {
               // ★ 請假退出者：席位空出，背景改為暖金黃 #fef3c7，搭配深橘色邊框，按鈕維持原生藍色

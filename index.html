@@ -3251,11 +3251,17 @@
               html += `<td class="slot-locked" style="width:66%;">🔒 未開放</td>`;
             } else if (isSlotReservedPlaceholder || (isStaff && !isSlotOpenPlaceholder)) {
               // ★ 方案 B 統一標準化：不論一般道之 [保留席] 或幹部道未開放席，皆統一呈現
+              // ★ 預排結束時段：此席位有異動 (如原隊友移出後改設保留席) 一律標示淺橘底與橘框
               if (!isAdmin) {
-                html += `<td class="slot-locked" style="width:66%;">🔒 未開放</td>`;
+                if (slotChanged) {
+                  html += `<td class="slot-locked" style="width:66%; background:#fef3c7 !important; border:2px solid #f59e0b;">🔒 未開放</td>`;
+                } else {
+                  html += `<td class="slot-locked" style="width:66%;">🔒 未開放</td>`;
+                }
               } else {
+                const resCellStyle = slotChanged ? 'background:#fef3c7 !important; border:2px solid #f59e0b;' : 'background:#f1f5f9; border:1.5px dashed #94a3b8;';
                 html += `
-                  <td onclick="openSlotAction('${laneKey}', ${slotIndex})" class="slot-cell-empty" style="background:#f1f5f9; border:1.5px dashed #94a3b8;">
+                  <td onclick="openSlotAction('${laneKey}', ${slotIndex})" class="slot-cell-empty" style="${resCellStyle}">
                     <span class="slot-pill-btn" style="background:#64748b; color:#ffffff;">🔒 保留席</span>
                   </td>
                 `;

@@ -2879,7 +2879,7 @@
     }
 
     // ★ 系統維修模式 (幹部於賽事設定切換，週一/週四同時生效；開啟時一般隊友暫停報名、請假與換位，幹部仍可操作)
-    const MAINTENANCE_NOTICE = '🛠️ 系統升級中，暫停報名、請假與換位。造成不便敬請見諒！';
+    const MAINTENANCE_NOTICE = '🛠️ 系統升級中，暫停報名、請假與換位。\n造成不便，敬請見諒！';
     function isMaintenanceMode() {
       const c = rawResponse ? rawResponse.config : null;
       return !!(c && (c.maintenanceMode === true || c.maintenanceMode === 'true'));
@@ -2890,7 +2890,7 @@
       if (banner) {
         banner.style.display = on ? 'block' : 'none';
         banner.innerHTML = on
-          ? `<div>${MAINTENANCE_NOTICE}</div>` + (isAdmin ? '<div style="font-size:12px; font-weight:normal; margin-top:2px;">（幹部模式：仍可操作）</div>' : '')
+          ? MAINTENANCE_NOTICE.split('\n').map(t => `<div>${t}</div>`).join('')
           : '';
       }
       const btn = document.getElementById('btnToggleMaintenance');

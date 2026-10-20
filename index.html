@@ -779,6 +779,8 @@
     </div>
     <!-- 🛑 連假停練一次：醒目全列紅色膠囊公告 (停練時顯示) -->
     <div id="holidayPauseNoticeBanner" style="display:none; background:#dc2626; color:#ffffff; font-weight:900; font-size:13.5px; padding:7px 12px; border-radius:20px; text-align:center; box-shadow:0 2px 4px rgba(220,38,38,0.25); margin:6px 0 4px 0; letter-spacing:0.5px;"></div>
+    <!-- 🛠️ 系統維修模式：醒目紅框公告 (幹部於賽事設定開啟時顯示) -->
+    <div id="maintenanceNoticeBanner" style="display:none; background:#fef2f2; color:#b91c1c; border:2.5px solid #dc2626; font-weight:900; font-size:13.5px; padding:7px 10px; border-radius:12px; text-align:center; box-shadow:0 2px 4px rgba(220,38,38,0.2); margin:6px 0 4px 0; letter-spacing:0.3px; line-height:1.4;"></div>
     <!-- ⚠️ 預排結束通知膠囊 (暖橙色) -->
     <div id="preLockNoticeBanner" style="display:none; background:#d97706; color:#ffffff; font-weight:900; font-size:13.5px; padding:6px 8px; border-radius:16px; text-align:center; box-shadow:0 2px 4px rgba(217,119,6,0.25); margin:6px 0 4px 0; letter-spacing:0.3px; line-height:1.35;"></div>
     <!-- 📝 頂部【預排結束後名單異動即時看板】 -->
@@ -1210,6 +1212,18 @@
       </div>
 
       <div style="font-size:12px; display:flex; flex-direction:column; gap:12px;">
+        <!-- 🛠️ 系統維修模式開關 (週一、週四同時生效) -->
+        <div id="maintenanceCard" style="background:#fef2f2; border:1.5px solid #fca5a5; border-radius:8px; padding:10px 12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+            <span style="font-weight:900; font-size:13px; color:#b91c1c; white-space:nowrap; flex-shrink:0;">🛠️ 系統維修模式：</span>
+            <button type="button" id="btnToggleMaintenance" onclick="toggleMaintenanceMode()" class="quick-btn" style="background:#dc2626; color:#ffffff; font-weight:900; border:none; padding:5px 10px; border-radius:6px; font-size:12px; cursor:pointer; white-space:nowrap; box-shadow:0 1px 2px rgba(0,0,0,0.1);">
+              🛠️ 開啟維修模式
+            </button>
+          </div>
+          <div style="border-top:1px dashed #fca5a5; margin:8px 0 6px 0;"></div>
+          <div id="maintenanceDesc" style="font-size:11.5px; color:#7f1d1d; line-height:1.5;">目前狀態：正常運作</div>
+        </div>
+
         <!-- 連假停練開關專區 -->
         <div id="holidayPauseCard" style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; padding:10px 12px;">
           <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
@@ -2864,6 +2878,55 @@
       listEl.innerHTML = html;
     }
 
+    // ★ 系統維修模式 (幹部於賽事設定切換，週一/週四同時生效；開啟時一般隊友暫停報名、請假與換位，幹部仍可操作)
+    const MAINTENANCE_NOTICE = '🛠️ 系統升級中，暫停報名、請假與換位。造成不便敬請見諒！';
+    function isMaintenanceMode() {
+      const c = rawResponse ? rawResponse.config : null;
+      return !!(c && (c.maintenanceMode === true || c.maintenanceMode === 'true'));
+    }
+    function renderMaintenanceUI() {
+      const on = isMaintenanceMode();
+      const banner = document.getElementById('maintenanceNoticeBanner');
+      if (banner) {
+        banner.style.display = on ? 'block' : 'none';
+        banner.innerHTML = on
+          ? `<div>${MAINTENANCE_NOTICE}</div>` + (isAdmin ? '<div style="font-size:12px; font-weight:normal; margin-top:2px;">（幹部模式：仍可操作）</div>' : '')
+          : '';
+      }
+      const btn = document.getElementById('btnToggleMaintenance');
+      if (btn) {
+        btn.innerText = on ? '✅ 關閉維修模式' : '🛠️ 開啟維修模式';
+        btn.style.background = on ? '#16a34a' : '#dc2626';
+      }
+      const desc = document.getElementById('maintenanceDesc');
+      if (desc) {
+        desc.innerText = on
+          ? '目前狀態：🛠️ 維修中（隊友暫停報名、請假與換位，LINE 群組 +1/-1 亦暫停；幹部仍可操作）'
+          : '目前狀態：正常運作';
+      }
+    }
+    function toggleMaintenanceMode() {
+      if (!isAdmin) return;
+      const toOn = !isMaintenanceMode();
+      const msg = toOn
+        ? '確定要開啟【系統維修模式】嗎？\n開啟後隊友將暫停報名、請假與換位（週一、週四同時生效），LINE 群組 +1/-1 也會暫停。'
+        : '確定要關閉【系統維修模式】，恢復正常報名嗎？';
+      customConfirm(msg, (confirmed) => {
+        if (!confirmed) return;
+        if (!rawResponse) rawResponse = { status: 'success', data: {}, config: {}, members: [] };
+        rawResponse.config = Object.assign(rawResponse.config || {}, { maintenanceMode: toOn });
+        try {
+          rawResponse.v = 2; localStorage.setItem('bowling_cache_raw', JSON.stringify(rawResponse));
+        } catch (ce) {}
+        if (rtdb) {
+          rtdb.ref('config').update({ maintenanceMode: toOn }).catch(err => console.warn('Firebase maintenance update error:', err));
+        }
+        fetch(`${API_BASE}?action=setMaintenance&on=${toOn ? 1 : 0}&_t=${Date.now()}`).catch(e => console.warn('Set maintenance err:', e));
+        showToast(toOn ? '🛠️ 已開啟系統維修模式' : '✅ 已關閉系統維修模式，恢復正常報名', 3000, false);
+        renderAll();
+      });
+    }
+
     function renderAll() {
       try {
         const cfg = (rawResponse && rawResponse.config) ? rawResponse.config : { openLanes: '3-24', staffLanes: '', monDate: '', thuDate: '' };
@@ -2929,6 +2992,8 @@
             if (lateChangesCard) lateChangesCard.style.display = 'none';
           }
         }
+
+        renderMaintenanceUI();
 
         const adminBar = document.getElementById('adminToolbar');
         const adminBtn = document.getElementById('adminBtn');
@@ -3299,6 +3364,9 @@
     }
 
     function openSlotAction(laneKey, slotIndex) {
+      if (!isAdmin && isMaintenanceMode()) {
+        return showToast(MAINTENANCE_NOTICE, 3500, false);
+      }
       if (!isAdmin && isVerifyingIdentity) {
         showToast('⏳ 系統正在確認身分，請稍候片刻...', 2000, false);
         return;
@@ -4076,6 +4144,7 @@
     // ★ 0 秒極速樂觀 UI 更新 + 指定席位 (slotIndex: 1~7)
     async function submitJoin(lane, slotIndex, name, isGuest, gender, silentMode = false) {
       if (isActionInProgress) return;
+      if (!isAdmin && isMaintenanceMode()) return showToast(MAINTENANCE_NOTICE, 3500, false);
       isActionInProgress = true;
 
       const previousRawResponse = JSON.parse(JSON.stringify(rawResponse || {}));
@@ -4314,6 +4383,9 @@
 
     // ★ 取消席位判斷 (幹部免PIN / 本人免PIN / 他人需輸PIN)
     function handlePlayerClick(playerName, laneKey, slotIndex) {
+      if (!isAdmin && isMaintenanceMode()) {
+        return showToast(MAINTENANCE_NOTICE, 3500, false);
+      }
       if (!isAdmin && isVerifyingIdentity) {
         showToast('⏳ 系統正在確認身分，請稍候片刻...', 2000, false);
         return;
@@ -4355,6 +4427,7 @@
     // ★ 執行取消席位 API
     async function executeLeave(playerName, laneKey, slotIndex, pin, silentMode = false) {
       if (isActionInProgress) return;
+      if (!isAdmin && isMaintenanceMode()) return showToast(MAINTENANCE_NOTICE, 3500, false);
       isActionInProgress = true;
 
       const previousRawResponse = JSON.parse(JSON.stringify(rawResponse || {}));

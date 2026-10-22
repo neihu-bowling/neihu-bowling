@@ -3169,7 +3169,7 @@
           const isOpenPH = (p && (p.name === '[開放入座]' || p.name === '[開放選位]'));
           const isResPH = (p && (p.name === '[保留席]' || p.name === '[未開放]'));
           if (p && !isOpenPH && !isResPH) continue; // 已有隊友入座
-          if (isResPH || (isStaff && !isOpenPH)) continue; // 保留席 / 工作人員道未開放席
+          if (isResPH) continue; // 保留席 (★ 2026-10-22 HJ 規則：專用道與一般道相同，專用道空位也可選)
           openSlots.push(slotIndex);
         }
         if (openSlots.length > 0) perLane.push({ lane: laneKey, count: openSlots.length, first: openSlots[0] });
@@ -3325,7 +3325,8 @@
             } else if (slotIndex > allowedSlots && !isAdmin) {
               // ★ 嚴格全場人數水位把關：超出當前人數水位，一般隊友一律顯示「🔒 未開放」
               html += `<td class="slot-locked" style="width:66%;">🔒 未開放</td>`;
-            } else if (isSlotReservedPlaceholder || (isStaff && !isSlotOpenPlaceholder)) {
+            } else if (isSlotReservedPlaceholder) {
+              // ★ 2026-10-22 HJ 規則：專用道與一般道相同，專用道空位不再預設鎖住，要保留請設成保留席
               // ★ 方案 B 統一標準化：不論一般道之 [保留席] 或幹部道未開放席，皆統一呈現
               // ★ 預排結束時段：此席位有異動 (如原隊友移出後改設保留席) 一律標示淺橘底與橘框
               if (!isAdmin) {
@@ -3520,7 +3521,8 @@
         const isStaff = isLaneStaff(laneKey, curStaffLanes);
         
         // 判斷該席位目前是否處於鎖定/未開放狀態
-        const isCurrentlyLocked = isStaff ? !isSlotOpenPl : isSlotResPl;
+        // ★ 2026-10-22 HJ 規則：專用道與一般道相同：一律以是否為保留席判斷
+        const isCurrentlyLocked = isSlotResPl;
 
         emptyBadge.innerText = isCurrentlyLocked ? '🔒 目前鎖定不開放' : '🟢 目前對外開放';
         emptyBadge.style.color = isCurrentlyLocked ? '#dc2626' : '#16a34a';
@@ -3569,22 +3571,13 @@
           const curStaffLanes = getStaffLaneForDay(currentDay, cfg);
           const isStaff = isLaneStaff(laneKey, curStaffLanes);
           
-          if (isStaff) {
-            if (toLock) {
-              await executeLeave('[開放入座]', laneKey, slotIndex, '', true);
-              showToast(`🔒 已收回【${currentDay}】${laneKey} 道 第 ${slotIndex} 位為幹部專用！`, 3000, false);
-            } else {
-              await submitJoin(laneKey, slotIndex, '[開放入座]', false, 'M', true);
-              showToast(`🟢 已開放【${currentDay}】${laneKey} 道 第 ${slotIndex} 位供隊友自行選位！`, 3000, false);
-            }
+          // ★ 2026-10-22 HJ 規則：專用道與一般道相同：鎖定一律設成保留席 (原：專用道以 [開放入座] 開放、收回)
+          if (toLock) {
+            await submitJoin(laneKey, slotIndex, '[保留席]', false, 'M', true);
+            showToast(`🔒 已鎖定【${currentDay}】${laneKey} 道 第 ${slotIndex} 位（隊友無法選位）！`, 3000, false);
           } else {
-            if (toLock) {
-              await submitJoin(laneKey, slotIndex, '[保留席]', false, 'M', true);
-              showToast(`🔒 已鎖定【${currentDay}】${laneKey} 道 第 ${slotIndex} 位（隊友無法選位）！`, 3000, false);
-            } else {
-              await executeLeave('[保留席]', laneKey, slotIndex, '', true);
-              showToast(`🟢 已解除鎖定【${currentDay}】${laneKey} 道 第 ${slotIndex} 位（開放隊友選位）！`, 3000, false);
-            }
+            await executeLeave('[保留席]', laneKey, slotIndex, '', true);
+            showToast(`🟢 已解除鎖定【${currentDay}】${laneKey} 道 第 ${slotIndex} 位（開放隊友選位）！`, 3000, false);
           }
         } catch (err) {
           console.error('confirmToggleSlotLock error:', err);
@@ -4086,7 +4079,7 @@
             });
           }
           laneObj.players = pl;
-          compactSingleLaneTracked(laneObj, isStaff, lockCompactMoves);
+          compactSingleLaneTracked(laneObj, false, lockCompactMoves); // ★ 2026-10-22 HJ 規則：專用道與一般道相同，排齊不再保留 [開放入座]
         };
 
         // 1. 本地樂觀更新
@@ -4210,8 +4203,8 @@
                   pl.forEach((p, idx) => {
                     if (p && p.name === name) {
                       hadPlayer = true;
-                      const isStaff = isLaneStaff(l.lane, currentStaffLane);
-                      pl[idx] = isStaff ? { name: '[開放入座]', gender: 'M' } : null;
+                      // ★ 2026-10-22 HJ 規則：專用道與一般道相同：換位後原席位一律清空 (原：專用道還原為 [開放入座])
+                      pl[idx] = null;
                     }
                   });
                   l.players = pl;
@@ -4479,7 +4472,7 @@
               if (targetLaneObj.players[pi].isReserved === true || targetLaneObj.players[pi].isReserved === 'true') wasReserved = true;
             }
           }
-          const shouldRestoreOpen = isStaff && (playerName !== '[開放入座]' && playerName !== '[保留席]');
+          const shouldRestoreOpen = false; // ★ 2026-10-22 HJ 規則：專用道與一般道相同：取消後一律清空，與 LINE 一致
           const restoreVal = shouldRestoreOpen 
             ? { name: '[開放入座]', gender: 'M' } 
             : (wasReserved ? { name: '[保留席]', gender: 'M', code: '' } : null);
@@ -4532,7 +4525,7 @@
                 if (targetLane.players[pi].isReserved === true || targetLane.players[pi].isReserved === 'true') wasReserved = true;
               }
             }
-            const shouldRestoreOpen = isStaff && (playerName !== '[開放入座]' && playerName !== '[保留席]');
+            const shouldRestoreOpen = false; // ★ 2026-10-22 HJ 規則：專用道與一般道相同：取消後一律清空，與 LINE 一致
             const restoreVal = shouldRestoreOpen 
               ? { name: '[開放入座]', gender: 'M' } 
               : (wasReserved ? { name: '[保留席]', gender: 'M', code: '' } : null);

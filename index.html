@@ -4184,7 +4184,6 @@
       // ★ 1. 優先使用 Firebase Realtime Database Transaction (0.1秒極速完成、斷線不漏單)
       if (rtdb && isFirebaseReady) {
         try {
-          let txResult = null;
           let joinCompactMoves = [];
           const joinTx = await rtdb.ref(`data/${targetDayKey}`).transaction(dayLanes => {
             joinCompactMoves = [];
@@ -4236,7 +4235,8 @@
           });
 
           isActionInProgress = false;
-          if (txResult && !txResult.committed) {
+          // ★ 交易未成功寫入 (席位已被他人佔用而中止) → 提示慢了一步，不寫異動紀錄、不通知試算表
+          if (!joinTx || !joinTx.committed) {
             showToast('⚠️ 慢了一步！該席位剛剛已被其他人選位，請選其他席位！', 3000, false);
           } else {
             if (!silentMode) {

@@ -2361,6 +2361,17 @@
       });
     }
 
+    // ★ 2026-10-22 名字等資料放進網頁前先轉換特殊字元，避免有人在姓名中夾帶程式碼
+    function escapeHtml(val) {
+      return String(val === undefined || val === null ? '' : val)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+    // 放進 onclick="fn('...')" 單引號字串內使用
+    function escapeJsAttr(val) {
+      return escapeHtml(String(val === undefined || val === null ? '' : val).replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
+    }
+
     // ★ 升級版提示框：置中、字體放大、顯示 3 秒 + 支援關閉按鈕
     function showToast(msg, duration = 3000, isProcessing = false) {
       const t = document.getElementById('customToast');
@@ -2747,13 +2758,13 @@
         // ★ 遞補換位 (預排結束後向前排齊)
         if (isJoin && (item.moved === true || item.moved === 'true')) {
           const fromTxt = item.fromSlot ? `第 ${item.fromSlot} 位 ➔ ` : '';
-          html += `<div style="padding:2px 0;">• [${item.time || ''}] <b>${item.name}</b>：<span style="color:#7c3aed; font-weight:bold;">⬆️ 遞補移位</span> ${item.lane} 道 ${fromTxt}第 ${item.slot} 位</div>`;
+          html += `<div style="padding:2px 0;">• [${escapeHtml(item.time || '')}] <b>${escapeHtml(item.name)}</b>：<span style="color:#7c3aed; font-weight:bold;">⬆️ 遞補移位</span> ${escapeHtml(item.lane)} 道 ${escapeHtml(fromTxt)}第 ${escapeHtml(item.slot)} 位</div>`;
           return;
         }
         const actBadge = isJoin 
           ? '<span style="color:#d97706; font-weight:bold;">＋ 晚鳥補位</span>' 
           : '<span style="color:#dc2626; font-weight:bold;">❌ 請假退出</span>';
-        html += `<div style="padding:2px 0;">• [${item.time || ''}] <b>${item.name}</b>：${actBadge} ${item.lane} 道 第 ${item.slot} 位</div>`;
+        html += `<div style="padding:2px 0;">• [${escapeHtml(item.time || '')}] <b>${escapeHtml(item.name)}</b>：${actBadge} ${escapeHtml(item.lane)} 道 第 ${escapeHtml(item.slot)} 位</div>`;
       });
       listEl.innerHTML = html;
     }
@@ -2870,10 +2881,10 @@
         }
 
         const opInfo = (item.operator && String(item.operator).trim() !== '') 
-          ? `<span style="color:#64748b; font-size:11px; margin-left:4px;">[${item.operator}]</span>` 
+          ? `<span style="color:#64748b; font-size:11px; margin-left:4px;">[${escapeHtml(item.operator)}]</span>` 
           : '';
         const datePart = item.date ? `${item.date} ` : '';
-        html += `<div style="padding:3.5px 0; border-bottom:1px dashed ${borderDashed};">• [${datePart}${item.time || ''}] <b>${item.name}</b>：${actBadge} ${seatText} ${opInfo}</div>`;
+        html += `<div style="padding:3.5px 0; border-bottom:1px dashed ${borderDashed};">• [${escapeHtml(datePart)}${escapeHtml(item.time || '')}] <b>${escapeHtml(item.name)}</b>：${actBadge} ${escapeHtml(seatText)} ${opInfo}</div>`;
       });
       listEl.innerHTML = html;
     }
@@ -3243,7 +3254,7 @@
           const codeStyle = isOccupiedCode
             ? 'font-weight:900; color:#0f172a; width:16%; font-size:12.5px; font-family:monospace;'
             : 'color:#94a3b8; width:16%; font-size:12px; font-weight:bold;';
-          html += `<td class="code-cell" style="${codeStyle}">${playerCode}</td>`;
+          html += `<td class="code-cell" style="${codeStyle}">${escapeHtml(playerCode)}</td>`;
 
           // 尋找該席位在 lateChanges 的最後一筆紀錄
           let lastSlotChange = null;
@@ -3291,16 +3302,16 @@
             // ★ 操作者本人：姓名呼吸動畫，方便在球道表中找到自己
             const isSelfName = !!(currentUserName && String(p.name).trim() === String(currentUserName).trim());
             const selfCls = isSelfName ? ' self-name-cell' : '';
-            const nameHtml = isSelfName ? `<span class="self-pulse">${p.name}</span>` : p.name;
+            const nameHtml = isSelfName ? `<span class="self-pulse">${escapeHtml(p.name)}</span>` : escapeHtml(p.name);
             if (isSlotChangedJoin) {
               html += `
-                <td onclick="handlePlayerClick('${p.name}', '${laneKey}', ${slotIndex})" style="cursor:pointer; width:66%; background:#fef3c7; border:2px solid #f59e0b; font-weight:900;" class="${colorClass}${selfCls}">
+                <td onclick="handlePlayerClick('${escapeJsAttr(p.name)}', '${laneKey}', ${slotIndex})" style="cursor:pointer; width:66%; background:#fef3c7; border:2px solid #f59e0b; font-weight:900;" class="${colorClass}${selfCls}">
                   ${nameHtml}${adminResTag}
                 </td>
               `;
             } else {
               html += `
-                <td onclick="handlePlayerClick('${p.name}', '${laneKey}', ${slotIndex})" style="cursor:pointer; width:66%;" class="${colorClass}${selfCls}">
+                <td onclick="handlePlayerClick('${escapeJsAttr(p.name)}', '${laneKey}', ${slotIndex})" style="cursor:pointer; width:66%;" class="${colorClass}${selfCls}">
                   ${nameHtml}${adminResTag}
                 </td>
               `;
@@ -3464,7 +3475,7 @@
         if (!myCurrentInfo) {
           btnsHtml += `
             <button onclick="joinSelf('${laneKey}', ${slotIndex})" class="modal-btn" style="background:${selfBtnColor}; color:#fff;">
-              🙋‍♂️ 安排我自己 (${currentUserName}) 選位【${laneKey} 道 第 ${slotIndex} 位】
+              🙋‍♂️ 安排我自己 (${escapeHtml(currentUserName)}) 選位【${laneKey} 道 第 ${slotIndex} 位】
             </button>
           `;
         } else {
@@ -3736,9 +3747,9 @@
         const dispIsFem = (dispGenStr.includes('女') || dispGenStr.toUpperCase().startsWith('F') || dispGenStr.toUpperCase() === 'W');
         // ★ 無性別紀錄顯示黑色；女生紅色；其餘男生藍色
         const nameColor = !dispGenStr ? '#000000' : (dispIsFem ? '#C00000' : '#0000FF');
-        const codeStr = code ? ` <span style="font-size:12px; color:#64748b; font-family:monospace;">[${code}]</span>` : '';
+        const codeStr = code ? ` <span style="font-size:12px; color:#64748b; font-family:monospace;">[${escapeHtml(code)}]</span>` : '';
 
-        if (pInfoEl) pInfoEl.innerHTML = `👤 選手：<b style="color:${nameColor};">${playerName}</b>${codeStr}`;
+        if (pInfoEl) pInfoEl.innerHTML = `👤 選手：<b style="color:${nameColor};">${escapeHtml(playerName)}</b>${codeStr}`;
         if (lInfoEl) lInfoEl.innerText = `📍 目前席位：【${currentDay}賽事】${laneKey} 道 第 ${slotIndex} 位`;
         setAdminSeatGroupOpen('move', false);
 
@@ -4761,7 +4772,14 @@
         const m = rawResponse.members.find(x => x.name === name);
         if (m) {
           m.pin = pin;
-          if (currentUserLineId) m.lineId = currentUserLineId;
+          if (currentUserLineId) {
+            // ★ 2026-10-22 一個 LINE 帳號只綁一位隊員：清除其他隊員身上相同的 LINE ID
+            const curLineKey = String(currentUserLineId).trim().toLowerCase();
+            rawResponse.members.forEach(x => {
+              if (x !== m && x.lineId && String(x.lineId).trim().toLowerCase() === curLineKey) x.lineId = '';
+            });
+            m.lineId = currentUserLineId;
+          }
         }
       }
       closeRegisterModal();
@@ -4787,7 +4805,7 @@
       const sub = document.getElementById('setupPinSub');
       const targetName = name || currentUserName;
       if (sub && targetName) {
-        sub.innerHTML = `【<strong style="color:#1e40af;">${targetName}</strong>】您好！<br>您的身分已綁定，為保障個人席位安全與防誤刪，進入系統前請先自訂一組 4 碼 PIN 碼。`;
+        sub.innerHTML = `【<strong style="color:#1e40af;">${escapeHtml(targetName)}</strong>】您好！<br>您的身分已綁定，為保障個人席位安全與防誤刪，進入系統前請先自訂一組 4 碼 PIN 碼。`;
       }
       if (!isAlreadyOpen) {
         document.getElementById('setupPinInput').value = '';
@@ -4825,7 +4843,14 @@
         const m = rawResponse.members.find(x => x.name === name);
         if (m) {
           m.pin = pin;
-          if (currentUserLineId) m.lineId = currentUserLineId;
+          if (currentUserLineId) {
+            // ★ 2026-10-22 一個 LINE 帳號只綁一位隊員：清除其他隊員身上相同的 LINE ID
+            const curLineKey = String(currentUserLineId).trim().toLowerCase();
+            rawResponse.members.forEach(x => {
+              if (x !== m && x.lineId && String(x.lineId).trim().toLowerCase() === curLineKey) x.lineId = '';
+            });
+            m.lineId = currentUserLineId;
+          }
         }
       }
       closeSetupPinModal();
@@ -5076,7 +5101,7 @@
       });
 
       if (filtered.length === 0) {
-        container.innerHTML = `<div style="text-align:center; color:#94a3b8; padding:35px 10px; font-size:13px;">查無符合「${filterText}」的隊友</div>`;
+        container.innerHTML = `<div style="text-align:center; color:#94a3b8; padding:35px 10px; font-size:13px;">查無符合「${escapeHtml(filterText)}」的隊友</div>`;
         return;
       }
 
@@ -5088,7 +5113,7 @@
         const genderBadge = isFem ? '<span style="color:#db2777; background:#fce7f3; font-size:13px; padding:1px 4px; border-radius:3px; font-weight:bold;">女</span>' : '<span style="color:#2563eb; background:#eff6ff; font-size:13px; padding:1px 4px; border-radius:3px; font-weight:bold;">男</span>';
         
         // 編號去掉 #，純數字 monospace 居中，字體放大至 14.5px (加粗 900)
-        const codeDisp = m.code ? `<span style="font-family:monospace; font-weight:900; color:#0f172a; font-size:14.5px;">${m.code}</span>` : '<span style="color:#cbd5e1; font-size:12px;">--</span>';
+        const codeDisp = m.code ? `<span style="font-family:monospace; font-weight:900; color:#0f172a; font-size:14.5px;">${escapeHtml(m.code)}</span>` : '<span style="color:#cbd5e1; font-size:12px;">--</span>';
         
         // LINE 狀態 (緊湊型：🟢已綁 / ⚪未綁，保留原 ICON，字體放大至 13px)
         const lineBadge = m.lineId ? '<span style="color:#15803d; font-size:13px; font-weight:bold; white-space:nowrap;" title="LINE已綁定">🟢已綁</span>' : '<span style="color:#64748b; font-size:13px; font-weight:bold; white-space:nowrap;" title="未綁定LINE">⚪未綁</span>';
@@ -5112,7 +5137,7 @@
           <div style="display:grid; grid-template-columns: 38px 1fr 28px 36px 36px 58px 44px 40px; align-items:center; background:${rowBg}; border-bottom:1px solid #f1f5f9; padding:7px 3px; text-align:center; white-space:nowrap; width:100%; min-width:350px; box-sizing:border-box;">
             <div>${codeDisp}</div>
             <div style="text-align:center; overflow:${m.family ? 'visible' : 'hidden'}; text-overflow:ellipsis; position:relative;">
-              <span class="${nameClass}" style="font-size:16px !important; font-weight:900 !important; cursor:pointer;" onclick="openEditMemberForm('${m.name}')">${m.name}</span>${m.family ? `<span title="家庭群組：${m.family}" style="position:absolute; top:-6px; right:0; font-size:10px; line-height:1; pointer-events:none;">🏠</span>` : ''}
+              <span class="${nameClass}" style="font-size:16px !important; font-weight:900 !important; cursor:pointer;" onclick="openEditMemberForm('${escapeJsAttr(m.name)}')">${escapeHtml(m.name)}</span>${m.family ? `<span title="家庭群組：${escapeHtml(m.family)}" style="position:absolute; top:-6px; right:0; font-size:10px; line-height:1; pointer-events:none;">🏠</span>` : ''}
             </div>
             <div>${genderBadge}</div>
             <div>${byDisp}</div>
@@ -5120,7 +5145,7 @@
             <div>${lineBadge}</div>
             <div>${pinDisp}</div>
             <div>
-              <button type="button" onclick="openEditMemberForm('${m.name}')" style="background:#f1f5f9; border:1px solid #cbd5e1; color:#334155; padding:3px 5px; border-radius:4px; font-size:13.5px; font-weight:bold; cursor:pointer;">✏️</button>
+              <button type="button" onclick="openEditMemberForm('${escapeJsAttr(m.name)}')" style="background:#f1f5f9; border:1px solid #cbd5e1; color:#334155; padding:3px 5px; border-radius:4px; font-size:13.5px; font-weight:bold; cursor:pointer;">✏️</button>
             </div>
           </div>
         `;
@@ -5291,7 +5316,7 @@
         if (f) (groupMap[f] = groupMap[f] || []).push(m.name);
       });
       if (dl) {
-        dl.innerHTML = Object.keys(groupMap).sort().map(f => `<option value="${f.replace(/"/g, '&quot;')}">${groupMap[f].join('、')}</option>`).join('');
+        dl.innerHTML = Object.keys(groupMap).sort().map(f => `<option value="${escapeHtml(f)}">${escapeHtml(groupMap[f].join('、'))}</option>`).join('');
       }
       const val = input.value.trim();
       const selfName = (document.getElementById('editOriginalName').value || '').trim();
@@ -5302,7 +5327,7 @@
       }
       const others = (groupMap[val] || []).filter(n => n !== selfName);
       if (others.length) {
-        preview.innerHTML = `👨‍👩‍👦 同群組成員：<b style="color:#166534;">${others.join('、')}</b>`;
+        preview.innerHTML = `👨‍👩‍👦 同群組成員：<b style="color:#166534;">${escapeHtml(others.join('、'))}</b>`;
         preview.style.color = '#166534';
       } else {
         preview.innerHTML = '🆕 新的家庭群組 (目前尚無其他成員，請確認文字與家人完全相同)';

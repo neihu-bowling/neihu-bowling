@@ -1197,6 +1197,19 @@
     </div>
   </div>
 
+  <!-- ★ 2026-10-25 後台鑰匙：幹部手機第一次使用後台功能時輸入一次管理密碼 -->
+  <div id="adminKeyModal" class="modal-overlay">
+    <div class="modal-card" style="text-align:center;">
+      <h3 style="font-size:16px; font-weight:900; margin-bottom:4px;">🔐 請輸入管理密碼</h3>
+      <p id="adminKeyModalDesc" style="font-size:12px; color:#64748b; margin-bottom:12px;">為保護後台功能，這支手機需再輸入一次管理密碼</p>
+      <input type="password" id="adminKeyInput" placeholder="請輸入管理密碼" style="width:100%; padding:10px; border-radius:8px; border:1px solid #cbd5e1; text-align:center; font-size:14px; font-weight:bold; margin-bottom:12px;">
+      <div style="display:flex; gap:6px;">
+        <button onclick="closeAdminKeyModal(false)" class="modal-btn btn-secondary" style="margin-bottom:0;">取消</button>
+        <button onclick="closeAdminKeyModal(true)" class="modal-btn btn-primary" style="margin-bottom:0;">確定</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 4. 管理者設定面板 -->
   <div id="settingsModal" class="modal-overlay">
     <div class="modal-card" style="max-height:90vh; overflow-y:auto;">
@@ -1951,6 +1964,69 @@
       return null;
     }
 
+    // ★ 2026-10-25 後台鑰匙：呼叫維修模式、賽事設定、輪調、排齊時附上 (須與後台 adminApiKey_() 一致)
+    //   與上面的指紋不同，鑰匙只存在輸入過管理密碼的幹部手機，不放在 Firebase
+    const ADMIN_API_KEY_STORE = 'bowling_admin_key';
+    function adminApiKeyOf(pwd) {
+      return sha256Hex('neihu-bowling-admin-api:' + String(pwd).trim());
+    }
+    function getAdminApiKey() {
+      try { return localStorage.getItem(ADMIN_API_KEY_STORE) || ''; } catch (e) { return ''; }
+    }
+    function setAdminApiKey(key) {
+      try {
+        if (key) localStorage.setItem(ADMIN_API_KEY_STORE, key);
+        else localStorage.removeItem(ADMIN_API_KEY_STORE);
+      } catch (e) {}
+    }
+    let adminKeyResolver = null;
+    function askAdminApiKey(desc) {
+      return new Promise(resolve => {
+        if (adminKeyResolver) adminKeyResolver(null);
+        adminKeyResolver = resolve;
+        const d = document.getElementById('adminKeyModalDesc');
+        if (d) d.innerText = desc || '為保護後台功能，這支手機需再輸入一次管理密碼';
+        const inp = document.getElementById('adminKeyInput');
+        if (inp) inp.value = '';
+        document.getElementById('adminKeyModal').style.display = 'flex';
+      });
+    }
+    function closeAdminKeyModal(confirmed) {
+      const inp = document.getElementById('adminKeyInput');
+      const pwd = confirmed && inp ? String(inp.value || '').trim() : '';
+      document.getElementById('adminKeyModal').style.display = 'none';
+      const resolve = adminKeyResolver;
+      adminKeyResolver = null;
+      if (resolve) resolve(pwd || null);
+    }
+    // 這支手機還沒有鑰匙時先請幹部輸入一次管理密碼；按取消回傳 null
+    async function ensureAdminApiKey() {
+      const saved = getAdminApiKey();
+      if (saved) return saved;
+      const pwd = await askAdminApiKey();
+      if (!pwd) return null;
+      const key = adminApiKeyOf(pwd);
+      setAdminApiKey(key);
+      return key;
+    }
+    // 呼叫後台並附上鑰匙；後台回「需要管理密碼」時請幹部重新輸入一次再試
+    async function adminApiFetch(url) {
+      let key = await ensureAdminApiKey();
+      if (!key) return { status: 'error', message: '已取消', cancelled: true };
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const res = await (await fetch(`${url}&adminKey=${encodeURIComponent(key)}`)).json();
+        if (!(res && res.status === 'error' && res.message === '需要管理密碼')) return res;
+        setAdminApiKey('');
+        if (attempt === 1) break;
+        const pwd = await askAdminApiKey('管理密碼不正確或已變更，請重新輸入');
+        if (!pwd) return { status: 'error', message: '已取消', cancelled: true };
+        key = adminApiKeyOf(pwd);
+        setAdminApiKey(key);
+      }
+      showToast('❌ 管理密碼不正確，後台未更新。', 4000, false);
+      return { status: 'error', message: '需要管理密碼' };
+    }
+
     // ★ 管理者授權安全校驗：舊版僅存 'true' 者一律作廢，必須持有與最新密碼相符的 Token
     function validateAdminSession(cfg) {
       let savedToken = localStorage.getItem('bowling_admin_token');
@@ -1970,6 +2046,7 @@
           isAdmin = false;
           localStorage.removeItem('bowling_admin');
           localStorage.removeItem('bowling_admin_token');
+          setAdminApiKey('');
           console.log('🔒 舊版管理暫存已失效，請重新以新密碼登入管理者模式。');
           renderAll();
         }
@@ -1989,6 +2066,7 @@
           isAdmin = false;
           localStorage.removeItem('bowling_admin');
           localStorage.removeItem('bowling_admin_token');
+          setAdminApiKey('');
           console.log('🔒 管理密碼已變更，舊登入已自動失效！');
           showToast('🔒 管理密碼已變更，系統已自動將您登出，請以新密碼重新登入。', 4000, false);
           renderAll();
@@ -2970,8 +3048,9 @@
       const msg = toOn
         ? '確定要開啟【系統維修模式】嗎？\n開啟後隊友將暫停報名、請假與換位（週一、週四同時生效），LINE 群組 +1/-1 也會暫停。'
         : '確定要關閉【系統維修模式】，恢復正常報名嗎？';
-      customConfirm(msg, (confirmed) => {
+      customConfirm(msg, async (confirmed) => {
         if (!confirmed) return;
+        if (!(await ensureAdminApiKey())) return;
         if (!rawResponse) rawResponse = { status: 'success', data: {}, config: {}, members: [] };
         rawResponse.config = Object.assign(rawResponse.config || {}, { maintenanceMode: toOn });
         try {
@@ -2980,7 +3059,7 @@
         if (rtdb) {
           rtdb.ref('config').update({ maintenanceMode: toOn }).catch(err => console.warn('Firebase maintenance update error:', err));
         }
-        fetch(`${API_BASE}?action=setMaintenance&on=${toOn ? 1 : 0}&_t=${Date.now()}`).catch(e => console.warn('Set maintenance err:', e));
+        adminApiFetch(`${API_BASE}?action=setMaintenance&on=${toOn ? 1 : 0}&_t=${Date.now()}`).catch(e => console.warn('Set maintenance err:', e));
         showToast(toOn ? '🛠️ 已開啟系統維修模式' : '✅ 已關閉系統維修模式，恢復正常報名', 3000, false);
         renderAll();
       });
@@ -5005,6 +5084,7 @@
         isAdmin = true;
         localStorage.setItem('bowling_admin', 'true');
         localStorage.setItem('bowling_admin_token', inputHash);
+        setAdminApiKey(adminApiKeyOf(cleanInput));
         closeAdminModal();
         showToast('👑 歡迎管理者！所有權限已解鎖。', 3000, false);
         renderAll();
@@ -5016,6 +5096,7 @@
       isAdmin = false;
       localStorage.removeItem('bowling_admin');
       localStorage.removeItem('bowling_admin_token');
+      setAdminApiKey('');
       localStorage.removeItem('bowling_admin_simulate_prelock');
       showToast('已登出管理者模式。', 3000, false);
       renderAll();
@@ -5823,6 +5904,15 @@
         btnSave.innerText = '處理中...';
       }
 
+      if (!(await ensureAdminApiKey())) {
+        isActionInProgress = false;
+        if (btnSave) {
+          btnSave.disabled = false;
+          btnSave.innerText = '儲存設定';
+        }
+        return;
+      }
+
       const openLanesStr = Array.from(selectedOpenLanes).join(',') || '無';
       const staffLanesStr = Array.from(selectedStaffLanes).join(',') || '無';
       const rInput = document.querySelector('input[name="rotateMode"]:checked');
@@ -5944,7 +6034,7 @@
       // 5. 背景非同步同步至 Google 試算表 (完全不卡頓手機介面)
       try {
         const url = `${API_BASE}?action=updateSettings&openLanes=${encodeURIComponent(openLanesStr)}&staffLanes=${encodeURIComponent(staffLanesStr)}&rotateMode=${encodeURIComponent(rotateMode)}&day=${encodeURIComponent(targetDay)}&pauseDate=${encodeURIComponent(targetPauseDate)}`;
-        fetch(url).catch(e => console.warn('Background updateSettings error:', e));
+        adminApiFetch(url).catch(e => console.warn('Background updateSettings error:', e));
       } catch (e) {}
     }
 
@@ -6058,7 +6148,7 @@
         // 3. 後端更新設定並同步試算表
         try {
           const url = `${API_BASE}?action=updateSettings&openLanes=${encodeURIComponent(openLanesStr)}&staffLanes=${encodeURIComponent(staffLanesStr)}&rotateMode=${encodeURIComponent(rotateMode)}&day=${encodeURIComponent(targetDay)}&pauseDate=${encodeURIComponent(targetPauseDate)}`;
-          fetch(url).catch(e => console.warn('Update settings err:', e));
+          adminApiFetch(url).catch(e => console.warn('Update settings err:', e));
 
           const syncData = { [targetDayKey]: dayDataCopy };
           const syncUrl = `${API_BASE}?action=batchSyncLanes&data=${encodeURIComponent(JSON.stringify(syncData))}`;
@@ -6165,10 +6255,15 @@
       const targetDay = currentSettingDay || currentDay;
       customConfirm(`確定要對【${targetDay}球道】執行【${desc}】嗎？`, async (confirmed) => {
         if (!confirmed) return;
+        if (!(await ensureAdminApiKey())) return;
         showToast(`⏳ 正在執行【${desc}】中...`, 0, true);
         const url = `${API_BASE}?action=rotateLanes&day=${encodeURIComponent(targetDay)}&mode=${encodeURIComponent(mode)}`;
         try {
-          const res = await (await fetch(url)).json();
+          const res = await adminApiFetch(url);
+          if (res && res.status === 'error' && (res.cancelled || res.message === '需要管理密碼')) {
+            showToast(res.cancelled ? '已取消，未執行輪調。' : '❌ 管理密碼不正確，未執行輪調。', 3000, false);
+            return;
+          }
           showToast(res.message || '✅ 輪調完成！', 3000, false);
           closeSettingsModal();
           const dayKey = targetDay === '週一' ? 'mon' : 'thu';
@@ -6204,10 +6299,15 @@
       const targetDay = currentSettingDay || currentDay;
       customConfirm(`確定要將【${targetDay}球道】所有席位向前排齊補滿嗎？\n\n此動作將自動消除中途取消留下的空缺、保留隊友原有報名順序，並同步更新至試算表與即時名單。`, async (confirmed) => {
         if (!confirmed) return;
+        if (!(await ensureAdminApiKey())) return;
         showToast(`⚡ 正在執行【${targetDay}】球道向前排齊...`, 0, true);
         const url = `${API_BASE}?action=compactLanes&day=${encodeURIComponent(targetDay)}`;
         try {
-          const res = await (await fetch(url)).json();
+          const res = await adminApiFetch(url);
+          if (res && res.status === 'error' && (res.cancelled || res.message === '需要管理密碼')) {
+            showToast(res.cancelled ? '已取消，未執行排齊。' : '❌ 管理密碼不正確，未執行排齊。', 3000, false);
+            return;
+          }
           showToast(res.message || '✅ 球道向前排齊完成！', 3000, false);
           closeSettingsModal();
           await fetchData(true);

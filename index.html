@@ -4080,7 +4080,7 @@
       const toLock = !isReserved;
       const actionText = toLock ? '【🔒 設為未開放保留席】' : '【🟢 解除保留，恢復為對外開放】';
       const promptText = toLock
-        ? `確定要將【${currentDay}】${laneKey} 道 第 ${slotIndex} 位【${playerName}】設定為${actionText}嗎？\n\n（設定後，若同道前方有空缺將自動依序往前遞補；保留席位置固定不動，隊友往前遞補後原位置顯示 🔒未開放）`
+        ? `確定要將【${currentDay}】${laneKey} 道 第 ${slotIndex} 位【${playerName}】設定為${actionText}嗎？\n\n（只設定這個席位，不會自動排齊；如需排齊請由幹部手動「立即向前排齊」）`
         : `確定要將【${currentDay}】${laneKey} 道 第 ${slotIndex} 位【${playerName}】${actionText}嗎？`;
 
       customConfirm(promptText, async (confirmed) => {
@@ -4116,7 +4116,7 @@
             }
           }
           laneObj.players = pl;
-          compactSingleLaneTracked(laneObj, false, lockCompactMoves); // ★ 2026-10-22 HJ 規則：專用道與一般道相同，排齊不再保留 [開放入座]
+          // ★ 2026-10-25 HJ 規則：設保留／解除保留時不順便排齊，要排齊由幹部手動「立即向前排齊」
         };
 
         // 1. 本地樂觀更新

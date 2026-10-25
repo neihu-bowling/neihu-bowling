@@ -3346,7 +3346,7 @@
 
             // ★ 橘色框判定：比對「印製名單時之隊友」與「目前隊友」，不同才標示 (選位後又離開恢復原狀即取消橘框)
             const isSlotChangedJoin = slotChanged;
-            const adminResTag = (isAdmin && (p.isReserved === true || p.isReserved === 'true')) ? '<span style="font-size:11px; color:#dc2626; font-weight:bold; margin-left:2px;" title="幹部保留席">[🔒保留]</span>' : '';
+            const adminResTag = (isAdmin && (p.isReserved === true || p.isReserved === 'true')) ? '<span style="font-weight:bold;" title="幹部保留席">🔒</span>' : ''; // ★ 2026-10-25 HJ：管理模式顯示在人名前面「🔒王小明」
             // ★ 操作者本人：姓名呼吸動畫，方便在球道表中找到自己
             const isSelfName = !!(currentUserName && String(p.name).trim() === String(currentUserName).trim());
             const selfCls = isSelfName ? ' self-name-cell' : '';
@@ -3354,13 +3354,13 @@
             if (isSlotChangedJoin) {
               html += `
                 <td onclick="handlePlayerClick('${escapeJsAttr(p.name)}', '${laneKey}', ${slotIndex})" style="cursor:pointer; width:66%; background:#fef3c7; border:2px solid #f59e0b; font-weight:900;" class="${colorClass}${selfCls}">
-                  ${nameHtml}${adminResTag}
+                  ${adminResTag}${nameHtml}
                 </td>
               `;
             } else {
               html += `
                 <td onclick="handlePlayerClick('${escapeJsAttr(p.name)}', '${laneKey}', ${slotIndex})" style="cursor:pointer; width:66%;" class="${colorClass}${selfCls}">
-                  ${nameHtml}${adminResTag}
+                  ${adminResTag}${nameHtml}
                 </td>
               `;
             }

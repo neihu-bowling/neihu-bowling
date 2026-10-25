@@ -2193,32 +2193,43 @@
       return false;
     }
 
-    // ★ 單道席位向前排齊 (隊友向前依序排齊，[開放入座] 與 [保留席] 自動置於道尾第4位或後方)
+    // ★ 單道席位向前排齊 (隊友向前依序排齊)
+    // ★ 2026-10-25 HJ 規則：保留跟著「席位」走，保留席位號碼固定不動 (與後台 compactLanes 相同)
+    //   隊友照順序往前補滿 (可補進保留席位，補進者標 🔒)；原本 🔒 的隊友往前移則拿掉 🔒，空出的保留席位顯示 [保留席]
     function compactSingleLane(laneObj, isStaff) {
       if (!laneObj || !laneObj.players) return false;
       const orig = normalize8Players(laneObj.players);
+      const isFlagged = p => !!(p && (p.isReserved === true || p.isReserved === 'true'));
+      const isResPh = p => !!(p && p.name && (String(p.name).trim() === '[保留席]' || String(p.name).trim() === '[未開放]'));
       const active = orig.filter(p => p && p.name && String(p.name).trim() !== '' && !String(p.name).trim().startsWith('['));
       const openCount = isStaff ? orig.filter(p => p && String(p.name).trim() === '[開放入座]').length : 0;
-      const placeholderRes = orig.filter(p => p && (String(p.name).trim() === '[保留席]' || String(p.name).trim() === '[未開放]')).length;
-      const activeRes = active.filter(p => p && (p.isReserved === true || p.isReserved === 'true')).length;
-      const totalRes = placeholderRes + activeRes;
+      const reservedSlots = {};
+      orig.forEach((p, i) => {
+        if (isResPh(p)) reservedSlots[i] = { name: String(p.name).trim(), gender: p.gender || 'M', code: '' };
+        else if (isFlagged(p) && !String(p.name).trim().startsWith('[')) reservedSlots[i] = { name: '[保留席]', gender: 'M', code: '' };
+      });
 
-      const standardLaneSize = 4;
       const newPlayers = Array(8).fill(null);
 
-      // 1. 放真實球員
+      // 1. 放真實球員 (照順序往前補滿)
       active.forEach((p, idx) => {
         if (idx < 8) {
-          newPlayers[idx] = { 
-            name: String(p.name).trim(), 
-            gender: p.gender || 'M', 
+          newPlayers[idx] = {
+            name: String(p.name).trim(),
+            gender: p.gender || 'M',
             code: p.code || '',
-            isReserved: !!p.isReserved
+            isReserved: !!reservedSlots[idx]
           };
         }
       });
 
-      // 2. 工作人員專用道之 [開放入座]
+      // 2. 保留席位：有隊友補進則標 🔒，沒有則顯示保留席
+      Object.keys(reservedSlots).forEach(k => {
+        const i = Number(k);
+        if (!newPlayers[i]) newPlayers[i] = reservedSlots[k];
+      });
+
+      // 3. 工作人員專用道之 [開放入座]
       if (isStaff && openCount > 0) {
         let placed = 0;
         for (let i = active.length; i < 8 && placed < openCount; i++) {
@@ -2229,38 +2240,14 @@
         }
       }
 
-      // 3. 處理保留席 [保留席]：確保道尾維持 🔒未開放
-      // 計算道上尚需顯示之純保留席佔位符數量
-      const needPlaceholderCount = Math.max(placeholderRes, (active.length + totalRes <= standardLaneSize ? totalRes - activeRes : placeholderRes));
-      if (needPlaceholderCount > 0) {
-        if (active.length + needPlaceholderCount <= standardLaneSize) {
-          // 4 位以內對齊道尾（例如第 4 位或第 3、4 位）
-          for (let r = 0; r < needPlaceholderCount; r++) {
-            const targetSlotIdx = standardLaneSize - needPlaceholderCount + r;
-            if (!newPlayers[targetSlotIdx]) {
-              newPlayers[targetSlotIdx] = { name: '[保留席]', gender: 'M', code: '' };
-            }
-          }
-        } else {
-          // 超出 4 位時依序往後排
-          let placed = 0;
-          for (let i = active.length; i < 8 && placed < needPlaceholderCount; i++) {
-            if (!newPlayers[i]) {
-              newPlayers[i] = { name: '[保留席]', gender: 'M', code: '' };
-              placed++;
-            }
-          }
-        }
-      }
-
       let changed = false;
       for (let i = 0; i < 8; i++) {
         const oldP = orig[i];
         const newP = newPlayers[i];
         const oldN = (oldP && oldP.name) ? String(oldP.name).trim() : '';
         const newN = (newP && newP.name) ? String(newP.name).trim() : '';
-        const oldR = !!(oldP && (oldP.isReserved === true || oldP.isReserved === 'true'));
-        const newR = !!(newP && (newP.isReserved === true || newP.isReserved === 'true'));
+        const oldR = isFlagged(oldP);
+        const newR = isFlagged(newP);
         if (oldN !== newN || oldR !== newR) { changed = true; break; }
       }
       if (changed) {
@@ -3867,8 +3854,8 @@
         const curLaneObj = lanesList.find(l => l && l.lane === laneKey);
         const curPlayers = curLaneObj ? normalize8Players(curLaneObj.players) : Array(8).fill(null);
         const curPlayer = curPlayers[slotIndex - 1];
-        const hasLaneReserved = curPlayers.some(p => p && (String(p.name).trim() === '[保留席]' || String(p.name).trim() === '[未開放]'));
-        const isReserved = !!(curPlayer && (curPlayer.isReserved === true || curPlayer.isReserved === 'true')) || hasLaneReserved;
+        // ★ 2026-10-25 HJ 規則：只看這個人自己的席位 (原：同道有任何保留席即視為保留)
+        const isReserved = !!(curPlayer && (curPlayer.isReserved === true || curPlayer.isReserved === 'true'));
         currentAdminSeatTarget.isReserved = isReserved;
 
         const badgeEl = document.getElementById('adminSeatLockStatusBadge');
@@ -3879,7 +3866,7 @@
           if (isReserved) {
             badgeEl.innerText = '🔒 目前管制：保留席(未開放)';
             badgeEl.style.color = '#dc2626';
-            descEl.innerText = '此席位或球道已設為保留管制，球道尾端維持 🔒未開放。若前方出現空缺，需由幹部手動「立即向前排齊」。';
+            descEl.innerText = '此席位已設為保留，隊友取消後此位置維持 🔒未開放。若前方出現空缺，需由幹部手動「立即向前排齊」。';
             lockBtn.innerText = '🟢 解除保留 (恢復為對外開放席)';
             lockBtn.style.background = '#059669';
             lockBtn.style.borderColor = '#047857';
@@ -4093,7 +4080,7 @@
       const toLock = !isReserved;
       const actionText = toLock ? '【🔒 設為未開放保留席】' : '【🟢 解除保留，恢復為對外開放】';
       const promptText = toLock
-        ? `確定要將【${currentDay}】${laneKey} 道 第 ${slotIndex} 位【${playerName}】設定為${actionText}嗎？\n\n（設定後，若同道前方有空缺將自動依序往前遞補，尾端自動維持 🔒未開放）`
+        ? `確定要將【${currentDay}】${laneKey} 道 第 ${slotIndex} 位【${playerName}】設定為${actionText}嗎？\n\n（設定後，若同道前方有空缺將自動依序往前遞補；保留席位置固定不動，隊友往前遞補後原位置顯示 🔒未開放）`
         : `確定要將【${currentDay}】${laneKey} 道 第 ${slotIndex} 位【${playerName}】${actionText}嗎？`;
 
       customConfirm(promptText, async (confirmed) => {
@@ -4112,32 +4099,21 @@
           if (!laneObj) return;
           let pl = normalize8Players(laneObj.players);
           if (toLock) {
-            // 標記隊友保留，並若有空間補上保留席標記
-            let found = false;
+            // 標記隊友保留 (★ 2026-10-25 HJ 規則：只標 🔒，不另外多放保留席)
             if (pl[slotIndex - 1] && pl[slotIndex - 1].name === playerName) {
               pl[slotIndex - 1].isReserved = true;
-              found = true;
             } else {
               const idx = pl.findIndex(p => p && p.name === playerName);
-              if (idx !== -1) { pl[idx].isReserved = true; found = true; }
-            }
-            const hasRes = pl.some(p => p && (p.name === '[保留席]' || p.name === '[未開放]'));
-            if (!hasRes) {
-              for (let i = 0; i < 8; i++) {
-                if (!pl[i]) {
-                  pl[i] = { name: '[保留席]', gender: 'M', code: '' };
-                  break;
-                }
-              }
+              if (idx !== -1) pl[idx].isReserved = true;
             }
           } else {
-            // 解除保留：清除 isReserved，且清除該道上所有 [保留席]
-            pl.forEach(p => {
-              if (p) {
-                if (p.isReserved) delete p.isReserved;
-                if (p.name === '[保留席]' || p.name === '[未開放]') p.name = '';
-              }
-            });
+            // 解除保留 (★ 2026-10-25 HJ 規則：只解除這個席位，同道其他保留不動)
+            if (pl[slotIndex - 1] && pl[slotIndex - 1].name === playerName) {
+              delete pl[slotIndex - 1].isReserved;
+            } else {
+              const idx = pl.findIndex(p => p && p.name === playerName);
+              if (idx !== -1) delete pl[idx].isReserved;
+            }
           }
           laneObj.players = pl;
           compactSingleLaneTracked(laneObj, false, lockCompactMoves); // ★ 2026-10-22 HJ 規則：專用道與一般道相同，排齊不再保留 [開放入座]

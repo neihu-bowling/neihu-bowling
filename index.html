@@ -21,6 +21,7 @@
   <!-- Firebase SDK (v10.8.0 Compat Mode) -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
@@ -1669,6 +1670,7 @@
 
     let rtdb = null;
     let isFirebaseReady = false;
+    let firebaseSignInPromise = null; // 匿名登入 (須在下方啟動前宣告)
     let hasSeededFirebase = false;
 
     try {
@@ -1677,10 +1679,32 @@
         rtdb = firebase.database();
         isFirebaseReady = true;
         console.log('✅ Firebase Realtime Database 啟動成功！');
-        setupFirebaseListeners();
+        startFirebaseListenersAfterSignIn();
       }
     } catch (e) {
       console.warn('Firebase 初始化警訊 (將使用 GAS 備援):', e);
+    }
+
+    // ★ 2026-10-25 Firebase 登入保護：先自動匿名登入 (隊友看不到任何畫面)，再開始接收即時名單
+    //   登入失敗或 8 秒內沒完成時照常開始，與原本相同；每次呼叫都等同一次登入
+    function startFirebaseListenersAfterSignIn() {
+      if (!firebaseSignInPromise) {
+        firebaseSignInPromise = new Promise(resolve => {
+          try {
+            if (typeof firebase !== 'undefined' && firebase.auth) {
+              firebase.auth().signInAnonymously()
+                .then(() => resolve())
+                .catch(e => { console.warn('Firebase 匿名登入失敗 (照常連線):', e); resolve(); });
+              setTimeout(resolve, 8000);
+            } else {
+              resolve();
+            }
+          } catch (e) {
+            resolve();
+          }
+        });
+      }
+      firebaseSignInPromise.then(() => setupFirebaseListeners());
     }
 
     // ★ 關鍵防護：嚴格維持 8 席固定席位映射，防止 Firebase 稀疏物件造成隊員往前補位 (Object.values 壓縮陷阱)
@@ -6399,7 +6423,7 @@
       initEmptyRender();
       initUserGuideFontSize();
       if (typeof setupFirebaseListeners === 'function') {
-        setupFirebaseListeners();
+        startFirebaseListenersAfterSignIn();
       }
       Promise.all([
         ensureLiffInit(),

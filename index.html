@@ -2430,6 +2430,7 @@
           badge.onclick = openRegisterModal;
         }
       }
+      if (typeof renderWaitlistButton === 'function') renderWaitlistButton(); // ★ 2026-10-28 登記補位按鈕跟名字同時出現
     }
 
     // ★ 初始化 LIFF SDK 並取得 LINE 身份 (iOS / Android 雙平台防護)
@@ -3837,7 +3838,8 @@
       const btn = document.getElementById('waitlistBtn');
       if (!btn) return;
       const dayKey = wlDayKey(currentDay);
-      if (!currentUserName || isVerifyingIdentity || (!isAdmin && isMaintenanceMode()) || !rtdb) {
+      // ★ 跟操作者名字、改PIN 一起出現 (不等身分確認與資料庫連線；按下時才檢查)
+      if (!currentUserName || (!isAdmin && isMaintenanceMode())) {
         btn.style.display = 'none';
         return;
       }
@@ -3902,6 +3904,7 @@
     function openWaitlistMain() {
       if (!isAdmin && isMaintenanceMode()) return showToast(MAINTENANCE_NOTICE, 3500, false);
       if (!currentUserName) return;
+      if (isVerifyingIdentity) return showToast('⏳ 正在同步確認身分，請稍候片刻...', 2000, false);
       const dayKey = wlDayKey(currentDay);
       const waiting = getWaitingEntry(dayKey, currentUserName);
       if (waiting) return showWaitlistStatus(waiting);

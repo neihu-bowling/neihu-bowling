@@ -3967,6 +3967,11 @@
       openWaitlistModal();
     }
 
+    // 某道目前排隊等候補位的人數
+    function wlLaneWaitCount(dayKey, lane) {
+      return getWaitlistEntries(dayKey).filter(e => e.status === 'waiting' && e.lane === lane).length;
+    }
+
     function renderWaitlistPicker() {
       const dayKey = wlDayKey(currentDay);
       const memberRow = document.getElementById('waitlistModalMemberRow');
@@ -3999,7 +4004,7 @@
         if (seat && seat.lane === lk) { html += gray(lk, forAdmin ? '目前座位' : '你目前座位'); return; }
         const lo = list.find(l => l && normalizeLane(l.lane) === lk);
         if (wlFirstFreeSlot(lo, allowed) >= 0) { html += gray(lk, preLock ? '預排結束' : '可選位'); return; }
-        html += `<button type="button" onclick="confirmRegisterWaitlist('${escapeJsAttr(name)}', '${escapeJsAttr(lk)}')" style="${cellBase} background:#d97706; color:#ffffff; cursor:pointer;">${escapeHtml(lk)}<span style="font-size:11px;">可登記</span></button>`;
+        html += `<button type="button" onclick="confirmRegisterWaitlist('${escapeJsAttr(name)}', '${escapeJsAttr(lk)}')" style="${cellBase} background:#d97706; color:#ffffff; cursor:pointer;">${escapeHtml(lk)}<span style="font-size:11px; white-space:nowrap;">可登記・${wlLaneWaitCount(dayKey, lk)}人排隊</span></button>`;
       });
       html += '</div>';
       body.innerHTML = html;

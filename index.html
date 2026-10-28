@@ -3580,6 +3580,7 @@
     //   資料放在 Firebase waitlist/{mon|thu}/{id} = { name, lane, ts, status: 'waiting' | 'done', by, fromLane, fromSlot, toLane, toSlot, doneTime }
     const WL_EMPTY_NAMES = ['[開放入座]', '[開放選位]'];
     let waitlistPickerName = ''; // 選球道畫面目前替誰登記
+    let waitlistPickerVisible = false; // 選球道畫面開著 ➔ 資料變動時即時更新
     let isWaitlistAdminCollapsed = true;
     let waitlistCheckTimers = {};
     let waitlistCheckDue = {};
@@ -3822,6 +3823,8 @@
       renderWaitlistButton();
       renderWaitlistAdminCard();
       checkWaitlistDoneNotice();
+      const wm = document.getElementById('waitlistModal');
+      if (waitlistPickerVisible && wm && wm.style.display !== 'none') renderWaitlistPicker(); // 視窗開著時人數即時更新
     }
 
     function wlSetBtnStyle(btn, bg, color, border) {
@@ -3891,6 +3894,7 @@
       if (m) m.style.display = 'flex';
     }
     function closeWaitlistModal() {
+      waitlistPickerVisible = false;
       const m = document.getElementById('waitlistModal');
       if (m) m.style.display = 'none';
     }
@@ -3910,6 +3914,7 @@
     }
 
     function wlSetModalHead(title, sub) {
+      waitlistPickerVisible = false;
       document.getElementById('waitlistModalTitle').innerHTML = title;
       document.getElementById('waitlistModalSub').innerHTML = sub || '';
       document.getElementById('waitlistModalMemberRow').style.display = 'none';
@@ -3965,6 +3970,7 @@
       }
       renderWaitlistPicker();
       openWaitlistModal();
+      waitlistPickerVisible = true;
     }
 
     // 某道目前排隊等候補位的人數
@@ -4004,7 +4010,7 @@
         if (seat && seat.lane === lk) { html += gray(lk, forAdmin ? '目前座位' : '你目前座位'); return; }
         const lo = list.find(l => l && normalizeLane(l.lane) === lk);
         if (wlFirstFreeSlot(lo, allowed) >= 0) { html += gray(lk, preLock ? '預排結束' : '可選位'); return; }
-        html += `<button type="button" onclick="confirmRegisterWaitlist('${escapeJsAttr(name)}', '${escapeJsAttr(lk)}')" style="${cellBase} background:#d97706; color:#ffffff; cursor:pointer;">${escapeHtml(lk)}<span style="font-size:11px; white-space:nowrap;">可登記・${wlLaneWaitCount(dayKey, lk)}人排隊</span></button>`;
+        html += `<button type="button" onclick="confirmRegisterWaitlist('${escapeJsAttr(name)}', '${escapeJsAttr(lk)}')" style="${cellBase} background:#d97706; color:#ffffff; cursor:pointer;">${escapeHtml(lk)}<span style="font-size:11px; white-space:nowrap;">可登記${wlLaneWaitCount(dayKey, lk) > 0 ? '・' + wlLaneWaitCount(dayKey, lk) + '人排隊' : ''}</span></button>`;
       });
       html += '</div>';
       body.innerHTML = html;

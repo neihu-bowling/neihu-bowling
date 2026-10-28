@@ -1783,6 +1783,7 @@
             window.hasInit = true;
           }
           renderAll();
+          wlCheckAfterRemoteChange(); // ★ 2026-10-28 球道有變動 ➔ 檢查補位
         } else if (!hasSeededFirebase) {
           hasSeededFirebase = true;
           seedFirebaseFromGAS();
@@ -1808,6 +1809,7 @@
           } catch (ce) {}
           validateAdminSession(rawResponse.config);
           renderAll();
+          wlCheckAfterRemoteChange(); // ★ 2026-10-28 開放球道等設定有變動 ➔ 檢查補位
         }
       });
 
@@ -1888,6 +1890,7 @@
         if (!rawResponse) rawResponse = { status: 'success', data: {}, config: {}, members: [] };
         rawResponse.waitlist = snapshot.val() || {};
         renderWaitlistUI();
+        wlCheckAfterRemoteChange(); // ★ 2026-10-28 開網頁時若有可補的位子 ➔ 立即補位
       }, err => console.warn('waitlist listener error:', err));
     }
 
@@ -3578,7 +3581,8 @@
     const WL_EMPTY_NAMES = ['[開放入座]', '[開放選位]'];
     let waitlistPickerName = ''; // 選球道畫面目前替誰登記
     let isWaitlistAdminCollapsed = true;
-    let waitlistCheckTimer = null;
+    let waitlistCheckTimers = {};
+    let waitlistCheckDue = {};
     let isWaitlistProcessing = false;
     const waitlistSeenMem = {}; // 補位成功提示已顯示 (手機不能存資料時的備援)
 
@@ -3699,12 +3703,35 @@
       return { moves, drops };
     }
 
-    function scheduleWaitlistCheck(dayKey) {
-      if (waitlistCheckTimer) clearTimeout(waitlistCheckTimer);
-      waitlistCheckTimer = setTimeout(() => { waitlistCheckTimer = null; processWaitlist(dayKey); }, 400);
+    function scheduleWaitlistCheck(dayKey, delay = 400) {
+      const due = Date.now() + delay;
+      if (waitlistCheckTimers[dayKey]) {
+        if (waitlistCheckDue[dayKey] <= due) return; // 已排定更早的檢查 ➔ 不延後
+        clearTimeout(waitlistCheckTimers[dayKey]);
+      }
+      waitlistCheckDue[dayKey] = due;
+      waitlistCheckTimers[dayKey] = setTimeout(() => { waitlistCheckTimers[dayKey] = null; processWaitlist(dayKey); }, delay);
     }
 
-    // 執行補位 (由開出空位的人的網頁執行；後台另每 5 分鐘巡檢一次)
+    // 球道或設定有任何變動 (網頁、LINE、幹部操作) ➔ 先在本機試算，有可補的位子才真的執行補位
+    function wlCheckAfterRemoteChange() {
+      try {
+        if (!rawResponse || !rawResponse.data || isMaintenanceMode()) return;
+        const cfg = rawResponse.config || {};
+        ['mon', 'thu'].forEach(dk => {
+          const entries = getWaitlistEntries(dk);
+          if (entries.filter(e => e.status === 'waiting').length === 0) return;
+          const list = JSON.parse(JSON.stringify(wlDayList(dk) || []));
+          if (list.length === 0) return;
+          const r = wlComputeMoves(list, entries, wlOpenStr(dk), getStaffLaneForDay(wlDayName(dk), cfg));
+          if (r.moves.length > 0 || r.drops.length > 0) scheduleWaitlistCheck(dk, 600 + Math.floor(Math.random() * 1200));
+        });
+      } catch (e) {
+        console.warn('wlCheckAfterRemoteChange error:', e);
+      }
+    }
+
+    // 執行補位 (由開出空位的人的網頁執行；其他開著網頁的人看到變動也會檢查)
     async function processWaitlist(dayKey) {
       if (!rtdb || !isFirebaseReady) return;
       if (isWaitlistProcessing) return scheduleWaitlistCheck(dayKey); // 上一次還在處理 ➔ 稍後再檢查

@@ -883,7 +883,7 @@
   <!-- ★ 2026-10-28 幹部：補位登記名單 (只在管理模式顯示) -->
   <div id="waitlistAdminCard" style="display:none; background:#fffbeb; border:1.5px solid #f59e0b; border-radius:12px; padding:9px 12px; margin:6px 0 6px 0; box-shadow:0 1px 3px rgba(245,158,11,0.15);">
     <div onclick="toggleWaitlistAdminCard()" style="display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:13px; color:#b45309;">
-      <span id="waitlistAdminTitle">⏳ 補位登記</span>
+      <span id="waitlistAdminTitle">⏳ 候補登記</span>
       <span id="waitlistAdminToggleIcon" style="font-size:12px; font-weight:normal; color:#d97706;">▶ 點此展開</span>
     </div>
     <div id="waitlistAdminList" style="display:none; margin-top:6px; font-size:12.5px; color:#78350f; line-height:1.5;"></div>
@@ -979,11 +979,11 @@
 
         <!-- 項目 3-1: 登記補位 (2026-10-28) -->
         <div class="guide-item">
-          <div class="guide-item-title">⏳ 登記補位（想去的球道已經滿了）</div>
+          <div class="guide-item-title">⏳ 登記候補（想去的球道已經滿了）</div>
           <div class="guide-item-body">
-            先在球道表任選一個空位入座，再點上方「👤 操作者」那一行的「⏳ 登記補位」，選想去的橘色球道。<br>
+            先在球道表任選一個空位入座，再點上方「👤 操作者」那一行的「⏳ 登記候補」，選想去的橘色球道。<br>
             那一道一有空位，系統會自動幫您移過去；按鈕會顯示排第幾位，再點一次可以改登記別道或取消。<br>
-            請假取消報名時，補位登記也會一起取消。
+            請假取消報名時，候補登記也會一起取消。
           </div>
         </div>
 
@@ -1598,7 +1598,7 @@
   <!-- ★ 2026-10-28 登記補位視窗 (選球道 / 我的補位 / 補位成功 / 幹部幫隊友登記) -->
   <div id="waitlistModal" class="modal-overlay">
     <div class="modal-card">
-      <h3 id="waitlistModalTitle" style="font-size:16px; font-weight:900; margin:0 0 4px 0; color:#1e293b;">⏳ 登記補位</h3>
+      <h3 id="waitlistModalTitle" style="font-size:16px; font-weight:900; margin:0 0 4px 0; color:#1e293b;">⏳ 登記候補</h3>
       <p id="waitlistModalSub" style="font-size:12px; color:#64748b; margin:0 0 10px 0; line-height:1.5;"></p>
       <div id="waitlistModalMemberRow" style="display:none; margin-bottom:10px;">
         <select id="waitlistMemberSelect" onchange="renderWaitlistPicker()" style="width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1; font-size:13px;"></select>
@@ -2938,7 +2938,7 @@
         const isJoin = item.action === 'join' || item.action === 'late_join';
         // ★ 2026-10-28 登記補位自動換道
         if (isJoin && (item.waitlist === true || item.waitlist === 'true')) {
-          html += `<div style="padding:2px 0;">• [${escapeHtml(item.time || '')}] <b>${escapeHtml(item.name)}</b>：<span style="color:#b45309; font-weight:bold;">⏳ 補位換道</span> ${escapeHtml(item.fromLane || '')} 道第 ${escapeHtml(item.fromSlot || '')} 位 ➔ ${escapeHtml(item.lane)} 道第 ${escapeHtml(item.slot)} 位</div>`;
+          html += `<div style="padding:2px 0;">• [${escapeHtml(item.time || '')}] <b>${escapeHtml(item.name)}</b>：<span style="color:#b45309; font-weight:bold;">⏳ 候補換道</span> ${escapeHtml(item.fromLane || '')} 道第 ${escapeHtml(item.fromSlot || '')} 位 ➔ ${escapeHtml(item.lane)} 道第 ${escapeHtml(item.slot)} 位</div>`;
           return;
         }
         // ★ 遞補換位 (預排結束後向前排齊)
@@ -3794,7 +3794,7 @@
             rtdb.ref(`lateChanges/${dayKey}`).push({ time: `${hh}:${mi}`, name: m.name, action: 'leave', moved: true, waitlist: true, lane: m.fromLane, slot: m.fromSlot, timestamp: ts + (seq++) });
             rtdb.ref(`lateChanges/${dayKey}`).push({ time: `${hh}:${mi}`, name: m.name, action: 'late_join', waitlist: true, fromLane: m.fromLane, fromSlot: m.fromSlot, lane: m.lane, slot: m.slot, timestamp: ts + (seq++) });
           }
-          rtdb.ref(`adminChanges/${dayKey}`).push({ date: `${MM}/${DD}`, time: `${hh}:${mi}`, name: m.name, action: 'move', lane: m.lane, slot: m.slot, fromLane: m.fromLane, fromSlot: m.fromSlot, operator: '⏳ 系統補位', timestamp: ts + (seq++) });
+          rtdb.ref(`adminChanges/${dayKey}`).push({ date: `${MM}/${DD}`, time: `${hh}:${mi}`, name: m.name, action: 'move', lane: m.lane, slot: m.slot, fromLane: m.fromLane, fromSlot: m.fromSlot, operator: '⏳ 系統候補', timestamp: ts + (seq++) });
         });
 
         // 背景同步至 Google 試算表 (與幹部移位相同方式)
@@ -3846,15 +3846,15 @@
       }
       const waiting = getWaitingEntry(dayKey, currentUserName);
       if (waiting) {
-        btn.innerText = `⏳ 補位中 ${waiting.lane}道・第${getWaitlistRank(dayKey, waiting)}位`;
+        btn.innerText = `⏳ 候補中 ${waiting.lane}道・第${getWaitlistRank(dayKey, waiting)}位`;
         wlSetBtnStyle(btn, '#d97706', '#ffffff', '#d97706');
       } else {
         const done = getWaitlistDoneForMe(dayKey);
         if (done) {
-          btn.innerText = `✅ 已補位 ${done.toLane}道第${done.curSlot}位`;
+          btn.innerText = `✅ 候補成功 ${done.toLane}道第${done.curSlot}位`;
           wlSetBtnStyle(btn, '#16a34a', '#ffffff', '#16a34a');
         } else {
-          btn.innerText = '⏳ 登記補位';
+          btn.innerText = '⏳ 登記候補';
           wlSetBtnStyle(btn, '#fffbeb', '#b45309', '#d97706');
         }
       }
@@ -3883,7 +3883,7 @@
           seen[e.id] = 1;
           waitlistSeenMem[e.id] = 1;
           changed = true;
-          showToast(`✅ 已幫你補位到【${wlDayName(dk)}】${e.toLane} 道 第 ${e.toSlot} 位（原 ${e.fromLane} 道 第 ${e.fromSlot} 位）`, 5000, false);
+          showToast(`✅ 候補成功！已幫你移到【${wlDayName(dk)}】${e.toLane} 道 第 ${e.toSlot} 位（原 ${e.fromLane} 道 第 ${e.fromSlot} 位）`, 5000, false);
         });
       });
       if (changed) {
@@ -3912,7 +3912,7 @@
       const done = getWaitlistDoneForMe(dayKey);
       if (done) return showWaitlistDone(done);
       if (!wlFindSeat(wlDayList(dayKey), currentUserName)) {
-        return showToast('⚠️ 請先在球道表選一個位子，再登記補位\n（先報名到，萬一沒補到也一定有位子打）', 4000, false);
+        return showToast('⚠️ 請先在球道表選一個位子，再登記候補\n（先報名到，萬一沒補到也一定有位子打）', 4000, false);
       }
       openWaitlistPicker(currentUserName, false);
     }
@@ -3929,23 +3929,23 @@
     function showWaitlistStatus(entry) {
       const dayKey = wlDayKey(currentDay);
       const seat = wlFindSeat(wlDayList(dayKey), entry.name);
-      wlSetModalHead(`⏳ 我的補位【${currentDay}】`, '');
+      wlSetModalHead(`⏳ 我的候補【${currentDay}】`, '');
       const seatTxt = seat ? `${seat.lane} 道第 ${seat.slot} 位（補到就移過去）` : '尚未入座';
       document.getElementById('waitlistModalBody').innerHTML = `
         <div style="background:#fffbeb; border:1.5px solid #f59e0b; border-radius:10px; padding:9px 11px; font-size:13px; line-height:1.7; color:#78350f; margin-bottom:10px;">
           等候球道：<b>${escapeHtml(entry.lane)} 道</b>　排第 <b>${getWaitlistRank(dayKey, entry)}</b> 位<br>
           目前座位：${escapeHtml(seatTxt)}<br>
-          自動補位到：比賽當天 10:00（預排結束後照常）
+          自動候補到：比賽當天 10:00（預排結束後照常）
         </div>`;
       document.getElementById('waitlistModalButtons').innerHTML = `
         <button type="button" onclick="openWaitlistPicker('${escapeJsAttr(entry.name)}', false)" class="modal-btn" style="background:#d97706; color:#ffffff; font-weight:900;">改登記別道</button>
-        <button type="button" onclick="confirmCancelWaitlist('${escapeJsAttr(entry.id)}', '${escapeJsAttr(entry.name)}', '${escapeJsAttr(entry.lane)}')" class="modal-btn" style="background:#dc2626; color:#ffffff; font-weight:900;">取消補位</button>`;
+        <button type="button" onclick="confirmCancelWaitlist('${escapeJsAttr(entry.id)}', '${escapeJsAttr(entry.name)}', '${escapeJsAttr(entry.lane)}')" class="modal-btn" style="background:#dc2626; color:#ffffff; font-weight:900;">取消候補</button>`;
       openWaitlistModal();
     }
 
     // 補位成功
     function showWaitlistDone(done) {
-      wlSetModalHead(`✅ 補位成功【${currentDay}】`, '');
+      wlSetModalHead(`✅ 候補成功【${currentDay}】`, '');
       document.getElementById('waitlistModalBody').innerHTML = `
         <div style="background:#f0fdf4; border:1.5px solid #16a34a; border-radius:10px; padding:9px 11px; font-size:13px; line-height:1.7; color:#14532d; margin-bottom:10px;">
           ${escapeHtml(done.doneTime || '')} 已幫你移到 <b>${escapeHtml(done.toLane)} 道第 ${escapeHtml(done.toSlot)} 位</b><br>
@@ -3958,7 +3958,7 @@
     function openWaitlistPicker(name, forAdmin) {
       waitlistPickerName = name || '';
       const dayKey = wlDayKey(currentDay);
-      wlSetModalHead(forAdmin ? `⏳ 幫隊友登記補位【${currentDay}】` : `⏳ 登記補位【${currentDay}】`, '');
+      wlSetModalHead(forAdmin ? `⏳ 幫隊友登記候補【${currentDay}】` : `⏳ 登記候補【${currentDay}】`, '');
       if (forAdmin) {
         const sel = document.getElementById('waitlistMemberSelect');
         const list = wlDayList(dayKey);
@@ -3975,6 +3975,26 @@
       renderWaitlistPicker();
       openWaitlistModal();
       waitlistPickerVisible = true;
+    }
+
+    // ★ 離開有人候補的球道時的提醒文字 (請假、自己換到別道)；幹部操作不提醒
+    function wlLeaveWarning(lane, name) {
+      if (isAdmin) return '';
+      const n = getWaitlistEntries(wlDayKey(currentDay)).filter(e => e.status === 'waiting' && e.lane === lane && e.name !== name).length;
+      if (n === 0) return '';
+      return `\n\n⚠️ ${lane} 道目前有 ${n} 人登記候補。你離開後，這個位子會馬上由候補第 1 位的隊友自動補上，之後想回來只能重新登記候補。`;
+    }
+
+    // 自己換到別道：離開的球道有人候補時先提醒
+    function joinSelfLeaveCheck(laneKey, slotIndex) {
+      const seat = wlFindSeat(wlDayList(wlDayKey(currentDay)), currentUserName);
+      const warn = (seat && seat.lane !== laneKey) ? wlLeaveWarning(seat.lane, currentUserName) : '';
+      if (!warn) return joinSelf(laneKey, slotIndex);
+      closeActionModal();
+      customConfirm(`確定要將自己從【${seat.lane} 道 第 ${seat.slot} 位】更換至【${laneKey} 道 第 ${slotIndex} 位】嗎？` + warn, confirmed => {
+        if (!confirmed) return;
+        joinSelf(laneKey, slotIndex);
+      });
     }
 
     // 某道目前排隊等候補位的人數
@@ -4004,8 +4024,8 @@
       const preLock = isPreLockActive(currentDay);
       const guideRow = (txt) => `<span style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:4px;"><b style="color:#d97706;">${txt}</b><a href="${WAITLIST_GUIDE_URL}" target="_blank" rel="noopener" style="flex-shrink:0; font-size:12px; font-weight:bold; color:#1d4ed8; background:#eff6ff; border:1px solid #93c5fd; border-radius:6px; padding:3px 8px; text-decoration:none; white-space:nowrap;">📖 操作說明</a></span>`;
       sub.innerHTML = waiting
-        ? `目前登記 ${escapeHtml(waiting.lane)} 道（第 ${getWaitlistRank(dayKey, waiting)} 位）。點別的橘色球道就改過去` + guideRow('橘色可登記補位')
-        : '想去的球道已經坐滿時，先在別道選好位子，再點那一道登記補位。那一道只要有人請假、換道或往下開位，系統會自動把你移過去。' + guideRow('橘色可登記補位');
+        ? `目前登記 ${escapeHtml(waiting.lane)} 道（第 ${getWaitlistRank(dayKey, waiting)} 位）。點別的橘色球道就改過去` + guideRow('橘色可登記候補')
+        : '想去的球道已經坐滿時，先在別道選好位子，再點那一道登記候補。那一道只要有人請假、換道或往下開位，系統會自動把你移過去。' + guideRow('橘色可登記候補');
       const cellBase = 'height:52px; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:4px 2px; text-align:center; border-radius:8px; font-weight:900; font-size:14px; line-height:1.25; border:none; width:100%;';
       const gray = (lk, txt) => `<div style="${cellBase} background:#e2e8f0; color:#94a3b8;">${escapeHtml(lk)}<span style="font-size:11px;">${txt}</span></div>`;
       let html = '<div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; margin-bottom:10px;">';
@@ -4025,7 +4045,7 @@
       const dayKey = wlDayKey(currentDay);
       const waiting = getWaitingEntry(dayKey, name);
       const who = (name === currentUserName) ? '' : `幫【${name}】`;
-      let msg = `確定${who}登記【${currentDay}】${lane} 道補位嗎？\n${lane} 道一有空位，系統會自動移過去。`;
+      let msg = `確定${who}登記【${currentDay}】${lane} 道候補嗎？\n${lane} 道一有空位，系統會自動移過去。`;
       if (waiting) msg += `\n\n（原本 ${waiting.lane} 道的登記會取消，改排到 ${lane} 道最後一位）`;
       customConfirm(msg, confirmed => {
         if (!confirmed) return;
@@ -4036,7 +4056,7 @@
     async function registerWaitlist(name, lane) {
       if (!rtdb || !isFirebaseReady) return showToast('⚠️ 即時資料庫尚未連線，請稍後再試！', 3000, false);
       const dayKey = wlDayKey(currentDay);
-      if (!wlFindSeat(wlDayList(dayKey), name)) return showToast('⚠️ 請先在球道表選一個位子，再登記補位', 3500, false);
+      if (!wlFindSeat(wlDayList(dayKey), name)) return showToast('⚠️ 請先在球道表選一個位子，再登記候補', 3500, false);
       try {
         const snap = await rtdb.ref(`waitlist/${dayKey}`).once('value');
         const old = wlEntriesFromVal(snap.val()).filter(e => e.status === 'waiting' && e.name === name);
@@ -4048,22 +4068,22 @@
         const entries = wlEntriesFromVal(Object.assign({}, snap.val() || {}, { [ref.key]: { name, lane, ts: Date.now(), status: 'waiting' } }))
           .filter(e => !(old.some(o => o.id === e.id)));
         const rank = entries.filter(e => e.status === 'waiting' && e.lane === lane).length;
-        showToast(`✅ 已登記【${currentDay}】${lane} 道補位，排第 ${rank} 位`, 3500, false);
+        showToast(`✅ 已登記【${currentDay}】${lane} 道候補，排第 ${rank} 位`, 3500, false);
         scheduleWaitlistCheck(dayKey);
       } catch (err) {
         console.warn('registerWaitlist error:', err);
-        showToast('❌ 登記補位失敗，請重新嘗試。', 3000, false);
+        showToast('❌ 登記候補失敗，請重新嘗試。', 3000, false);
       }
     }
 
     function confirmCancelWaitlist(id, name, lane) {
       const who = (name === currentUserName) ? '' : `【${name}】的`;
-      customConfirm(`確定取消${who}【${currentDay}】${lane} 道補位登記嗎？`, async confirmed => {
+      customConfirm(`確定取消${who}【${currentDay}】${lane} 道候補登記嗎？`, async confirmed => {
         if (!confirmed) return;
         try {
           await rtdb.ref(`waitlist/${wlDayKey(currentDay)}/${id}`).remove();
           closeWaitlistModal();
-          showToast(`已取消 ${lane} 道補位登記`, 3000, false);
+          showToast(`已取消 ${lane} 道候補登記`, 3000, false);
         } catch (err) {
           showToast('❌ 取消失敗，請重新嘗試。', 3000, false);
         }
@@ -4085,7 +4105,7 @@
       const all = getWaitlistEntries(dayKey);
       const waiting = all.filter(e => e.status === 'waiting');
       const done = all.filter(e => e.status === 'done');
-      document.getElementById('waitlistAdminTitle').innerText = `⏳ 補位登記【${currentDay}】（共 ${waiting.length} 人）`;
+      document.getElementById('waitlistAdminTitle').innerText = `⏳ 候補登記【${currentDay}】（共 ${waiting.length} 人）`;
       document.getElementById('waitlistAdminToggleIcon').innerText = isWaitlistAdminCollapsed ? '▶ 點此展開' : '▼ 點此收起';
       const listEl = document.getElementById('waitlistAdminList');
       listEl.style.display = isWaitlistAdminCollapsed ? 'none' : 'block';
@@ -4107,14 +4127,14 @@
           </div>`;
         });
       });
-      if (!html) html = '<div style="color:#92400e; font-size:12px; padding:4px 0; text-align:center;">（目前沒有人登記補位）</div>';
+      if (!html) html = '<div style="color:#92400e; font-size:12px; padding:4px 0; text-align:center;">（目前沒有人登記候補）</div>';
       if (done.length > 0) {
-        html += '<div style="font-weight:900; color:#b45309; margin-top:6px; border-top:1px dashed #fcd34d; padding-top:5px;">本場已補位成功（到 10:00 輪調清除）</div>';
+        html += '<div style="font-weight:900; color:#b45309; margin-top:6px; border-top:1px dashed #fcd34d; padding-top:5px;">本場已候補成功（到 10:00 輪調清除）</div>';
         done.slice().sort((a, b) => (Number(a.doneAt) || 0) - (Number(b.doneAt) || 0)).forEach(e => {
           html += `<div style="margin:3px 0;">✅ <b>${escapeHtml(e.name)}</b>　${escapeHtml(e.fromLane)} → ${escapeHtml(e.toLane)} 道第 ${escapeHtml(e.toSlot)} 位（${escapeHtml(e.doneTime || '')}）</div>`;
         });
       }
-      html += `<button type="button" onclick="openWaitlistPicker('', true)" class="modal-btn" style="background:#d97706; color:#ffffff; font-weight:900; margin:10px 0 0 0;">＋ 幫隊友登記補位</button>`;
+      html += `<button type="button" onclick="openWaitlistPicker('', true)" class="modal-btn" style="background:#d97706; color:#ffffff; font-weight:900; margin:10px 0 0 0;">＋ 幫隊友登記候補</button>`;
       listEl.innerHTML = html;
     }
     // ==================== 登記補位 結束 ====================
@@ -4227,7 +4247,7 @@
           `;
         } else {
           btnsHtml += `
-            <button onclick="joinSelf('${laneKey}', ${slotIndex})" class="modal-btn btn-warn">
+            <button onclick="joinSelfLeaveCheck('${laneKey}', ${slotIndex})" class="modal-btn btn-warn">
               🔄 將我自己從【${myCurrentInfo.lane} 道 第 ${myCurrentInfo.slot} 位】更換至【${laneKey} 道 第 ${slotIndex} 位】
             </button>
           `;
@@ -5193,7 +5213,7 @@
 
       // 2. 本人操作 ➔ 二次確認直接取消，0 秒免 PIN 碼！
       if (currentUserName && currentUserName === playerName) {
-        customConfirm(`確定要取消您自己【${playerName}】在【${currentDay}】${laneKey} 道 第 ${slotIndex} 位的報名嗎？`, async (confirmed) => {
+        customConfirm(`確定要取消您自己【${playerName}】在【${currentDay}】${laneKey} 道 第 ${slotIndex} 位的報名嗎？` + wlLeaveWarning(laneKey, playerName), async (confirmed) => {
           if (!confirmed) return;
           executeLeave(playerName, laneKey, slotIndex, '');
         });
@@ -5202,7 +5222,7 @@
 
       // 2-1. 同一家庭群組 ➔ 可全權代家人取消，二次確認免 PIN 碼！
       if (currentUserName && isSameFamily(currentUserName, playerName)) {
-        customConfirm(`確定要幫家人【${playerName}】取消在【${currentDay}】${laneKey} 道 第 ${slotIndex} 位的報名嗎？`, async (confirmed) => {
+        customConfirm(`確定要幫家人【${playerName}】取消在【${currentDay}】${laneKey} 道 第 ${slotIndex} 位的報名嗎？` + wlLeaveWarning(laneKey, playerName), async (confirmed) => {
           if (!confirmed) return;
           executeLeave(playerName, laneKey, slotIndex, '');
         });
@@ -5330,7 +5350,7 @@
           if (!silentMode) {
             // ★ 2026-10-28 請假時補位登記一併取消 (由自動補位檢查刪除)
             const hadWaitlist = !!getWaitingEntry(targetDayKey, playerName);
-            showToast(`已取消【${playerName}】的報名${hadWaitlist ? '\n（補位登記也一併取消）' : ''}`, 3000, false);
+            showToast(`已取消【${playerName}】的報名${hadWaitlist ? '\n（候補登記也一併取消）' : ''}`, 3000, false);
           }
           if (didCompactOverflow && rtdb) {
             const now = new Date();

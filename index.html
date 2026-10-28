@@ -3989,7 +3989,7 @@
       const preLock = isPreLockActive(currentDay);
       sub.innerHTML = waiting
         ? `目前登記 ${escapeHtml(waiting.lane)} 道（第 ${getWaitlistRank(dayKey, waiting)} 位）。點別的橘色球道就改過去`
-        : '想去的球道已經坐滿時，先在別道選好位子，再點那一道登記補位。那一道只要有人請假、換道或往下開位，系統會自動把你移過去（到比賽當天 10:00 為止）。<br><b style="color:#d97706;">橘色＝已滿，可以登記補位</b>';
+        : '想去的球道已經坐滿時，先在別道選好位子，再點那一道登記補位。那一道只要有人請假、換道或往下開位，系統會自動把你移過去。<br><b style="color:#d97706;">橘色可登記補位</b>';
       const cellBase = 'height:52px; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:4px 2px; text-align:center; border-radius:8px; font-weight:900; font-size:14px; line-height:1.25; border:none; width:100%;';
       const gray = (lk, txt) => `<div style="${cellBase} background:#e2e8f0; color:#94a3b8;">${escapeHtml(lk)}<span style="font-size:11px;">${txt}</span></div>`;
       let html = '<div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; margin-bottom:10px;">';

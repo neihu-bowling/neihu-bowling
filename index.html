@@ -4155,7 +4155,8 @@
         return;
       }
 
-      // ★ 17:00 預排結束控管：已入座隊友點選空位欲換道時，直接提示阻擋
+      // ★ 17:00 預排結束控管：已入座隊友不可自行換道 (2026-10-29 改為仍開啟視窗，僅隱藏換道按鈕，可幫未報名隊友代選位)
+      let preLockSeatedNoMove = false;
       if (!isAdmin && isPreLockActive(currentDay)) {
         const dayData = currentDay === '週一' ? (rawResponse ? rawResponse.data.mon : []) : (rawResponse ? rawResponse.data.thu : []);
         let isAlreadySeated = false;
@@ -4164,9 +4165,7 @@
             if (p && p.name === currentUserName) isAlreadySeated = true;
           });
         });
-        if (isAlreadySeated) {
-          return showToast('🚫 預排已結束，無法自行更換球道！若需調整請洽幹部。', 3500, false);
-        }
+        if (isAlreadySeated) preLockSeatedNoMove = true;
       }
 
       const cfg = rawResponse ? rawResponse.config : {};
@@ -4244,6 +4243,10 @@
             <button onclick="joinSelf('${laneKey}', ${slotIndex})" class="modal-btn" style="background:${selfBtnColor}; color:#fff;">
               🙋‍♂️ 安排我自己 (${escapeHtml(currentUserName)}) 選位【${laneKey} 道 第 ${slotIndex} 位】
             </button>
+          `;
+        } else if (preLockSeatedNoMove) {
+          btnsHtml += `
+            <div style="color:#94a3b8; font-size:12.5px; font-weight:bold; text-align:center; margin:4px 0 8px 0;">🚫 預排已結束，無法自行更換球道，若需調整請洽幹部</div>
           `;
         } else {
           btnsHtml += `

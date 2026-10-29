@@ -1627,6 +1627,32 @@
     </div>
   </div>
 
+  <!-- ★ 2026-10-29 一般隊友互換位置：已入座者點其他隊友姓名時，選擇「與我對調位置」或「取消報名」 -->
+  <div id="memberSwapChoiceModal" class="modal-overlay">
+    <div class="modal-card" style="text-align:left;">
+      <h3 id="memberSwapChoiceTitle" style="font-size:14.5px; font-weight:900; margin:0 0 10px 0; color:#1e293b; line-height:1.5;"></h3>
+      <div id="memberSwapChoiceBox"></div>
+      <button type="button" id="memberSwapLeaveBtn" onclick="memberSwapChooseLeave()" class="modal-btn btn-warn"></button>
+      <button type="button" onclick="closeMemberSwapChoice()" class="modal-btn btn-secondary" style="margin-bottom:0;">返回</button>
+    </div>
+  </div>
+
+  <!-- ★ 2026-10-29 一般隊友互換位置：輸入對方 PIN 碼 (代表對方同意對調) -->
+  <div id="memberSwapPinModal" class="modal-overlay">
+    <div class="modal-card">
+      <h3 style="font-size:16px; font-weight:900; margin-bottom:4px; color:#7c3aed;">⇄ 對調位置驗證</h3>
+      <p id="memberSwapPinSub" style="font-size:12px; color:#64748b; margin-bottom:12px; line-height:1.4;"></p>
+      <div>
+        <label style="font-weight:900; font-size:12px; display:block; margin-bottom:4px;">請輸入對方的 4 碼 PIN 碼：</label>
+        <input type="password" id="memberSwapPinInput" maxlength="4" placeholder="輸入 4 碼 PIN 碼" style="width:100%; padding:9px; border-radius:6px; border:1.5px solid #7c3aed; font-size:14px; text-align:center; letter-spacing:4px; margin-bottom:12px;">
+      </div>
+      <div style="display:flex; gap:6px;">
+        <button onclick="closeMemberSwapPin()" class="modal-btn btn-secondary" style="margin-bottom:0;">取消</button>
+        <button onclick="submitMemberSwapPin()" class="modal-btn" style="margin-bottom:0; background:#7c3aed; color:#ffffff; font-weight:900;">驗證並對調</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 7. 本人修改 PIN 碼彈窗 -->
   <div id="changePinModal" class="modal-overlay">
     <div class="modal-card">
@@ -4743,8 +4769,8 @@
       executeAdminSeatPlan(ctx.src, ctx.tgt, mode, plan);
     }
 
-    async function executeAdminSeatPlan(src, tgt, mode, preview) {
-      if (!isAdmin || isActionInProgress) return;
+    async function executeAdminSeatPlan(src, tgt, mode, preview, memberSwap = false) {
+      if ((!isAdmin && !memberSwap) || isActionInProgress) return;
       if (!rtdb || !isFirebaseReady) {
         return showToast('⚠️ 即時資料庫尚未連線，請稍後再試！', 3000, false);
       }
@@ -4811,7 +4837,7 @@
         }
 
         // 全程席位異動看板：每位換位的隊友記一筆換道移位
-        const op = `幹部(${currentUserName || '管理員'})`;
+        const op = memberSwap ? `由 ${currentUserName} 對調` : `幹部(${currentUserName || '管理員'})`;
         plan.moves.forEach(m => {
           rtdb.ref(`adminChanges/${targetDayKey}`).push({ date: `${MM}/${DD}`, time: `${hh}:${mi}`, name: m.name, action: 'move', lane: m.lane, slot: m.slot, fromLane: m.fromLane, fromSlot: m.fromSlot, operator: op, timestamp: ts + (seq++) });
         });
@@ -5223,6 +5249,17 @@
         return;
       }
 
+      // 2-0. ★ 2026-10-29 已入座隊友點其他隊友 ➔ 先選「與我對調位置」或「取消報名」
+      if (currentUserName && getMyMemberSwapSeat()) {
+        openMemberSwapChoice(playerName, laneKey, slotIndex);
+        return;
+      }
+
+      proceedOtherPlayerLeave(playerName, laneKey, slotIndex);
+    }
+
+    // ★ 幫其他隊友取消報名 (家人免 PIN／他人需輸 PIN)
+    function proceedOtherPlayerLeave(playerName, laneKey, slotIndex) {
       // 2-1. 同一家庭群組 ➔ 可全權代家人取消，二次確認免 PIN 碼！
       if (currentUserName && isSameFamily(currentUserName, playerName)) {
         customConfirm(`確定要幫家人【${playerName}】取消在【${currentDay}】${laneKey} 道 第 ${slotIndex} 位的報名嗎？` + wlLeaveWarning(laneKey, playerName), async (confirmed) => {
@@ -5674,6 +5711,108 @@
     }
 
     // ===== 彈窗邏輯：2. 他人代取消 PIN 碼驗證 =====
+    // ==================== ★ 2026-10-29 一般隊友互換位置 ====================
+    // 已入座隊友點其他隊友姓名 ➔ 「⇄ 與我對調位置」(輸入對方 PIN 代表同意；同家庭免 PIN) 或原本的取消報名
+    //   沿用幹部對調 (computeAdminSeatPlan / executeAdminSeatPlan)：一次完成、保留跟著席位號碼、記入全程席位異動明細
+    //   只開放到 17:00 預排結束 (之後顯示灰字請洽幹部)
+    let memberSwapCtx = null;
+
+    function getMyMemberSwapSeat() {
+      if (!currentUserName) return null;
+      let seat = null;
+      getAdminPickDayList().forEach(l => {
+        if (!l || !l.players) return;
+        normalize8Players(l.players).forEach((p, idx) => {
+          if (isSeatPersonObj(p) && String(p.name).trim() === currentUserName) seat = { lane: l.lane, slot: idx + 1 };
+        });
+      });
+      return seat;
+    }
+
+    function openMemberSwapChoice(playerName, laneKey, slotIndex) {
+      const my = getMyMemberSwapSeat();
+      const src = { day: currentDay, lane: my.lane, slot: my.slot, name: currentUserName };
+      const tgt = { lane: laneKey, slot: slotIndex, name: String(playerName).trim() };
+      memberSwapCtx = { playerName, laneKey, slotIndex, src, tgt, plan: null };
+
+      document.getElementById('memberSwapChoiceTitle').innerHTML = `${escapeHtml(laneKey)} 道 第 ${slotIndex} 位【${escapeHtml(playerName)}】：`;
+      const box = document.getElementById('memberSwapChoiceBox');
+      if (isPreLockActive(currentDay)) {
+        box.innerHTML = `<div style="color:#94a3b8; font-size:12.5px; font-weight:bold; text-align:center; margin:4px 0 10px 0;">🚫 預排已結束，無法自行對調位置，若需調整請洽幹部</div>`;
+      } else {
+        const plan = computeAdminSeatPlan(getAdminPickDayList(), src, tgt, 'swap');
+        if (plan.error) {
+          memberSwapCtx = null;
+          return showToast('⚠️ 名單剛剛已變動，請重新操作！', 3000, false);
+        }
+        memberSwapCtx.plan = plan;
+        box.innerHTML = `
+          <button type="button" onclick="memberSwapStart()" class="modal-btn" style="background:#7c3aed; color:#ffffff; font-weight:900; margin-bottom:4px; padding:10px;">⇄ 與我對調位置</button>
+          <div style="font-size:11.5px; color:#475569; line-height:1.5; margin-bottom:10px;">${formatAdminPickMoves(plan.moves)}</div>
+        `;
+      }
+      document.getElementById('memberSwapLeaveBtn').innerText = `❌ 取消【${playerName}】的報名`;
+      document.getElementById('memberSwapChoiceModal').style.display = 'flex';
+    }
+
+    function closeMemberSwapChoice() {
+      document.getElementById('memberSwapChoiceModal').style.display = 'none';
+    }
+
+    function memberSwapChooseLeave() {
+      const c = memberSwapCtx;
+      closeMemberSwapChoice();
+      memberSwapCtx = null;
+      if (c) proceedOtherPlayerLeave(c.playerName, c.laneKey, c.slotIndex);
+    }
+
+    function memberSwapStart() {
+      const c = memberSwapCtx;
+      if (!c || !c.plan) return;
+      closeMemberSwapChoice();
+      if (isSameFamily(currentUserName, c.playerName)) {
+        customConfirm(`確定要和家人【${c.playerName}】對調位置嗎？\n\n您 ➔ ${c.tgt.lane} 道 第 ${c.tgt.slot} 位\n【${c.playerName}】➔ ${c.src.lane} 道 第 ${c.src.slot} 位`, confirmed => {
+          if (!confirmed) { memberSwapCtx = null; return; }
+          executeMemberSwap();
+        });
+        return;
+      }
+      document.getElementById('memberSwapPinSub').innerText = `要和【${c.playerName}】對調位置，需要對方同意。請輸入【${c.playerName}】的 4 碼 PIN 碼：`;
+      document.getElementById('memberSwapPinInput').value = '';
+      document.getElementById('memberSwapPinModal').style.display = 'flex';
+    }
+
+    function closeMemberSwapPin() {
+      document.getElementById('memberSwapPinModal').style.display = 'none';
+      memberSwapCtx = null;
+    }
+
+    function submitMemberSwapPin() {
+      const pin = document.getElementById('memberSwapPinInput').value.trim();
+      if (!pin || pin.length !== 4) return showToast('⚠️ 請輸入正確的 4 碼 PIN 碼！', 3000);
+      const c = memberSwapCtx;
+      document.getElementById('memberSwapPinModal').style.display = 'none';
+      if (!c) return;
+      const members = (rawResponse && rawResponse.members) ? rawResponse.members : [];
+      const targetMember = members.find(m => m.name === c.playerName);
+      if (!targetMember || !targetMember.pin || targetMember.pin !== pin) {
+        memberSwapCtx = null;
+        return showToast('⚠️ 對調失敗，PIN 碼不符！', 3000, false);
+      }
+      executeMemberSwap();
+    }
+
+    function executeMemberSwap() {
+      const c = memberSwapCtx;
+      memberSwapCtx = null;
+      if (!c || !c.plan) return;
+      if (isMaintenanceMode()) return showToast(MAINTENANCE_NOTICE, 3500, false);
+      if (c.src.day !== currentDay) return showToast('已切換日期，對調已取消', 2500, false);
+      if (isPreLockActive(currentDay)) return showToast('🚫 預排已結束，無法自行對調位置！若需調整請洽幹部。', 3500, false);
+      executeAdminSeatPlan(c.src, c.tgt, 'swap', c.plan, true);
+    }
+    // ==================== 一般隊友互換位置 結束 ====================
+
     function openPinConfirmModal(playerName, laneKey, slotIndex) {
       pendingLeaveAction = { playerName, laneKey, slotIndex };
       document.getElementById('pinConfirmSub').innerText = `您目前操作者非【${playerName}】本人。為保護席位安全防誤刪，請輸入【${playerName}】的 4 碼 PIN 碼：`;

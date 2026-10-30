@@ -4048,10 +4048,11 @@
       const seat = wlFindSeat(list, name);
       const waiting = getWaitingEntry(dayKey, name);
       const preLock = isPreLockActive(currentDay);
+      const wlBullets = (items) => `<ul style="margin:0; padding-left:18px;">${items.map(t => `<li>${t}</li>`).join('')}</ul>`;
       const guideRow = (txt) => `<span style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:4px;"><b style="color:#d97706;">${txt}</b><a href="${WAITLIST_GUIDE_URL}" target="_blank" rel="noopener" style="flex-shrink:0; font-size:12px; font-weight:bold; color:#1d4ed8; background:#eff6ff; border:1px solid #93c5fd; border-radius:6px; padding:3px 8px; text-decoration:none; white-space:nowrap;">📖 操作說明</a></span>`;
       sub.innerHTML = waiting
-        ? `目前登記 ${escapeHtml(waiting.lane)} 道（第 ${getWaitlistRank(dayKey, waiting)} 位）。點別的橘色球道就改過去` + guideRow('橘色可登記候補')
-        : '想去的球道已經坐滿時，先在別道選好位子，再點那一道登記候補。那一道只要有人請假、換道或往下開位，系統會自動把你移過去。' + guideRow('橘色可登記候補');
+        ? wlBullets([`目前登記 ${escapeHtml(waiting.lane)} 道（第 ${getWaitlistRank(dayKey, waiting)} 位）`, '點別的橘色球道，可改登記那一道']) + guideRow('橘色可登記候補')
+        : wlBullets(['想去的球道坐滿時使用', '先在別道選好位子，再點想去的球道', '一有空位，系統自動把你移過去']) + guideRow('橘色可登記候補');
       const cellBase = 'height:52px; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:4px 2px; text-align:center; border-radius:8px; font-weight:900; font-size:14px; line-height:1.25; border:none; width:100%;';
       const gray = (lk, txt) => `<div style="${cellBase} background:#e2e8f0; color:#94a3b8;">${escapeHtml(lk)}<span style="font-size:11px;">${txt}</span></div>`;
       let html = '<div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; margin-bottom:10px;">';
